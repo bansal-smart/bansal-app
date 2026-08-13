@@ -1,11 +1,11 @@
 {
-    "name": "Arke",
-    "short_name": "Arke",
+    "name": "Bansal",
+    "short_name": "Bansal",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F97315",
     "theme_color": "#F97315",
-    "description": "Arke EdTech — Learn smarter, score higher.",
+    "description": "Bansal EdTech — Learn smarter, score higher.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

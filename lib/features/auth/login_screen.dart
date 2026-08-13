@@ -98,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Welcome to Arke',
+                              'Welcome to Bansal',
                               style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w800,

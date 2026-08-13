@@ -106,14 +106,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (mounted) context.go('/login');
   }
 
-  Future<void> _deleteAccount() async {
-    HapticFeedback.heavyImpact();
-    await showDialog<void>(
-      context: context,
-      builder: (_) => _DeleteAccountDialog(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -195,29 +187,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             label: 'About the App',
                             subtitle: 'Version 1.0.0',
                             onTap: () {},
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: DS.s24),
-
-                      // ── Danger zone ──
-                      _SectionLabel(
-                        label: 'Danger Zone',
-                        icon: Icons.warning_amber_rounded,
-                        color: DS.error,
-                      ),
-                      const SizedBox(height: DS.s10),
-                      _SettingsCard(
-                        children: [
-                          _SettingsTile(
-                            icon: Icons.delete_forever_rounded,
-                            color: DS.error,
-                            label: 'Delete Account',
-                            subtitle:
-                                'Permanently remove your account and data',
-                            isDestructive: true,
-                            onTap: _deleteAccount,
                           ),
                         ],
                       ),
@@ -448,7 +417,6 @@ class _SettingsTile extends StatelessWidget {
   final Color color;
   final String label;
   final String? subtitle;
-  final bool isDestructive;
   final VoidCallback onTap;
 
   const _SettingsTile({
@@ -457,7 +425,6 @@ class _SettingsTile extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.subtitle,
-    this.isDestructive = false,
   });
 
   @override
@@ -480,16 +447,10 @@ class _SettingsTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: isDestructive
-                    ? DS.errorSurface
-                    : color.withOpacity(0.10),
+                color: color.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(DS.radiusSm),
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: isDestructive ? DS.error : color,
-              ),
+              child: Icon(icon, size: 18, color: color),
             ),
             const SizedBox(width: DS.s12),
 
@@ -500,10 +461,10 @@ class _SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: isDestructive ? DS.error : DS.textPrimary,
+                      color: DS.textPrimary,
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -521,10 +482,10 @@ class _SettingsTile extends StatelessWidget {
             ),
 
             // Chevron
-            Icon(
+            const Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: isDestructive ? DS.error.withOpacity(0.50) : DS.textHint,
+              color: DS.textHint,
             ),
           ],
         ),
@@ -756,108 +717,3 @@ class _LogoutDialog extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// DELETE ACCOUNT DIALOG
-// ─────────────────────────────────────────────
-class _DeleteAccountDialog extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: DS.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DS.radiusXl),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(DS.s24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: DS.errorSurface,
-                borderRadius: BorderRadius.circular(DS.radiusMd),
-                border: Border.all(
-                  color: DS.error.withOpacity(0.25),
-                  width: 1.5,
-                ),
-              ),
-              child: const Icon(
-                Icons.delete_forever_rounded,
-                color: DS.error,
-                size: 28,
-              ),
-            ),
-            const SizedBox(height: DS.s16),
-            const Text(
-              'Delete Account?',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: DS.textPrimary,
-              ),
-            ),
-            const SizedBox(height: DS.s8),
-            const Text(
-              'This action is permanent and cannot be undone. All your progress, courses and data will be deleted.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: DS.textSecondary,
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: DS.s16),
-
-            // Warning card
-            Container(
-              padding: const EdgeInsets.all(DS.s12),
-              decoration: BoxDecoration(
-                color: DS.errorSurface,
-                borderRadius: BorderRadius.circular(DS.radiusSm),
-                border: Border.all(color: DS.error.withOpacity(0.25)),
-              ),
-              child: Row(
-                children: const [
-                  Icon(Icons.warning_amber_rounded, color: DS.error, size: 16),
-                  SizedBox(width: DS.s8),
-                  Expanded(
-                    child: Text(
-                      'Contact support to request account deletion.',
-                      style: TextStyle(
-                        color: DS.error,
-                        fontSize: 12.5,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: DS.s24),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: DS.textPrimary,
-                  side: const BorderSide(color: DS.border, width: 1.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(DS.radiusMd),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: DS.s12),
-                ),
-                child: const Text(
-                  'Close',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

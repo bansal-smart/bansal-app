@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'data/courses_providers.dart';
 import 'data/models/course.dart';
 import 'data/models/folder.dart';
+import '../enrollments/data/repositories/enrollments_repository.dart';
 
 const _kPrimary      = Color(0xFFF97015);
 const _kPrimaryLight = Color(0xFFFFF0E6);
@@ -26,14 +27,25 @@ const _kRed          = Color(0xFFEF4444);
 // ─────────────────────────────────────────────
 // COURSE HOME SCREEN
 // ─────────────────────────────────────────────
-class CourseHomeScreen extends ConsumerWidget {
+class CourseHomeScreen extends ConsumerStatefulWidget {
   final String courseId;
   const CourseHomeScreen({super.key, required this.courseId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final courseAsync  = ref.watch(courseDetailProvider(courseId));
-    final foldersAsync = ref.watch(courseFoldersProvider(courseId));
+  ConsumerState<CourseHomeScreen> createState() => _CourseHomeScreenState();
+}
+
+class _CourseHomeScreenState extends ConsumerState<CourseHomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    EnrollmentsRepository().touchLastAccessed(widget.courseId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final courseAsync  = ref.watch(courseDetailProvider(widget.courseId));
+    final foldersAsync = ref.watch(courseFoldersProvider(widget.courseId));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -52,7 +64,7 @@ class CourseHomeScreen extends ConsumerWidget {
             onBack: () => context.pop(),
           ),
           data: (folders) => _CourseBody(
-            courseId: courseId,
+            courseId: widget.courseId,
             folders: folders,
             course: courseAsync.valueOrNull,
           ),

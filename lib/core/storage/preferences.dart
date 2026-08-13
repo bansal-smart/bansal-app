@@ -2,8 +2,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class Prefs {
   static const _kOnboardingDone  = 'onboarding_done';
-  static const _kRegion          = 'arke-country';
-  static const _kGoal            = 'arke-goal';
+  static const _kRegion          = 'bansal-country';
+  static const _kGoal            = 'bansal-goal';
   static const _kProfileDone     = 'profile_setup_done';
   static const _kUserName        = 'user_name';
   static const _kUserClass       = 'user_class';

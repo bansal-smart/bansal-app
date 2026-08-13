@@ -64,19 +64,52 @@ class MathText extends StatelessWidget {
 
   const MathText(this.text, {super.key, this.style, this.maxLines});
 
-  // Strip HTML tags and convert common ones to plain equivalents.
+  // Strip HTML tags and decode HTML entities (handles single and double encoding).
+  static String _decodeEntities(String s) => s
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&le;', '≤')
+      .replaceAll('&ge;', '≥')
+      .replaceAll('&ne;', '≠')
+      .replaceAll('&alpha;', 'α')
+      .replaceAll('&beta;', 'β')
+      .replaceAll('&gamma;', 'γ')
+      .replaceAll('&delta;', 'δ')
+      .replaceAll('&lambda;', 'λ')
+      .replaceAll('&mu;', 'μ')
+      .replaceAll('&pi;', 'π')
+      .replaceAll('&sigma;', 'σ')
+      .replaceAll('&omega;', 'ω')
+      .replaceAll('&rarr;', '→')
+      .replaceAll('&larr;', '←')
+      .replaceAll('&harr;', '↔')
+      .replaceAll('&plusmn;', '±')
+      .replaceAll('&times;', '×')
+      .replaceAll('&divide;', '÷')
+      .replaceAll('&deg;', '°')
+      .replaceAll('&sup2;', '²')
+      .replaceAll('&sup3;', '³')
+      .replaceAll('&frac12;', '½')
+      .replaceAll('&frac14;', '¼');
+
   static String _stripHtml(String raw) {
-    return raw
+    var s = raw
         .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
         .replaceAll(RegExp(r'<p\s*/?>', caseSensitive: false), '')
         .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
-        .replaceAll(RegExp(r'<[^>]+>'), '')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&quot;', '"')
-        .trim();
+        .replaceAll(RegExp(r'<strong\s*/?>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'</strong>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'<em\s*/?>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'</em>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'<[^>]+>'), '');
+    // Decode entities — run twice to handle double-encoded strings like &amp;lt;
+    s = _decodeEntities(s);
+    s = _decodeEntities(s);
+    return s.trim();
   }
 
   // Normalise all LaTeX delimiter styles to $...$ so the splitter works uniformly.
@@ -177,10 +210,13 @@ class OptionItem {
   factory OptionItem.fromRaw(String raw) {
     final imgMatch = _imgRe.firstMatch(raw);
     final imageUrl = imgMatch?.group(1);
-    final text = raw
+    var text = raw
         .replaceAll(_imgRe, '')
         .replaceAll(_tagRe, '')
         .trim();
+    // Decode HTML entities (run twice for double-encoded strings)
+    text = MathText._decodeEntities(text);
+    text = MathText._decodeEntities(text);
     return OptionItem(text: text, imageUrl: imageUrl);
   }
 }
@@ -235,16 +271,23 @@ class TestQuestion {
 
     if (rawOpts is Map) {
       // match_column: {"col1": [{key, value}...], "col2": [{key, value}...]}
+      String decodeVal(String raw) {
+        var s = raw.replaceAll(RegExp(r'<[^>]+>'), '');
+        s = MathText._decodeEntities(s);
+        s = MathText._decodeEntities(s); // double-encoded
+        return s.trim();
+      }
+
       List<MatchPair> parsePairs(dynamic list) {
         if (list is! List) return [];
         return list.map((e) {
           if (e is Map) {
             return MatchPair(
-              key: (e['key'] ?? '').toString(),
-              value: (e['value'] ?? '').toString(),
+              key: decodeVal((e['key'] ?? '').toString()),
+              value: decodeVal((e['value'] ?? '').toString()),
             );
           }
-          return MatchPair(key: '', value: e.toString());
+          return MatchPair(key: '', value: decodeVal(e.toString()));
         }).toList();
       }
       matchCol1 = parsePairs(rawOpts['col1']);

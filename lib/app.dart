@@ -4,14 +4,14 @@ import 'core/router/app_router.dart';
 import 'core/theme/theme.dart';
 import 'core/widgets/offline_banner.dart';
 
-class ArkeApp extends ConsumerWidget {
-  const ArkeApp({super.key});
+class BansalApp extends ConsumerWidget {
+  const BansalApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'Arke',
+      title: 'Bansal',
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       routerConfig: router,

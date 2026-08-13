@@ -81,6 +81,20 @@ class EnrollmentsRepository {
     }
   }
 
+  Future<void> touchLastAccessed(String courseId) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+      await _client
+          .from('enrollments')
+          .update({'last_accessed_at': DateTime.now().toIso8601String()})
+          .eq('user_id', userId)
+          .eq('course_id', courseId);
+    } catch (e) {
+      debugPrint('[Enrollments] touchLastAccessed error: $e');
+    }
+  }
+
   Future<List<Enrollment>> fetchMyEnrollments() async {
     try {
       final userId = _client.auth.currentUser?.id;

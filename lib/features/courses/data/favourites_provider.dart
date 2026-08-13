@@ -8,7 +8,7 @@ import 'courses_providers.dart';
 // ─────────────────────────────────────────────
 
 class FavouritesNotifier extends StateNotifier<Set<String>> {
-  static const _key = 'arke-favourite-courses';
+  static const _key = 'bansal-favourite-courses';
 
   FavouritesNotifier() : super({}) {
     _load();

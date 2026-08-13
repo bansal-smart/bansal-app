@@ -83,12 +83,52 @@ class HomeScreen extends ConsumerWidget {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  // ── Recent Course Activity ──
+                  // ── Recent Activity ──
                   const SizedBox(height: DS.s20),
                   _SectionHeader(
-                    title: 'Recent Course Activity',
-                    icon: Icons.history_edu_rounded,
+                    title: 'Recent Activity',
+                    icon: Icons.history_rounded,
+                    color: DS.warning,
+                  ),
+                  const SizedBox(height: DS.s12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: DS.s16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DS.s16,
+                        vertical: DS.s20,
+                      ),
+                      decoration: BoxDecoration(
+                        color: DS.surface,
+                        borderRadius: BorderRadius.circular(DS.radiusLg),
+                        border: Border.all(color: DS.border, width: 1.2),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.history_rounded,
+                              color: DS.textHint, size: 20),
+                          SizedBox(width: DS.s10),
+                          Text(
+                            'No recent activity yet.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: DS.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: DS.s24),
+
+                  // ── Course Activity ──
+                  _SectionHeader(
+                    title: 'Course Activity',
+                    icon: Icons.menu_book_rounded,
                     color: DS.primary,
+                    actionLabel: 'See all',
+                    onAction: () => context.push('/my-courses'),
                   ),
                   const SizedBox(height: DS.s12),
                   AsyncValueWidget(
@@ -97,11 +137,19 @@ class HomeScreen extends ConsumerWidget {
                     isEmpty: (e) => e.isEmpty,
                     emptyMessage: 'You have not enrolled in any course yet.',
                     emptyIcon: Icons.school_outlined,
-                    data: (enrollments) => _EnrollmentCarousel(
-                      enrollments: enrollments,
-                      onResume: (e) =>
-                          context.push('/my-courses/${e.courseId}'),
-                    ),
+                    data: (enrollments) {
+                      final sorted = [...enrollments]..sort((a, b) {
+                          final aTime = a.lastAccessedAt ?? a.createdAt;
+                          final bTime = b.lastAccessedAt ?? b.createdAt;
+                          return bTime.compareTo(aTime);
+                        });
+                      final recent = sorted.take(1).toList();
+                      return _EnrollmentCarousel(
+                        enrollments: recent,
+                        onResume: (e) =>
+                            context.push('/my-courses/${e.courseId}'),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: DS.s24),
@@ -169,13 +217,17 @@ class HomeScreen extends ConsumerWidget {
                       final filtered = exam.isEmpty
                           ? courses
                           : exam == 'Foundation'
-                              ? courses.where((c) {
-                                  if (c.target != 'Foundation') return false;
-                                  if (userClass.isEmpty) return true;
-                                  final cls = userClass.replaceAll('th', '').replaceAll('st', '').replaceAll('nd', '').replaceAll('rd', '');
-                                  return c.courseClass == cls;
-                                }).toList()
-                              : courses.where((c) => c.target == exam).toList();
+                          ? courses.where((c) {
+                              if (c.target != 'Foundation') return false;
+                              if (userClass.isEmpty) return true;
+                              final cls = userClass
+                                  .replaceAll('th', '')
+                                  .replaceAll('st', '')
+                                  .replaceAll('nd', '')
+                                  .replaceAll('rd', '');
+                              return c.courseClass == cls;
+                            }).toList()
+                          : courses.where((c) => c.target == exam).toList();
                       final featured = filtered.take(6).toList();
                       return _CoursesCarousel(
                         courses: featured,
@@ -302,8 +354,7 @@ class _EnrollmentCarouselState extends State<_EnrollmentCarousel> {
                   padding: const EdgeInsets.symmetric(horizontal: DS.s16),
                   child: _ContinueCard(
                     enrollment: widget.enrollments.first,
-                    onResume: () =>
-                        widget.onResume(widget.enrollments.first),
+                    onResume: () => widget.onResume(widget.enrollments.first),
                   ),
                 )
               : PageView.builder(
@@ -361,161 +412,161 @@ class _ContinueCard extends StatelessWidget {
     return GestureDetector(
       onTap: onResume,
       child: Container(
-      decoration: BoxDecoration(
-        color: DS.surface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(DS.s14, DS.s14, DS.s14, DS.s14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Thumbnail
-            ClipRRect(
-              borderRadius: BorderRadius.circular(DS.radiusSm),
-              child: thumb.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: thumb,
-                      width: 80,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      placeholder: (ctx, url) => Container(
-                        width: 80,
-                        height: 100,
-                        color: DS.surfaceVariant,
-                      ),
-                    )
-                  : Container(
-                      width: 80,
-                      height: 100,
-                      color: DS.surfaceVariant,
-                      child: const Icon(
-                        Icons.menu_book,
-                        color: DS.primary,
-                        size: 28,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: DS.s14),
-            // Info + button
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // "Continue Learning" pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: DS.s8,
-                      vertical: DS.s4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: DS.primaryLight,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.play_arrow_rounded,
-                          size: 11,
-                          color: DS.primary,
-                        ),
-                        SizedBox(width: 3),
-                        Text(
-                          'Continue Learning',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: DS.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: DS.s8),
-                  // Course title
-                  Text(
-                    enrollment.courseTitle ?? 'Course',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: DS.textPrimary,
-                      letterSpacing: -0.2,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (enrollment.courseSubject != null) ...[
-                    const SizedBox(height: DS.s4),
-                    Text(
-                      enrollment.courseSubject!,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: DS.textSecondary,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: DS.s10),
-                  // Resume button
-                  SizedBox(
-                    height: 36,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFF8C38), DS.primary],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(DS.radiusSm),
-                        boxShadow: [
-                          BoxShadow(
-                            color: DS.primary.withValues(alpha: 0.28),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: onResume,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: DS.s12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(DS.radiusSm),
-                          ),
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                        label: const Text(
-                          'Resume',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        decoration: BoxDecoration(
+          color: DS.surface,
+          borderRadius: BorderRadius.circular(DS.radiusLg),
+          border: Border.all(color: DS.border, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(DS.s14, DS.s14, DS.s14, DS.s14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Thumbnail
+              ClipRRect(
+                borderRadius: BorderRadius.circular(DS.radiusSm),
+                child: thumb.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: thumb,
+                        width: 80,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        placeholder: (ctx, url) => Container(
+                          width: 80,
+                          height: 100,
+                          color: DS.surfaceVariant,
+                        ),
+                      )
+                    : Container(
+                        width: 80,
+                        height: 100,
+                        color: DS.surfaceVariant,
+                        child: const Icon(
+                          Icons.menu_book,
+                          color: DS.primary,
+                          size: 28,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: DS.s14),
+              // Info + button
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // "Continue Learning" pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DS.s8,
+                        vertical: DS.s4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: DS.primaryLight,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.play_arrow_rounded,
+                            size: 11,
+                            color: DS.primary,
+                          ),
+                          SizedBox(width: 3),
+                          Text(
+                            'Continue Learning',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: DS.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: DS.s8),
+                    // Course title
+                    Text(
+                      enrollment.courseTitle ?? 'Course',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: DS.textPrimary,
+                        letterSpacing: -0.2,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (enrollment.courseSubject != null) ...[
+                      const SizedBox(height: DS.s4),
+                      Text(
+                        enrollment.courseSubject!,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: DS.textSecondary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: DS.s10),
+                    // Resume button
+                    SizedBox(
+                      height: 36,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF8C38), DS.primary],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(DS.radiusSm),
+                          boxShadow: [
+                            BoxShadow(
+                              color: DS.primary.withValues(alpha: 0.28),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: onResume,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DS.s12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(DS.radiusSm),
+                            ),
+                          ),
+                          icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                          label: const Text(
+                            'Resume',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-    ),
     );
   }
 }
@@ -768,8 +819,7 @@ class _CourseTile extends ConsumerWidget {
                     ? CachedNetworkImage(
                         imageUrl: course.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        errorWidget: (ctx, url, err) =>
-                            _ThumbPlaceholder(),
+                        errorWidget: (ctx, url, err) => _ThumbPlaceholder(),
                       )
                     : _ThumbPlaceholder(),
               ),
@@ -777,15 +827,20 @@ class _CourseTile extends ConsumerWidget {
 
             // ── Info ─────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(DS.s10, DS.s10, DS.s10, DS.s10),
+              padding: const EdgeInsets.fromLTRB(
+                DS.s10,
+                DS.s10,
+                DS.s10,
+                DS.s10,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Badge chips
                   Wrap(
-                    spacing   : 4,
+                    spacing: 4,
                     runSpacing: 4,
-                    children  : [
+                    children: [
                       _Chip(
                         'Cl. ${course.courseClass}',
                         bg: const Color(0xFFEEF2FF),
@@ -797,9 +852,17 @@ class _CourseTile extends ConsumerWidget {
                         fg: DS.primary,
                       ),
                       if (course.isCourseFree)
-                        _Chip('Free', bg: const Color(0xFFECFDF5), fg: DS.success),
+                        _Chip(
+                          'Free',
+                          bg: const Color(0xFFECFDF5),
+                          fg: DS.success,
+                        ),
                       if (course.isFeatured)
-                        _Chip('Featured', bg: const Color(0xFFFFFBEB), fg: DS.warning),
+                        _Chip(
+                          'Featured',
+                          bg: const Color(0xFFFFFBEB),
+                          fg: DS.warning,
+                        ),
                     ],
                   ),
                   const SizedBox(height: DS.s8),
@@ -808,21 +871,21 @@ class _CourseTile extends ConsumerWidget {
                   Text(
                     course.name,
                     style: const TextStyle(
-                      fontSize  : 13,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color     : DS.textPrimary,
+                      color: DS.textPrimary,
                       letterSpacing: -0.2,
-                      height    : 1.3,
+                      height: 1.3,
                     ),
-                    maxLines : 2,
-                    overflow : TextOverflow.ellipsis,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
 
                   const SizedBox(height: DS.s8),
 
                   // CTA button
                   SizedBox(
-                    width : double.infinity,
+                    width: double.infinity,
                     height: 36,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -831,7 +894,7 @@ class _CourseTile extends ConsumerWidget {
                               ? [const Color(0xFF34D399), DS.success]
                               : [const Color(0xFFFF8C38), DS.primary],
                           begin: Alignment.topLeft,
-                          end  : Alignment.bottomRight,
+                          end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(DS.radiusSm),
                         boxShadow: [
@@ -839,7 +902,7 @@ class _CourseTile extends ConsumerWidget {
                             color: (canContinue ? DS.success : DS.primary)
                                 .withValues(alpha: 0.25),
                             blurRadius: 6,
-                            offset    : const Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
@@ -847,14 +910,16 @@ class _CourseTile extends ConsumerWidget {
                         onPressed: canContinue ? onContinue : onTap,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
-                          shadowColor    : Colors.transparent,
+                          shadowColor: Colors.transparent,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: DS.s8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: DS.s8,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(DS.radiusSm),
                           ),
                         ),
-                        icon : Icon(
+                        icon: Icon(
                           canContinue
                               ? Icons.play_arrow_rounded
                               : Icons.school_rounded,
@@ -863,7 +928,7 @@ class _CourseTile extends ConsumerWidget {
                         label: Text(
                           canContinue ? 'Continue' : 'Enroll Now',
                           style: const TextStyle(
-                            fontSize  : 11.5,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -904,10 +969,9 @@ class _CoursesCarouselState extends State<_CoursesCarousel> {
   List<List<Course>> get _pages {
     final pages = <List<Course>>[];
     for (var i = 0; i < widget.courses.length; i += 2) {
-      pages.add(widget.courses.sublist(
-        i,
-        (i + 2).clamp(0, widget.courses.length),
-      ));
+      pages.add(
+        widget.courses.sublist(i, (i + 2).clamp(0, widget.courses.length)),
+      );
     }
     return pages;
   }
@@ -929,10 +993,10 @@ class _CoursesCarouselState extends State<_CoursesCarousel> {
         SizedBox(
           height: 300,
           child: PageView.builder(
-            controller  : _ctrl,
-            itemCount   : pages.length,
+            controller: _ctrl,
+            itemCount: pages.length,
             onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder : (_, i) {
+            itemBuilder: (_, i) {
               final pair = pages[i];
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: DS.s16),
@@ -942,8 +1006,8 @@ class _CoursesCarouselState extends State<_CoursesCarousel> {
                     children: [
                       Expanded(
                         child: _CourseTile(
-                          course    : pair[0],
-                          onTap     : () => onTap(pair[0]),
+                          course: pair[0],
+                          onTap: () => onTap(pair[0]),
                           onContinue: () => onContinue(pair[0]),
                         ),
                       ),
@@ -951,8 +1015,8 @@ class _CoursesCarouselState extends State<_CoursesCarousel> {
                         const SizedBox(width: DS.s10),
                         Expanded(
                           child: _CourseTile(
-                            course    : pair[1],
-                            onTap     : () => onTap(pair[1]),
+                            course: pair[1],
+                            onTap: () => onTap(pair[1]),
                             onContinue: () => onContinue(pair[1]),
                           ),
                         ),
@@ -974,10 +1038,10 @@ class _CoursesCarouselState extends State<_CoursesCarousel> {
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 margin: const EdgeInsets.symmetric(horizontal: 3),
-                width : active ? 18 : 6,
+                width: active ? 18 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color       : active ? DS.primary : DS.border,
+                  color: active ? DS.primary : DS.border,
                   borderRadius: BorderRadius.circular(999),
                 ),
               );
@@ -989,18 +1053,18 @@ class _CoursesCarouselState extends State<_CoursesCarousel> {
     );
   }
 
-  void onTap(Course c)      => widget.onTap(c);
+  void onTap(Course c) => widget.onTap(c);
   void onContinue(Course c) => widget.onContinue(c);
 }
 
 class _ThumbPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        color: DS.surfaceVariant,
-        child: const Center(
-          child: Icon(Icons.menu_book_rounded, color: DS.primary, size: 36),
-        ),
-      );
+    color: DS.surfaceVariant,
+    child: const Center(
+      child: Icon(Icons.menu_book_rounded, color: DS.primary, size: 36),
+    ),
+  );
 }
 
 class _Chip extends StatelessWidget {
@@ -1011,18 +1075,14 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: fg,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: fg),
+    ),
+  );
 }

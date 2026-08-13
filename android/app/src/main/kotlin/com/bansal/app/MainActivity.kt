@@ -1,4 +1,4 @@
-package com.arke.app
+package com.bansal.app
 
 import io.flutter.embedding.android.FlutterActivity
 

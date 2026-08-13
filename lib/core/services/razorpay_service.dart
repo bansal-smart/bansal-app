@@ -34,7 +34,7 @@ class RazorpayService {
       'key': _keyId,
       'amount': (amountInRupees * 100).toInt(),
       'currency': 'INR',
-      'name': 'Arke',
+      'name': 'Bansal',
       'description': courseName,
       'prefill': {
         'contact': userPhone ?? '',

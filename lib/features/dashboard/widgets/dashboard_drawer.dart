@@ -356,7 +356,7 @@ class _DrawerHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'ARKE',
+                        'BANSAL',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,

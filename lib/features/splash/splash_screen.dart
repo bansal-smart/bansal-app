@@ -270,7 +270,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: SlideTransition(
                       position: _brandSlide,
                       child: const Text(
-                        'ARKE',
+                        'BANSAL',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 42,

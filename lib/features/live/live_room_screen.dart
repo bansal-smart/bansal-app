@@ -526,12 +526,6 @@ class _ZoomLiveRoomState extends State<_ZoomLiveRoom> {
                           fontWeight: FontWeight.w800)),
                 ]),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white70, size: 20),
-                onPressed: () => setState(() { _zoomOpen = false; _chatOpen = true; _scrollToBottom(); }),
-                tooltip: 'Chat',
-              ),
             ]),
           ),
         ),
@@ -739,7 +733,10 @@ class _ZoomLiveRoomState extends State<_ZoomLiveRoom> {
 
   Widget _buildChatPanel(BuildContext context) {
     final myUid = Supabase.instance.client.auth.currentUser?.id;
-    return SafeArea(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => setState(() => _chatOpen = false),
+      child: SafeArea(
       child: Column(children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -840,6 +837,7 @@ class _ZoomLiveRoomState extends State<_ZoomLiveRoom> {
           ]),
         ),
       ]),
+      ),
     );
   }
 

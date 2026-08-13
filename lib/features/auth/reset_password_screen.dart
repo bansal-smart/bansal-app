@@ -233,7 +233,7 @@ class _HeroSection extends StatelessWidget {
           const SizedBox(height: _DS.s8),
           Text(
             isSignup
-                ? 'Set a password to secure\nyour Arke account.'
+                ? 'Set a password to secure\nyour Bansal account.'
                 : 'Your identity is verified.\nSet a strong new password.',
             style: TextStyle(fontSize: 14.5, color: Colors.white.withValues(alpha: 0.80), height: 1.5),
             textAlign: TextAlign.center,

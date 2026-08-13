@@ -14,7 +14,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [prefsProvider.overrideWithValue(prefs)],
-      child: const ArkeApp(),
+      child: const BansalApp(),
     ),
   );
 }

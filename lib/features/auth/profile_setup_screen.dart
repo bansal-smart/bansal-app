@@ -78,6 +78,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       _name = name;
       _nameError = null;
     });
+    FocusScope.of(context).unfocus();
     _goToStep(1);
   }
 
@@ -163,7 +164,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               _TopBar(
                 step      : _step,
                 totalSteps: _totalSteps,
-                onBack    : _step == 0 ? null : () => _goToStep(_step - 1),
+                onBack    : _step == 0
+                    ? () async {
+                        await supabaseOrNull?.auth.signOut();
+                        if (context.mounted) context.go('/login');
+                      }
+                    : () => _goToStep(_step - 1),
               ),
               Expanded(
                 child: PageView(
@@ -274,7 +280,7 @@ class _StepHeader extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          "Let's customize your Arke journey",
+          "Let's customize your Bansal journey",
           style: TextStyle(fontSize: 14, color: _C.textSub),
         ),
         const SizedBox(height: 32),
@@ -384,7 +390,7 @@ class _NameStep extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            "Let's customize your Arke journey",
+            "Let's customize your Bansal journey",
             style: TextStyle(fontSize: 14, color: _C.textSub),
           ),
           const SizedBox(height: 36),

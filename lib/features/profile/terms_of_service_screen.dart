@@ -73,7 +73,7 @@ const _sections = [
     icon: Icons.description_outlined,
     color: DS.primary,
     body:
-        'By creating an account or using Arke, you agree to be bound by these '
+        'By creating an account or using Bansal, you agree to be bound by these '
         'Terms of Service. If you do not agree, please do not use the platform. '
         'Users under 18 must have parental or guardian consent.',
   ),
@@ -83,7 +83,7 @@ const _sections = [
     icon: Icons.balance_outlined,
     color: DS.indigo,
     body:
-        'Arke is provided for personal, non-commercial educational use. You '
+        'Bansal is provided for personal, non-commercial educational use. You '
         'agree to use the platform lawfully, respect other users and educators, '
         'and not misuse content (e.g., redistribution, scraping, or unauthorized '
         'recording of live classes).',
@@ -128,7 +128,7 @@ const _sections = [
     color: DS.purple,
     body:
         'All course content, recordings, study materials, tests, and software '
-        'on Arke are the intellectual property of Arke or its licensed educators. '
+        'on Bansal are the intellectual property of Bansal or its licensed educators. '
         'Sharing, reselling, or republishing this content without written '
         'permission is strictly prohibited and may result in legal action.',
   ),
@@ -138,9 +138,9 @@ const _sections = [
     icon: Icons.gavel_outlined,
     color: DS.warning,
     body:
-        'Arke provides educational guidance and resources but cannot guarantee '
+        'Bansal provides educational guidance and resources but cannot guarantee '
         'specific exam outcomes or admissions. To the maximum extent permitted by '
-        'law, Arke\'s total liability is limited to the amount you paid in the '
+        'law, Bansal\'s total liability is limited to the amount you paid in the '
         '12 months preceding the claim. We are not liable for indirect, '
         'incidental, or consequential damages.',
   ),
@@ -344,7 +344,7 @@ class _TermsHeader extends StatelessWidget {
                   // Subtitle
                   Text(
                     'Last updated: January 1, 2026 · Please read these terms '
-                    'carefully before using Arke.',
+                    'carefully before using Bansal.',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.78),
                       fontSize: 12.5,
@@ -427,9 +427,9 @@ class _IntroCard extends StatelessWidget {
           const Expanded(
             child: Text(
               'These Terms of Service ("Terms") govern your access to and use of '
-              'Arke\'s website, mobile application, and services (collectively, '
-              'the "Platform"). By using Arke, you enter into a binding agreement '
-              'with Arke EdTech Pvt. Ltd. (India) and Arke Education FZ-LLC (UAE), '
+              'Bansal\'s website, mobile application, and services (collectively, '
+              'the "Platform"). By using Bansal, you enter into a binding agreement '
+              'with Bansal EdTech Pvt. Ltd. (India) and Bansal Education FZ-LLC (UAE), '
               'depending on your region.',
               style: TextStyle(
                 fontSize: 13.5,

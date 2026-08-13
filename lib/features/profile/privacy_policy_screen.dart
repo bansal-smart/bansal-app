@@ -148,7 +148,7 @@ const _sections = [
     icon: Icons.child_care_outlined,
     color: DS.indigo,
     plainBody:
-        'Many Arke students are minors. We require verifiable parental '
+        'Many Bansal students are minors. We require verifiable parental '
         'consent for users under 18 in line with DPDPA. Parents can review, '
         'modify, or request deletion of their child\'s data at any time by '
         'writing to privacy@arke.pro.',
@@ -332,7 +332,7 @@ class _PrivacyHeader extends StatelessWidget {
                   // Subtitle
                   Text(
                     'Last updated: January 1, 2026 · This policy explains what '
-                    'data Arke collects, how we use it, and the choices you have.',
+                    'data Bansal collects, how we use it, and the choices you have.',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.78),
                       fontSize: 12.5,
@@ -414,7 +414,7 @@ class _IntroCard extends StatelessWidget {
           const SizedBox(width: DS.s12),
           const Expanded(
             child: Text(
-              'Arke ("we", "our", "us") operates educational services across India '
+              'Bansal ("we", "our", "us") operates educational services across India '
               'and the United Arab Emirates. We are committed to protecting your '
               'privacy and complying with applicable data protection laws, including '
               'India\'s Digital Personal Data Protection Act (DPDPA) 2023 and the '

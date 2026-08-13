@@ -313,7 +313,7 @@ class _Card extends StatelessWidget {
             const SizedBox(height: _DS.s12),
             _Instruction(
               number: '2',
-              text: 'Find the email from Arke Scholars',
+              text: 'Find the email from Bansal Scholars',
             ),
             const SizedBox(height: _DS.s12),
             _Instruction(
