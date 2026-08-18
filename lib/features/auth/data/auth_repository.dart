@@ -24,13 +24,26 @@ class AuthRepository {
 
   AuthUser? _mockUser; // kept only as fallback when Supabase is unavailable
 
-  /// Step 1 — send 6-digit OTP to the phone via MSG91 (configured in Supabase).
+  /// Step 1 — send 6-digit OTP to the phone via the PRP SMS edge function.
+  /// Native Supabase phone auth is not enabled on this project; PRP SMS is
+  /// wired in as the `prpsms-send-otp` / `prpsms-verify-otp` edge functions
+  /// instead (same ones the web app uses).
   Future<void> sendPhoneOtp({required String phone}) async {
     final sb = supabaseOrNull;
     if (sb == null) return;
-    // Supabase expects E.164 format: +91XXXXXXXXXX
-    final e164 = phone.startsWith('+') ? phone : '+91$phone';
-    await sb.auth.signInWithOtp(phone: e164);
+    try {
+      final res = await sb.functions.invoke(
+        'prpsms-send-otp',
+        body: {'phone': phone, 'purpose': 'login'},
+      );
+      if (res.status != 200) {
+        final msg = (res.data is Map) ? res.data['error'] as String? : null;
+        throw Exception(msg ?? 'Failed to send OTP. Please try again.');
+      }
+    } on FunctionException catch (e) {
+      final msg = (e.details is Map) ? e.details['error'] as String? : null;
+      throw Exception(msg ?? 'Failed to send OTP. Please try again.');
+    }
   }
 
   /// Check if a phone number already has a registered profile with completed
@@ -51,6 +64,9 @@ class AuthRepository {
   }
 
   /// Step 2 — verify the OTP entered by the user and establish a session.
+  /// Calls the `prpsms-verify-otp` edge function, which validates the OTP,
+  /// finds-or-creates the auth user for this phone, and mints a magic-link
+  /// token; that token is then exchanged here for a real Supabase session.
   /// Returns true if the profile is already set up (returning user).
   Future<bool> verifyPhoneOtp({
     required String phone,
@@ -75,15 +91,35 @@ class AuthRepository {
     await _prefs.setUserClass('');
     await _prefs.setUserExam('');
 
-    await sb.auth.verifyOTP(phone: e164, token: token, type: OtpType.sms);
+    Map<String, dynamic> result;
+    try {
+      final res = await sb.functions.invoke(
+        'prpsms-verify-otp',
+        body: {'phone': phone, 'otp': token, 'purpose': 'login'},
+      );
+      if (res.status != 200 || res.data is! Map) {
+        final msg = (res.data is Map) ? res.data['error'] as String? : null;
+        throw Exception(msg ?? 'Incorrect or expired OTP.');
+      }
+      result = Map<String, dynamic>.from(res.data as Map);
+    } on FunctionException catch (e) {
+      final msg = (e.details is Map) ? e.details['error'] as String? : null;
+      throw Exception(msg ?? 'Incorrect or expired OTP.');
+    }
+
+    final tokenHash = result['token_hash'] as String?;
+    final email = result['email'] as String?;
+    if (tokenHash == null || email == null) {
+      throw Exception('Verification failed. Please try again.');
+    }
+
+    await sb.auth.verifyOTP(
+      tokenHash: tokenHash,
+      type: OtpType.magiclink,
+    );
 
     await _prefs.setPhoneNumber(phone);
     await _prefs.setPhoneSignedIn(true);
-
-    // Delay lets the DB trigger (auto-create profiles row) settle and also
-    // gives the router redirect time to see profileSetupDone=false before
-    // restoreProfileFromDb overwrites it for returning users.
-    await Future.delayed(const Duration(milliseconds: 500));
 
     final hasProfile = await restoreProfileFromDb();
     debugPrint('[Auth] verifyPhoneOtp → hasProfile=$hasProfile uid=${sb.auth.currentUser?.id}');
@@ -108,10 +144,11 @@ class AuthRepository {
       final name      = row['full_name'] as String? ?? '';
       final cls       = row['class_level'] as String? ?? '';
       final exam      = row['target_exam'] as String? ?? '';
-      final completed = row['onboarding_completed'] as bool? ?? false;
-      debugPrint('[Auth] restoreProfileFromDb: name="$name" cls="$cls" completed=$completed');
-      // Use onboarding_completed as the definitive flag for returning users
-      if (!completed || name.isEmpty) return false;
+      debugPrint('[Auth] restoreProfileFromDb: name="$name" cls="$cls"');
+      // Students are created by super admin with their data already filled
+      // in, so a name on the profile is enough to treat this as a returning
+      // user — there is no in-app onboarding wizard to complete.
+      if (name.isEmpty) return false;
       await _prefs.setUserName(name);
       await _prefs.setUserClass(cls);
       await _prefs.setUserExam(exam);

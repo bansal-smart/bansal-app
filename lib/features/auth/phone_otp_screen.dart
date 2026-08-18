@@ -6,11 +6,11 @@ import '../../core/providers.dart';
 import 'data/auth_repository.dart';
 
 abstract class _C {
-  static const primary      = Color(0xFFF97315);
+  static const primary      = Color(0xFF193F8F);
   static const bg           = Color(0xFFFFFFFF);
   static const surface      = Color(0xFFF9FAFB);
   static const border       = Color(0xFFE5E7EB);
-  static const primaryLight = Color(0xFFFFF0E6);
+  static const primaryLight = Color(0xFFE8EDF9);
   static const textPrimary  = Color(0xFF111827);
   static const textSub      = Color(0xFF6B7280);
   static const error        = Color(0xFFEF4444);
@@ -82,16 +82,12 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
     ref.read(verifyingOtpProvider.notifier).state = true;
     try {
       final repo = ref.read(authRepositoryProvider);
-      final hasProfile = await repo.verifyPhoneOtp(
+      await repo.verifyPhoneOtp(
         phone: widget.phone,
         token: _otp,
       );
       if (!mounted) return;
-      if (hasProfile) {
-        context.go('/courses');
-      } else {
-        context.go('/profile-setup');
-      }
+      context.go('/home');
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString().toLowerCase();

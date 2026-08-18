@@ -8,8 +8,8 @@ import '../enrollments/data/repositories/enrollments_repository.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 abstract class _C {
-  static const primary    = Color(0xFFF97315);
-  static const primaryBg  = Color(0xFFFFF0E6);   // single chip background
+  static const primary    = Color(0xFF193F8F);
+  static const primaryBg  = Color(0xFFE8EDF9);   // single chip background
   static const bg         = Color(0xFFFFFFFF);
   static const surface    = Color(0xFFF9FAFB);
   static const border     = Color(0xFFE5E7EB);

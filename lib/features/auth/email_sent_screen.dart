@@ -6,8 +6,8 @@ import '../../core/error/app_exception.dart';
 import 'data/auth_repository.dart';
 
 abstract class _DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
   static const textPrimary = Color(0xFF111827);
@@ -284,7 +284,7 @@ class _Card extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: _DS.s16, vertical: _DS.s12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF0E6),
+                color: const Color(0xFFE8EDF9),
                 borderRadius: BorderRadius.circular(_DS.radiusMd),
                 border: Border.all(
                     color: _DS.primary.withValues(alpha: 0.25), width: 1.2),
@@ -383,7 +383,7 @@ class _Instruction extends StatelessWidget {
       Container(
         width: 26, height: 26,
         decoration: const BoxDecoration(
-            color: Color(0xFFFFF0E6), shape: BoxShape.circle),
+            color: Color(0xFFE8EDF9), shape: BoxShape.circle),
         alignment: Alignment.center,
         child: Text(number,
             style: const TextStyle(

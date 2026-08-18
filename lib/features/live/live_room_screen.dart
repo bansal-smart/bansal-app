@@ -332,6 +332,30 @@ class _ZoomLiveRoomState extends State<_ZoomLiveRoom> {
   void initState() {
     super.initState();
     _loadDisplayName();
+    _joinRoom();
+  }
+
+  /// Marks the student as an attendee of this class before loading chat —
+  /// the live_class_messages SELECT RLS policy requires a matching
+  /// live_class_attendance row to exist, mirroring the web app's room page.
+  Future<void> _joinRoom() async {
+    final client = Supabase.instance.client;
+    final uid = client.auth.currentUser?.id;
+    if (uid != null) {
+      try {
+        await client.from('live_class_attendance').upsert(
+          {
+            'class_id': widget.lc.id,
+            'user_id': uid,
+            'status': 'joined',
+            'joined_at': DateTime.now().toIso8601String(),
+          },
+          onConflict: 'class_id,user_id',
+        );
+      } catch (_) {
+        // Non-fatal — chat will simply stay empty under RLS if this fails.
+      }
+    }
     _subscribeChat();
   }
 

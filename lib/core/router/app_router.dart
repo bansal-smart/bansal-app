@@ -9,39 +9,29 @@ import '../../features/auth/forgot_otp_screen.dart';
 import '../../features/auth/reset_password_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
-import '../../features/auth/widgets/student_gate.dart';
 import '../../features/courses/course_detail_screen.dart';
 import '../../features/courses/course_home_screen.dart';
 import '../../features/courses/courses_list_screen.dart';
 import '../../features/courses/course_store_screen.dart';
-import '../../features/courses/folder_view_screen.dart';
+import '../../features/courses/topic_list_screen.dart';
+import '../../features/courses/topic_content_screen.dart';
 import '../../features/courses/lecture_player_screen.dart';
-import '../../features/dashboard/student_dashboard_screen.dart';
-import '../../features/dashboard/doubts_screen.dart';
-import '../../features/dashboard/qbank_screen.dart';
-import '../../features/dashboard/educators_screen.dart';
-import '../../features/dashboard/compete_screen.dart';
-import '../../features/dashboard/analytics_screen.dart';
-import '../../features/dashboard/leaderboard_screen.dart';
-import '../../features/dashboard/favourites_screen.dart';
-import '../../features/dashboard/Mylearning.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/live/live_list_screen.dart';
 import '../../features/live/live_room_screen.dart';
-import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/notifications_inbox_screen.dart';
 import '../../features/profile/profile_dashboard_screen.dart';
 import '../../features/profile/settings_screen.dart';
 import '../../features/profile/privacy_policy_screen.dart';
 import '../../features/profile/terms_of_service_screen.dart';
-import '../../features/profile/coming_soon_screen.dart';
-import '../../features/mentor_chat/mentor_chat_screen.dart';
 import '../../features/auth/phone_otp_screen.dart';
 import '../../features/auth/profile_setup_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/tests/test_engine_screen.dart';
+import '../../features/tests/test_instructions_screen.dart';
+import '../../features/tests/test_response_sheet_screen.dart';
 import '../../features/tests/test_result_screen.dart';
 import '../../features/tests/tests_list_screen.dart';
 import '../providers.dart';
@@ -73,16 +63,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final atPasswordReset = loc == '/forgot' || loc == '/forgot-otp' || loc == '/reset-password';
       if (loc == '/onboarding') return null;
       if (loc == '/phone-otp') return null;
-      // For signed-in users, use profileSetupDone from prefs as the source of
-      // truth — it is written by verifyPhoneOtp BEFORE onAuthStateChange fires,
-      // so it is always correct by the time this redirect runs.
-      final prefs = ref.read(prefsProvider);
-      final profileDone = prefs.profileSetupDone;
-      debugPrint('[Router] loc=$loc signedIn=$signedIn profileDone=$profileDone');
-      if (signedIn && !profileDone && loc != '/profile-setup') return '/profile-setup';
+      debugPrint('[Router] loc=$loc signedIn=$signedIn');
       if (loc == '/profile-setup') return null;
       if (!signedIn && !atAuth && !atPasswordReset) return '/login';
-      if (signedIn && atAuth) return '/courses';
+      if (signedIn && atAuth) return '/home';
       return null;
     },
     routes: [
@@ -140,6 +124,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const CoursesListScreen(),
           ),
           GoRoute(
+            path: '/live',
+            builder: (_, __) => const LiveListScreen(),
+          ),
+          GoRoute(
+            path: '/tests',
+            builder: (_, __) => const TestsListScreen(),
+          ),
+          GoRoute(
             path: '/store',
             builder: (_, __) => const CourseStoreScreen(),
           ),
@@ -148,16 +140,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProfileDashboardScreen(),
           ),
         ],
-      ),
-      GoRoute(
-        path: '/tests',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const TestsListScreen(),
-      ),
-      GoRoute(
-        path: '/live',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const LiveListScreen(),
       ),
       GoRoute(
         path: '/course/:id',
@@ -172,22 +154,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             CourseHomeScreen(courseId: s.pathParameters['courseId']!),
       ),
       GoRoute(
-        path: '/my-courses/:courseId/folder/:folderId',
+        path: '/my-courses/:courseId/subject/:subjectId',
         parentNavigatorKey: _rootKey,
-        builder: (_, s) => FolderViewScreen(
+        builder: (_, s) => TopicListScreen(
           courseId: s.pathParameters['courseId']!,
-          folderId: s.pathParameters['folderId']!,
-          folderName: s.extra as String? ?? 'Folder',
+          subjectId: s.pathParameters['subjectId']!,
+          subjectName: s.extra as String? ?? 'Subject',
         ),
       ),
       GoRoute(
-        path: '/my-courses/:courseId/folder/:folderId/sub/:subFolderId',
+        path: '/my-courses/:courseId/subject/:subjectId/topic/:topicId',
         parentNavigatorKey: _rootKey,
-        builder: (_, s) => SubFolderViewScreen(
+        builder: (_, s) => TopicContentScreen(
           courseId: s.pathParameters['courseId']!,
-          folderId: s.pathParameters['folderId']!,
-          subFolderId: s.pathParameters['subFolderId']!,
-          subFolderName: s.extra as String? ?? 'Sub-folder',
+          subjectId: s.pathParameters['subjectId']!,
+          topicId: s.pathParameters['topicId']!,
+          topicName: s.extra as String? ?? 'Topic',
         ),
       ),
 
@@ -203,6 +185,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, s) => LiveRoomScreen(classId: s.pathParameters['id']!),
       ),
       GoRoute(
+        path: '/test-instructions/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) =>
+            TestInstructionsScreen(testId: s.pathParameters['id']!),
+      ),
+      GoRoute(
         path: '/test/:id',
         parentNavigatorKey: _rootKey,
         builder: (_, s) => TestEngineScreen(testId: s.pathParameters['id']!),
@@ -211,6 +199,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/test-result/:id',
         parentNavigatorKey: _rootKey,
         builder: (_, s) => TestResultScreen(attemptId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/test-response-sheet/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) =>
+            TestResponseSheetScreen(attemptId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: '/settings',
@@ -228,69 +222,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const TermsOfServiceScreen(),
       ),
       GoRoute(
-        path: '/edit-profile',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const EditProfileScreen(),
-      ),
-      GoRoute(
         path: '/notifications',
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const NotificationsInboxScreen(),
-      ),
-      GoRoute(
-        path: '/student-dashboard',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: StudentDashboardScreen()),
-      ),
-      GoRoute(
-        path: '/my-learning',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: MyLearningScreen()),
-      ),
-      GoRoute(
-        path: '/doubts',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: DoubtsScreen()),
-      ),
-      GoRoute(
-        path: '/qbank',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: QBankScreen()),
-      ),
-      GoRoute(
-        path: '/educators',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: EducatorsScreen()),
-      ),
-      GoRoute(
-        path: '/compete',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: CompeteScreen()),
-      ),
-      GoRoute(
-        path: '/analytics',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: AnalyticsScreen()),
-      ),
-      GoRoute(
-        path: '/leaderboard',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: LeaderboardScreen()),
-      ),
-      GoRoute(
-        path: '/favourites',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: FavouritesScreen()),
-      ),
-      GoRoute(
-        path: '/mentor-chat',
-        parentNavigatorKey: _rootKey,
-        builder: (_, __) => const StudentGate(child: MentorChatScreen()),
-      ),
-      GoRoute(
-        path: '/coming-soon/:title',
-        parentNavigatorKey: _rootKey,
-        builder: (_, s) => ComingSoonScreen(title: s.pathParameters['title']!),
       ),
     ],
   );

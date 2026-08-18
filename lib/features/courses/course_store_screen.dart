@@ -9,8 +9,8 @@ import 'data/models/course.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 abstract class _C {
-  static const primary = Color(0xFFF97315);
-  static const primaryLt = Color(0xFFFFF0E6);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLt = Color(0xFFE8EDF9);
   static const free = Color(0xFF10B981);
   static const surface = Color(0xFFFFFFFF);
   static const bg = Color(0xFFFFFBF8);
@@ -23,18 +23,8 @@ abstract class _C {
 // ── Exam definitions ──────────────────────────────────────────────────────────
 const _exams = ['All', 'JEE', 'NEET', 'Foundation'];
 
-// Map display label → DB target value
+// Map display label → DB target_exam value
 const _examTarget = {'JEE': 'JEE', 'NEET': 'NEET', 'Foundation': 'Foundation'};
-
-// Map display label → courseClass value used in DB
-const _classLabels = <String, String>{
-  'Class 8': '8',
-  'Class 9': '9',
-  'Class 10': '10',
-  'Class 11': '11',
-  'Class 12': '12',
-  '12th Pass': '12th_pass',
-};
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 class CourseStoreScreen extends ConsumerStatefulWidget {
@@ -46,35 +36,13 @@ class CourseStoreScreen extends ConsumerStatefulWidget {
 
 class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
   String _selectedExam = 'All';
-  String _selectedClass = 'All Classes';
-
-  // Build class chip labels relevant to the selected exam
-  List<String> _classChips(String exam) {
-    if (exam == 'JEE') {
-      return ['All Classes', 'Class 11', 'Class 12', '12th Pass'];
-    }
-    if (exam == 'NEET') {
-      return ['All Classes', 'Class 11', 'Class 12', '12th Pass'];
-    }
-    if (exam == 'Foundation') {
-      return ['All Classes', 'Class 8', 'Class 9', 'Class 10'];
-    }
-    return ['All Classes'];
-  }
 
   List<Course> _filter(List<Course> all) {
     var list = all;
 
     if (_selectedExam != 'All') {
       final target = _examTarget[_selectedExam]!;
-      list = list.where((c) => c.target == target).toList();
-    }
-
-    if (_selectedClass != 'All Classes') {
-      final cls = _classLabels[_selectedClass];
-      if (cls != null) {
-        list = list.where((c) => c.courseClass == cls).toList();
-      }
+      list = list.where((c) => c.targetExam == target).toList();
     }
 
     return list;
@@ -98,8 +66,6 @@ class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
         }
       }
     });
-
-    final classChips = _classChips(_selectedExam);
 
     return Scaffold(
       backgroundColor: _C.bg,
@@ -158,7 +124,7 @@ class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${courses.length} course${courses.length == 1 ? '' : 's'} available — explore by exam and class',
+                              '${courses.length} course${courses.length == 1 ? '' : 's'} available — explore by exam',
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12.5,
@@ -186,7 +152,6 @@ class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
                           child: GestureDetector(
                             onTap: () => setState(() {
                               _selectedExam = exam;
-                              _selectedClass = 'All Classes';
                             }),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
@@ -244,50 +209,6 @@ class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
                 ),
               ),
 
-              // ── Class filter chips (only when exam is selected) ───────────
-              if (_selectedExam != 'All')
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: classChips.map((cls) {
-                          final active = cls == _selectedClass;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: GestureDetector(
-                              onTap: () => setState(() => _selectedClass = cls),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 7,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: active ? _C.textPri : _C.surface,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: active ? _C.textPri : _C.border,
-                                  ),
-                                ),
-                                child: Text(
-                                  cls,
-                                  style: TextStyle(
-                                    color: active ? Colors.white : _C.chipText,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ),
-
               // ── Course count label ────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
@@ -336,7 +257,7 @@ class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Try a different exam or class filter',
+                          'Try a different exam filter',
                           style: TextStyle(color: _C.textSub, fontSize: 13),
                         ),
                       ],
@@ -425,7 +346,9 @@ class _CourseCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${course.target} · Class ${course.courseClass}',
+                        [course.targetExam, course.subject]
+                            .where((s) => s != null && s.isNotEmpty)
+                            .join(' · '),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10.5,
@@ -446,7 +369,7 @@ class _CourseCard extends ConsumerWidget {
                 children: [
                   // Exam label
                   Text(
-                    course.target.toUpperCase(),
+                    (course.targetExam ?? '').toUpperCase(),
                     style: const TextStyle(
                       color: _C.primary,
                       fontSize: 11,
@@ -489,7 +412,7 @@ class _CourseCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   // Price
-                  if (course.isCourseFree)
+                  if (course.price == 0)
                     const Text(
                       'Free',
                       style: TextStyle(
@@ -502,17 +425,17 @@ class _CourseCard extends ConsumerWidget {
                     Row(
                       children: [
                         Text(
-                          '₹${course.salePrice.toStringAsFixed(0)}',
+                          '₹${course.price.toStringAsFixed(0)}',
                           style: const TextStyle(
                             color: _C.primary,
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        if (course.mrp > course.salePrice) ...[
+                        if (course.hasDiscount) ...[
                           const SizedBox(width: 8),
                           Text(
-                            '₹${course.mrp.toStringAsFixed(0)}',
+                            '₹${course.originalPrice!.toStringAsFixed(0)}',
                             style: const TextStyle(
                               color: _C.textSub,
                               fontSize: 13,
@@ -589,7 +512,7 @@ class _CourseCard extends ConsumerWidget {
                                   ),
                                 ),
                                 child: Text(
-                                  course.isCourseFree ? 'Enroll' : 'Enroll Now',
+                                  course.price == 0 ? 'Enroll' : 'Enroll Now',
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,

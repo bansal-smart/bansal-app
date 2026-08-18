@@ -8,7 +8,7 @@ import 'data/auth_repository.dart';
 import '../../core/providers.dart';
 
 abstract class _DS {
-  static const primary = Color(0xFFF97315);
+  static const primary = Color(0xFF193F8F);
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
   static const textPrimary = Color(0xFF111827);
@@ -356,7 +356,7 @@ class _OtpCard extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: (isComplete && !loading) ? const LinearGradient(
-                    colors: [Color(0xFFFF8C38), _DS.primary],
+                    colors: [Color(0xFF2B5BB8), _DS.primary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ) : null,
@@ -423,7 +423,7 @@ class _OtpBox extends StatelessWidget {
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor: hasValue ? const Color(0xFFFFF0E6) : _DS.surface,
+          fillColor: hasValue ? const Color(0xFFE8EDF9) : _DS.surface,
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border, width: 1.5)),
           enabledBorder: OutlineInputBorder(

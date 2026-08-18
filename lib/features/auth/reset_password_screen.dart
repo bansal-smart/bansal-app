@@ -7,7 +7,7 @@ import 'data/auth_repository.dart';
 import '../../core/providers.dart';
 
 abstract class _DS {
-  static const primary = Color(0xFFF97315);
+  static const primary = Color(0xFF193F8F);
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
   static const textPrimary = Color(0xFF111827);
@@ -440,7 +440,7 @@ class _FormCard extends StatelessWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: onSubmit == null ? null : const LinearGradient(
-                      colors: [Color(0xFFFF8C38), _DS.primary],
+                      colors: [Color(0xFF2B5BB8), _DS.primary],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),

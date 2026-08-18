@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'data/auth_repository.dart';
 
 abstract class DS {
-  static const primary     = Color(0xFFF97315);
+  static const primary     = Color(0xFF193F8F);
   static const bg          = Color(0xFFFFFFFF);
   static const surface     = Color(0xFFF9FAFB);
   static const border      = Color(0xFFE5E7EB);
@@ -51,7 +51,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         '/phone-otp?phone=${Uri.encodeComponent(phone)}&registered=${isRegistered ? '1' : '0'}',
       );
     } catch (e) {
-      if (mounted) setState(() => _error = 'Could not send OTP. Check your number and try again.');
+      final raw = e.toString().replaceFirst('Exception: ', '');
+      final friendly = raw.isNotEmpty && raw != 'null'
+          ? raw
+          : 'Could not send OTP. Check your number and try again.';
+      if (mounted) setState(() => _error = friendly);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

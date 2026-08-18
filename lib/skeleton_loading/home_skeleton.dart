@@ -1,274 +1,421 @@
 import 'package:flutter/material.dart';
 
-class HomeSkeleton extends StatelessWidget {
+// ── Design tokens — mirrors lib/features/home/home_screen.dart's DS class ──
+abstract class _DS {
+  static const background = Color(0xFFF7F8FA);
+  static const surface = Color(0xFFFFFFFF);
+  static const border = Color(0xFFE5E7EB);
+
+  static const double s8 = 8;
+  static const double s10 = 10;
+  static const double s12 = 12;
+  static const double s14 = 14;
+  static const double s16 = 16;
+  static const double s24 = 24;
+  static const double s32 = 32;
+
+  static const double radiusSm = 10;
+  static const double radiusMd = 14;
+  static const double radiusLg = 20;
+  static const double radiusXl = 28;
+}
+
+/// Loading placeholder for [HomeScreen] — mirrors its exact section layout
+/// (greeting hero, quick actions grid, progress grid, today card, continue
+/// learning card) so the page doesn't visibly jump once real data arrives.
+class HomeSkeleton extends StatefulWidget {
   const HomeSkeleton({super.key});
 
   @override
+  State<HomeSkeleton> createState() => _HomeSkeletonState();
+}
+
+class _HomeSkeletonState extends State<HomeSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: const [
-        SizedBox(height: 20),
-        _SkeletonSectionHeader(),
-        SizedBox(height: 12),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: _SkeletonContinueCard(),
+    return ColoredBox(
+      color: _DS.background,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          _DS.s16,
+          _DS.s16,
+          _DS.s16,
+          _DS.s32,
         ),
-        SizedBox(height: 24),
-        _SkeletonSectionHeader(),
-        SizedBox(height: 12),
-        SizedBox(height: 178, child: _SkeletonLiveRow()),
-        SizedBox(height: 24),
-        _SkeletonSectionHeader(),
-        SizedBox(height: 12),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: _SkeletonCourseGrid(),
+        children: [
+          // ── Greeting hero card ──
+          _HeroCardSkeleton(controller: _ctrl),
+
+          const SizedBox(height: _DS.s16),
+
+          // ── Quick action grid (2x2) ──
+          Row(
+            children: [
+              Expanded(child: _ActionTileSkeleton(controller: _ctrl)),
+              const SizedBox(width: _DS.s12),
+              Expanded(child: _ActionTileSkeleton(controller: _ctrl)),
+            ],
+          ),
+          const SizedBox(height: _DS.s12),
+          Row(
+            children: [
+              Expanded(child: _ActionTileSkeleton(controller: _ctrl)),
+              const SizedBox(width: _DS.s12),
+              Expanded(child: _ActionTileSkeleton(controller: _ctrl)),
+            ],
+          ),
+
+          const SizedBox(height: _DS.s24),
+
+          // ── My Progress ──
+          _SectionHeaderSkeleton(controller: _ctrl),
+          const SizedBox(height: _DS.s12),
+          Row(
+            children: [
+              Expanded(child: _StatTileSkeleton(controller: _ctrl)),
+              const SizedBox(width: _DS.s12),
+              Expanded(child: _StatTileSkeleton(controller: _ctrl)),
+            ],
+          ),
+          const SizedBox(height: _DS.s12),
+          Row(
+            children: [
+              Expanded(child: _StatTileSkeleton(controller: _ctrl)),
+              const SizedBox(width: _DS.s12),
+              Expanded(child: _StatTileSkeleton(controller: _ctrl)),
+            ],
+          ),
+
+          const SizedBox(height: _DS.s24),
+
+          // ── Today ──
+          _SectionHeaderSkeleton(controller: _ctrl),
+          const SizedBox(height: _DS.s12),
+          _ShimmerBox(
+            controller: _ctrl,
+            height: 140,
+            radius: _DS.radiusLg,
+            bordered: true,
+          ),
+
+          const SizedBox(height: _DS.s24),
+
+          // ── Continue Learning ──
+          _SectionHeaderSkeleton(controller: _ctrl),
+          const SizedBox(height: _DS.s12),
+          _ContinueLearningSkeleton(controller: _ctrl),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Greeting hero card (navy gradient + inner text-line placeholders) ──────
+class _HeroCardSkeleton extends StatelessWidget {
+  final AnimationController controller;
+  const _HeroCardSkeleton({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF193F8F), Color(0xFF0B1F4D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        SizedBox(height: 32),
+        borderRadius: BorderRadius.circular(_DS.radiusXl),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ShimmerBox(
+            controller: controller,
+            width: 130,
+            height: 11,
+            radius: 4,
+            dark: true,
+          ),
+          const SizedBox(height: 10),
+          _ShimmerBox(
+            controller: controller,
+            width: 210,
+            height: 22,
+            radius: 6,
+            dark: true,
+          ),
+          const SizedBox(height: 10),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 13,
+            radius: 4,
+            dark: true,
+          ),
+          const SizedBox(height: 6),
+          _ShimmerBox(
+            controller: controller,
+            width: 160,
+            height: 13,
+            radius: 4,
+            dark: true,
+          ),
+          const SizedBox(height: 16),
+          _ShimmerBox(
+            controller: controller,
+            width: 160,
+            height: 46,
+            radius: _DS.radiusMd,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section header (title + subtitle + trailing action label) ─────────────
+class _SectionHeaderSkeleton extends StatelessWidget {
+  final AnimationController controller;
+  const _SectionHeaderSkeleton({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ShimmerBox(
+                controller: controller,
+                width: 120,
+                height: 16,
+                radius: _DS.radiusSm,
+              ),
+              const SizedBox(height: 6),
+              _ShimmerBox(
+                controller: controller,
+                width: 180,
+                height: 12,
+                radius: _DS.radiusSm,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: _DS.s8),
+        _ShimmerBox(
+          controller: controller,
+          width: 70,
+          height: 14,
+          radius: _DS.radiusSm,
+        ),
       ],
     );
   }
 }
 
-class _SkeletonSectionHeader extends StatelessWidget {
-  const _SkeletonSectionHeader();
+// ── Quick-action tile (icon + title + subtitle) ────────────────────────────
+class _ActionTileSkeleton extends StatelessWidget {
+  final AnimationController controller;
+  const _ActionTileSkeleton({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
+    return Container(
+      padding: const EdgeInsets.all(_DS.s16),
+      decoration: BoxDecoration(
+        color: _DS.surface,
+        borderRadius: BorderRadius.circular(_DS.radiusLg),
+        border: Border.all(color: _DS.border, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ShimmerBox(
+            controller: controller,
+            width: 40,
+            height: 40,
+            radius: _DS.radiusMd,
+          ),
+          const SizedBox(height: _DS.s12),
+          _ShimmerBox(
+            controller: controller,
+            width: 80,
+            height: 13,
+            radius: _DS.radiusSm,
+          ),
+          const SizedBox(height: 6),
+          _ShimmerBox(
+            controller: controller,
+            width: 60,
+            height: 10,
+            radius: _DS.radiusSm,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Progress stat tile (icon + big value + label) ──────────────────────────
+class _StatTileSkeleton extends StatelessWidget {
+  final AnimationController controller;
+  const _StatTileSkeleton({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(_DS.s16),
+      decoration: BoxDecoration(
+        color: _DS.surface,
+        borderRadius: BorderRadius.circular(_DS.radiusLg),
+        border: Border.all(color: _DS.border, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ShimmerBox(
+            controller: controller,
+            width: 34,
+            height: 34,
+            radius: _DS.radiusSm,
+          ),
+          const SizedBox(height: _DS.s10),
+          _ShimmerBox(
+            controller: controller,
+            width: 44,
+            height: 18,
+            radius: _DS.radiusSm,
+          ),
+          const SizedBox(height: 6),
+          _ShimmerBox(
+            controller: controller,
+            width: 70,
+            height: 10,
+            radius: _DS.radiusSm,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Continue Learning card (thumbnail + title + subtitle + chevron) ────────
+class _ContinueLearningSkeleton extends StatelessWidget {
+  final AnimationController controller;
+  const _ContinueLearningSkeleton({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(_DS.s14),
+      decoration: BoxDecoration(
+        color: _DS.surface,
+        borderRadius: BorderRadius.circular(_DS.radiusLg),
+        border: Border.all(color: _DS.border, width: 1.2),
+      ),
       child: Row(
         children: [
-          _SkeletonBox(width: 30, height: 30, radius: 10),
-          SizedBox(width: 10),
-          Expanded(child: _SkeletonLine(height: 14)),
-          SizedBox(width: 12),
-          _SkeletonBox(width: 64, height: 22, radius: 999),
-        ],
-      ),
-    );
-  }
-}
-
-class _SkeletonContinueCard extends StatelessWidget {
-  const _SkeletonContinueCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _SkeletonColors.base,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Row(
-            children: [
-              _SkeletonBox(width: 120, height: 20, radius: 999),
-              Spacer(),
-              _SkeletonLine(width: 70, height: 12),
-            ],
+          _ShimmerBox(
+            controller: controller,
+            width: 56,
+            height: 56,
+            radius: _DS.radiusMd,
           ),
-          SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SkeletonBox(width: 88, height: 66, radius: 10),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SkeletonLine(height: 14),
-                    SizedBox(height: 8),
-                    _SkeletonLine(width: 120, height: 12),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 14),
-          _SkeletonBox(width: double.infinity, height: 6, radius: 999),
-          SizedBox(height: 14),
-          _SkeletonBox(width: double.infinity, height: 44, radius: 14),
-        ],
-      ),
-    );
-  }
-}
-
-class _SkeletonLiveRow extends StatelessWidget {
-  const _SkeletonLiveRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      scrollDirection: Axis.horizontal,
-      physics: const ClampingScrollPhysics(),
-      itemCount: 2,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
-      itemBuilder: (_, __) => const _SkeletonLiveCard(),
-    );
-  }
-}
-
-class _SkeletonLiveCard extends StatelessWidget {
-  const _SkeletonLiveCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 260,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _SkeletonColors.base,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Row(
-            children: [
-              _SkeletonBox(width: 70, height: 18, radius: 999),
-              Spacer(),
-              _SkeletonBox(width: 60, height: 18, radius: 999),
-            ],
-          ),
-          SizedBox(height: 10),
-          _SkeletonLine(height: 14),
-          SizedBox(height: 8),
-          _SkeletonLine(width: 140, height: 12),
-          Spacer(),
-          _SkeletonBox(width: double.infinity, height: 1, radius: 1),
-          SizedBox(height: 10),
-          Row(
-            children: [
-              _SkeletonBox(width: 110, height: 12, radius: 6),
-              Spacer(),
-              _SkeletonBox(width: 80, height: 20, radius: 999),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SkeletonCourseGrid extends StatelessWidget {
-  const _SkeletonCourseGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 4,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemBuilder: (_, __) => const _SkeletonCourseTile(),
-    );
-  }
-}
-
-class _SkeletonCourseTile extends StatelessWidget {
-  const _SkeletonCourseTile();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _SkeletonColors.base,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
-          _SkeletonBox(
-            width: double.infinity,
-            height: 110,
-            radius: 20,
-            onlyTop: true,
-          ),
+          const SizedBox(width: _DS.s14),
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SkeletonLine(height: 12),
-                  SizedBox(height: 8),
-                  _SkeletonLine(width: 90, height: 10),
-                  Spacer(),
-                  Row(
-                    children: [
-                      _SkeletonBox(width: 44, height: 10, radius: 6),
-                      Spacer(),
-                      _SkeletonBox(width: 48, height: 12, radius: 6),
-                    ],
-                  ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ShimmerBox(
+                  controller: controller,
+                  width: double.infinity,
+                  height: 14,
+                  radius: _DS.radiusSm,
+                ),
+                const SizedBox(height: 6),
+                _ShimmerBox(
+                  controller: controller,
+                  width: 140,
+                  height: 11,
+                  radius: _DS.radiusSm,
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: _DS.s8),
+          _ShimmerBox(controller: controller, width: 14, height: 14, radius: 4),
         ],
       ),
     );
   }
 }
 
-class _SkeletonLine extends StatelessWidget {
-  final double height;
+// ── Shimmering placeholder box ──────────────────────────────────────────────
+class _ShimmerBox extends StatelessWidget {
+  final AnimationController controller;
   final double? width;
-  const _SkeletonLine({required this.height, this.width});
-
-  @override
-  Widget build(BuildContext context) {
-    return _SkeletonBox(
-      width: width ?? double.infinity,
-      height: height,
-      radius: 6,
-    );
-  }
-}
-
-class _SkeletonBox extends StatelessWidget {
-  final double width;
   final double height;
   final double radius;
-  final bool onlyTop;
+  final bool dark;
+  final bool bordered;
 
-  const _SkeletonBox({
-    required this.width,
+  const _ShimmerBox({
+    required this.controller,
+    this.width,
     required this.height,
     required this.radius,
-    this.onlyTop = false,
+    this.dark = false,
+    this.bordered = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: _SkeletonColors.highlight,
-        borderRadius: onlyTop
-            ? BorderRadius.vertical(top: Radius.circular(radius))
-            : BorderRadius.circular(radius),
-      ),
+    final baseColor = dark ? const Color(0xFF2B3A5C) : const Color(0xFFE9ECF1);
+    final highlightColor = dark
+        ? const Color(0xFF3D4E78)
+        : const Color(0xFFF6F7F9);
+
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            border: bordered
+                ? Border.all(color: _DS.border, width: 1.2)
+                : null,
+            gradient: LinearGradient(
+              begin: Alignment(-1.0 - controller.value * 2, 0),
+              end: Alignment(1.0 - controller.value * 2, 0),
+              colors: [baseColor, highlightColor, baseColor],
+              stops: const [0.35, 0.5, 0.65],
+            ),
+          ),
+        );
+      },
     );
   }
-}
-
-class _SkeletonColors {
-  static const base = Color(0xFFF2ECE8);
-  static const highlight = Color(0xFFE9E1DC);
 }

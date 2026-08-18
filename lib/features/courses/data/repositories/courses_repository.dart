@@ -9,19 +9,23 @@ class CoursesRepository {
   CoursesRepository({SupabaseClient? client})
       : _client = client ?? SupabaseService.client;
 
+  static const _courseColumns =
+      'id, slug, name, description, subject, educator_name, level, target_exam, '
+      'thumbnail_url, price, original_price, discount_percent, rating, '
+      'total_enrolled, total_lessons, duration_hours, tags, badge, '
+      'is_featured, is_published, what_youll_learn, requirements, sort_order, '
+      'short_description, education_level, duration_label, mode, language, '
+      'subjects_covered, description_html, included_services, centre_id, '
+      'is_global, end_date';
+
   Future<List<Course>> fetchCourses() async {
     try {
       final data = await _client
           .from('courses')
-          .select(
-            'id, name, internal_name, description, thumbnail_url, target, "class", '
-            'language, mrp, sale_price, discount_percent, show_price_with_gst, '
-            'is_course_free, max_usage_days, course_end_date, priority, badge, '
-            'is_active, is_featured, tags, rating, '
-            'assigned_teacher_id, what_youll_learn, requirements',
-          )
-          .eq('is_active', true)
-          .order('priority');
+          .select(_courseColumns)
+          .eq('is_published', true)
+          .order('sort_order', ascending: true)
+          .order('created_at', ascending: false);
       return (data as List<dynamic>)
           .map((row) => Course.fromJson(row as Map<String, dynamic>))
           .toList();

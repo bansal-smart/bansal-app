@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../auth/data/auth_repository.dart';
-import '../dashboard/widgets/dashboard_drawer.dart';
 import '../profile/data/profile_providers.dart';
 import '../../core/providers.dart';
 
@@ -11,9 +10,9 @@ import '../../core/providers.dart';
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
+  static const primaryDark = Color(0xFF102A63);
 
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
@@ -67,19 +66,19 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       route: '/courses',
       iconOff: Icons.menu_book_outlined,
       iconOn: Icons.menu_book_rounded,
-      label: ' My Courses',
+      label: 'Course',
     ),
     (
-      route: '/compete',
-      iconOff: Icons.emoji_events_outlined,
-      iconOn: Icons.emoji_events_rounded,
-      label: 'Compete',
+      route: '/live',
+      iconOff: Icons.sensors_outlined,
+      iconOn: Icons.sensors_rounded,
+      label: 'Live',
     ),
     (
-      route: '/store',
-      iconOff: Icons.storefront_outlined,
-      iconOn: Icons.storefront_rounded,
-      label: 'Store',
+      route: '/tests',
+      iconOff: Icons.assignment_outlined,
+      iconOn: Icons.assignment_rounded,
+      label: 'Tests',
     ),
     (
       route: '/profile',
@@ -113,6 +112,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ? user!.name!.trim()
               : 'Learner');
     final initials = _initials(displayName);
+    final avatarUrl = profile?.avatarUrl ?? user?.avatarUrl;
     final currentIdx = _index;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -130,14 +130,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         child: Scaffold(
           key: _scaffoldKey,
           backgroundColor: DS.background,
-          endDrawer: const DashboardDrawer(fromRight: true),
 
           // ── Top App Bar ──
           appBar: _AppBar(
-            displayName: displayName,
             initials: initials,
+            avatarUrl: avatarUrl,
             onNotifications: () => context.push('/notifications'),
-            onOpenDrawer: () => _scaffoldKey.currentState!.openEndDrawer(),
+            onOpenDrawer: () {
+              if (widget.location != '/profile') context.go('/profile');
+            },
           ),
 
           body: widget.child,
@@ -161,14 +162,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 // CUSTOM APP BAR
 // ─────────────────────────────────────────────
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String displayName;
   final String initials;
+  final String? avatarUrl;
   final VoidCallback onNotifications;
   final VoidCallback onOpenDrawer;
 
   const _AppBar({
-    required this.displayName,
     required this.initials,
+    this.avatarUrl,
     required this.onNotifications,
     required this.onOpenDrawer,
   });
@@ -199,91 +200,48 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           child: Row(
             children: [
-              // ── Logo + greeting ──
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8C38), DS.primary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(DS.radiusSm),
-                  boxShadow: [
-                    BoxShadow(
-                      color: DS.primary.withOpacity(0.30),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.school_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-
-              const SizedBox(width: DS.s10),
-
+              // ── Logo ──
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _greeting(),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: DS.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: DS.textPrimary,
-                        letterSpacing: -0.3,
-                        height: 1.1,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                child: Image.asset(
+                  'assets/images/bansal-logo.webp',
+                  height: 34,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
                 ),
               ),
 
               // ── Action buttons ──
               _NotificationButton(onTap: onNotifications),
               const SizedBox(width: DS.s8),
-              _HamburgerButton(onTap: onOpenDrawer),
+              _AvatarButton(
+                initials: initials,
+                avatarUrl: avatarUrl,
+                onTap: onOpenDrawer,
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning ☀️';
-    if (hour < 17) return 'Good afternoon 👋';
-    return 'Good evening 🌙';
-  }
 }
 
 // ─────────────────────────────────────────────
-// HAMBURGER BUTTON (student dashboard)
+// AVATAR BUTTON (opens dashboard drawer)
 // ─────────────────────────────────────────────
-class _HamburgerButton extends StatelessWidget {
+class _AvatarButton extends StatelessWidget {
+  final String initials;
+  final String? avatarUrl;
   final VoidCallback onTap;
-  const _HamburgerButton({required this.onTap});
+  const _AvatarButton({
+    required this.initials,
+    this.avatarUrl,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = avatarUrl != null && avatarUrl!.isNotEmpty;
     return Tooltip(
       message: 'My Dashboard',
       child: GestureDetector(
@@ -291,17 +249,43 @@ class _HamburgerButton extends StatelessWidget {
         child: Container(
           width: 38,
           height: 38,
-          decoration: BoxDecoration(
-            color: DS.surfaceVariant,
-            borderRadius: BorderRadius.circular(DS.radiusSm),
-            border: Border.all(color: DS.border, width: 1),
+          clipBehavior: Clip.antiAlias,
+          decoration: const BoxDecoration(
+            color: DS.primary,
+            shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.menu_rounded,
-            size: 18,
-            color: DS.textSecondary,
-          ),
+          alignment: Alignment.center,
+          child: hasImage
+              ? Image.network(
+                  avatarUrl!,
+                  width: 38,
+                  height: 38,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _InitialsText(initials),
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return _InitialsText(initials);
+                  },
+                )
+              : _InitialsText(initials),
         ),
+      ),
+    );
+  }
+}
+
+class _InitialsText extends StatelessWidget {
+  final String initials;
+  const _InitialsText(this.initials);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      initials,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
@@ -375,8 +359,6 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const centerIndex = 2; // Compete is the middle tab
-
     return Container(
       decoration: BoxDecoration(
         color: DS.surface,
@@ -397,70 +379,6 @@ class _BottomNav extends StatelessWidget {
             children: List.generate(tabs.length, (i) {
               final tab = tabs[i];
               final isActive = i == currentIndex;
-
-              if (i == centerIndex) {
-                // Uplifted center button
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => onTap(i),
-                    behavior: HitTestBehavior.opaque,
-                    child: SizedBox(
-                      height: 60,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.topCenter,
-                        children: [
-                          // Uplifted circle — sits above the bar
-                          Positioned(
-                            top: -20,
-                            child: Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF8C38), DS.primary],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: DS.primary.withValues(alpha: 0.40),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                                border: Border.all(color: DS.surface, width: 3),
-                              ),
-                              child: Icon(
-                                isActive ? tab.iconOn : tab.iconOff,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                          // Label sits at normal height
-                          Positioned(
-                            top: 40,
-                            child: AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 200),
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: isActive
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: isActive ? DS.primary : DS.textSecondary,
-                              ),
-                              child: Text(tab.label),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }
-
               return Expanded(
                 child: _NavItem(
                   icon: isActive ? tab.iconOn : tab.iconOff,

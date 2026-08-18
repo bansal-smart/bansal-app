@@ -9,8 +9,8 @@ import '../../core/providers.dart';
 
 // Reuse same design tokens as login/signup
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
   static const textPrimary = Color(0xFF111827);
@@ -623,7 +623,7 @@ class _VerifyButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: active
               ? const LinearGradient(
-                  colors: [Color(0xFFFF8C38), DS.primary],
+                  colors: [Color(0xFF2B5BB8), DS.primary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )

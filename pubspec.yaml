@@ -41,6 +41,9 @@ dependencies:
   youtube_player_flutter: ^9.1.1
   flutter_svg: ^2.0.10+1
   flutter_inappwebview: ^6.1.5
+  fl_chart: ^0.69.0
+  pdf: ^3.11.1
+  file_saver: ^0.2.14
 
 dev_dependencies:
   flutter_test:
@@ -54,11 +57,15 @@ flutter:
     - .env
     - assets/images/
     - assets/SVGs/
+    - assets/icon/app-icon.png
 
 flutter_launcher_icons:
   android: true
-  ios: false
-  image_path: "assets/images/app_icon.png"
-  adaptive_icon_background: "#0A0F2C"
-  adaptive_icon_foreground: "assets/images/app_icon.png"
+  ios: true
+  web:
+    generate: true
+  image_path: "assets/icon/app-icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app-icon.png"
   min_sdk_android: 21
+  remove_alpha_ios: true

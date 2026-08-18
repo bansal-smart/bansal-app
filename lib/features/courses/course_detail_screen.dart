@@ -9,7 +9,8 @@ import 'youtube_player_screen.dart';
 import 's3_video_player_screen.dart';
 import 'pdf_viewer_screen.dart';
 import 'data/courses_providers.dart';
-import 'data/models/content_item.dart';
+import 'data/models/subtopic_pdf.dart';
+import 'data/models/subtopic_video.dart';
 import 'data/favourites_provider.dart';
 import 'data/models/course.dart';
 import '../enrollments/data/enrollments_providers.dart';
@@ -23,9 +24,9 @@ import '../../core/providers.dart';
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
+  static const primaryDark = Color(0xFF102A63);
 
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
@@ -193,7 +194,7 @@ class _CourseHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subjectBadge =
-        '${course.target.toUpperCase()} · CLASS ${course.courseClass.toUpperCase()}';
+        '${(course.targetExam ?? '').toUpperCase()}${course.subject != null ? ' · ${course.subject!.toUpperCase()}' : ''}';
 
     return SliverToBoxAdapter(
       child: Column(
@@ -296,13 +297,13 @@ class _CourseHeader extends ConsumerWidget {
                     vertical: DS.s6,
                   ),
                   decoration: BoxDecoration(
-                    color: course.isCourseFree ? DS.success : DS.primary,
+                    color: course.price == 0 ? DS.success : DS.primary,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    course.isCourseFree
+                    course.price == 0
                         ? '🎓 FREE'
-                        : '₹${course.displayPrice.toStringAsFixed(0)}',
+                        : '₹${course.price.toStringAsFixed(0)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -352,7 +353,7 @@ class _CourseHeader extends ConsumerWidget {
                           vertical: DS.s4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
+                          color: const Color(0xFFE8EDF9),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: DS.warning, width: 1),
                         ),
@@ -471,7 +472,7 @@ class _CourseHeader extends ConsumerWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFF8C38), DS.primary],
+                          colors: [Color(0xFF2B5BB8), DS.primary],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -479,8 +480,8 @@ class _CourseHeader extends ConsumerWidget {
                       ),
                       child: Center(
                         child: Text(
-                          (course.teacherName?.isNotEmpty == true)
-                              ? course.teacherName![0].toUpperCase()
+                          (course.educatorName?.isNotEmpty == true)
+                              ? course.educatorName![0].toUpperCase()
                               : 'T',
                           style: const TextStyle(
                             color: Colors.white,
@@ -499,7 +500,7 @@ class _CourseHeader extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      course.teacherName ?? 'Instructor',
+                      course.educatorName ?? 'Instructor',
                       style: const TextStyle(
                         color: DS.primary,
                         fontWeight: FontWeight.w700,
@@ -507,7 +508,7 @@ class _CourseHeader extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      ' · ${course.target} Dept.',
+                      ' · ${course.targetExam ?? ''} Dept.',
                       style: const TextStyle(
                         color: DS.textSecondary,
                         fontSize: 12,
@@ -539,15 +540,15 @@ class _CourseHeader extends ConsumerWidget {
             child: Row(
               children: [
                 _StatBox(
-                  value: course.target,
+                  value: course.targetExam ?? '—',
                   label: 'Target',
                   icon: Icons.assignment_outlined,
                   color: DS.primary,
                 ),
                 _VDivider(),
                 _StatBox(
-                  value: 'Cl. ${course.courseClass}',
-                  label: 'Class',
+                  value: course.subject ?? '—',
+                  label: 'Subject',
                   icon: Icons.school_rounded,
                   color: DS.indigo,
                 ),
@@ -1225,7 +1226,7 @@ class _RatingsSectionState extends ConsumerState<_RatingsSection> {
                           gradient: (_selectedRating == 0 || _submitting)
                               ? null
                               : const LinearGradient(
-                                  colors: [Color(0xFFFF8C38), DS.primary],
+                                  colors: [Color(0xFF2B5BB8), DS.primary],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -1429,7 +1430,7 @@ class _LecturesTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsync = ref.watch(freePreviewItemsProvider(courseId));
+    final itemsAsync = ref.watch(courseFreePreviewVideosProvider(courseId));
 
     return itemsAsync.when(
       loading: () => const Center(
@@ -1497,18 +1498,21 @@ class _LecturesTab extends ConsumerWidget {
 // FREE PREVIEW VIDEO CARD
 // ─────────────────────────────────────────────
 class _FreePreviewVideoCard extends StatelessWidget {
-  final ContentItem item;
+  final SubtopicVideo item;
   const _FreePreviewVideoCard({required this.item});
 
   bool get _isYoutube {
-    final url = item.videoUrl ?? item.fileUrl ?? '';
+    final url = item.youtubeUrl ?? '';
     if (url.contains('youtube.com') || url.contains('youtu.be')) return true;
-    if (url.startsWith('http') && !url.contains('youtube')) return false;
-    return item.videoSource == 'youtube';
+    if ((item.youtubeVideoId ?? '').isNotEmpty) return true;
+    return false;
   }
 
   void _play(BuildContext context) {
-    final url = item.videoUrl ?? item.fileUrl;
+    final url = item.youtubeUrl ??
+        (item.youtubeVideoId != null
+            ? 'https://www.youtube.com/watch?v=${item.youtubeVideoId}'
+            : null);
     if (url == null) return;
     if (_isYoutube) {
       Navigator.of(context).push(MaterialPageRoute(
@@ -1630,7 +1634,7 @@ class _PdfsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pdfsAsync = ref.watch(coursePdfItemsProvider(courseId));
+    final pdfsAsync = ref.watch(coursePdfsProvider(courseId));
     final isEnrolled =
         ref.watch(isEnrolledProvider(courseId)).valueOrNull ?? false;
 
@@ -1650,19 +1654,16 @@ class _PdfsTab extends ConsumerWidget {
           );
         }
 
-        final freePdfs = pdfs.where((p) => p.isFreePreview).toList();
-        final paidPdfs = pdfs.where((p) => !p.isFreePreview).toList();
-
         return ListView(
           padding: const EdgeInsets.all(DS.s16),
           children: [
             // Access banner for non-enrolled
-            if (!isEnrolled && paidPdfs.isNotEmpty) ...[
+            if (!isEnrolled) ...[
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: DS.s14, vertical: DS.s12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
+                  color: const Color(0xFFE8EDF9),
                   borderRadius: BorderRadius.circular(DS.radiusMd),
                   border: Border.all(
                       color: DS.primary.withValues(alpha: 0.30)),
@@ -1697,30 +1698,10 @@ class _PdfsTab extends ConsumerWidget {
               const SizedBox(height: DS.s16),
             ],
 
-            // Free PDFs section
-            if (freePdfs.isNotEmpty) ...[
-              if (paidPdfs.isNotEmpty) ...[
-                _TabSectionLabel(label: 'Free PDFs'),
-                const SizedBox(height: DS.s10),
-              ],
-              ...freePdfs.map((pdf) => _PdfCard(
-                    item: pdf,
-                    canOpen: true,
-                  )),
-              if (paidPdfs.isNotEmpty) const SizedBox(height: DS.s20),
-            ],
-
-            // Paid PDFs section
-            if (paidPdfs.isNotEmpty) ...[
-              if (freePdfs.isNotEmpty) ...[
-                _TabSectionLabel(label: 'Course PDFs'),
-                const SizedBox(height: DS.s10),
-              ],
-              ...paidPdfs.map((pdf) => _PdfCard(
-                    item: pdf,
-                    canOpen: isEnrolled,
-                  )),
-            ],
+            ...pdfs.map((pdf) => _PdfCard(
+                  item: pdf,
+                  canOpen: isEnrolled,
+                )),
           ],
         );
       },
@@ -1729,7 +1710,7 @@ class _PdfsTab extends ConsumerWidget {
 }
 
 class _PdfCard extends StatelessWidget {
-  final ContentItem item;
+  final SubtopicPdf item;
   final bool canOpen;
   const _PdfCard({required this.item, required this.canOpen});
 
@@ -1799,19 +1780,19 @@ class _PdfCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (item.isFreePreview) ...[
+                  if (item.fileSizeKb != null) ...[
                     const SizedBox(height: DS.s4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: DS.s8, vertical: DS.s2),
                       decoration: BoxDecoration(
-                        color: DS.success.withValues(alpha: 0.12),
+                        color: DS.textSecondary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
-                        'Free',
-                        style: TextStyle(
-                          color: DS.success,
+                      child: Text(
+                        '${(item.fileSizeKb! / 1024).toStringAsFixed(1)} MB',
+                        style: const TextStyle(
+                          color: DS.textSecondary,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2014,13 +1995,13 @@ class _TimeTab extends StatelessWidget {
       _TimeItem(
         Icons.school_rounded,
         'Target',
-        course.target,
+        course.targetExam ?? '—',
         DS.primary,
       ),
       _TimeItem(
         Icons.class_rounded,
-        'Class',
-        'Class ${course.courseClass}',
+        'Subject',
+        course.subject ?? '—',
         DS.indigo,
       ),
       _TimeItem(
@@ -2167,7 +2148,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
       ref.invalidate(enrollmentsProvider);
       ref.invalidate(courseEnrolledCountProvider(widget.courseId));
       if (mounted) {
-        if (widget.course.isCourseFree) {
+        if (widget.course.price == 0) {
           _showSnack('You\'re enrolled! Start learning now.');
         } else {
           _showSuccessSheet();
@@ -2204,7 +2185,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
   }
 
   void _startPayment() {
-    if (widget.course.isCourseFree) {
+    if (widget.course.price == 0) {
       _onPaymentSuccess(PaymentSuccessResponse(null, null, null, null));
       return;
     }
@@ -2220,7 +2201,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
         ? prefs.userName
         : (user?.userMetadata?['full_name'] as String?);
     _rzp.openCheckout(
-      amountInRupees: widget.course.salePrice,
+      amountInRupees: widget.course.price,
       courseId: widget.courseId,
       courseName: widget.course.name,
       userEmail: user?.email,
@@ -2282,7 +2263,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8C38), DS.primary],
+                    colors: [Color(0xFF2B5BB8), DS.primary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -2340,7 +2321,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
       ),
       child: isEnrolled
           ? _continueLearningButton()
-          : widget.course.isCourseFree
+          : widget.course.price == 0
               ? _enrollFreeButton()
               : _paidEnrollRow(),
     );
@@ -2352,7 +2333,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
         child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFF8C38), DS.primary],
+              colors: [Color(0xFF2B5BB8), DS.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -2443,7 +2424,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '₹${widget.course.displayPrice.toStringAsFixed(0)}',
+                '₹${widget.course.price.toStringAsFixed(0)}',
                 style: const TextStyle(
                   color: DS.textPrimary,
                   fontSize: 24,
@@ -2460,7 +2441,7 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF8C38), DS.primary],
+                    colors: [Color(0xFF2B5BB8), DS.primary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),

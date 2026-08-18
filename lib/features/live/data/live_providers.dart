@@ -4,47 +4,39 @@ import 'models/live_class.dart';
 
 const _liveSelect =
     'id, title, subject, educator_name, educator_avatar, '
-    'starts_at, ends_at, meeting_url, zoom_meeting_id, zoom_meeting_password, status, description, recording_url, course_id, slug';
+    'starts_at, ends_at, meeting_url, status, description, recording_url, course_id, slug';
 
-/// Fetches only classes the student can access:
-/// 1. Standalone classes (course_id IS NULL)
-/// 2. Classes belonging to courses the student is enrolled in
+/// All non-cancelled live classes, visible to every logged-in student —
+/// mirrors the web app's useLiveClasses hook, which applies no
+/// course/enrollment scoping.
 final accessibleLiveClassesProvider = FutureProvider.autoDispose<List<LiveClass>>((ref) async {
   final client = Supabase.instance.client;
-  final userId = client.auth.currentUser?.id;
-  if (userId == null) return [];
 
-  // Get enrolled course IDs
-  final enrollments = await client
-      .from('enrollments')
-      .select('course_id')
-      .eq('user_id', userId)
-      .eq('is_active', true);
+  // Auto-refresh the list on any live_classes change, same as web's
+  // postgres_changes subscription invalidating its query cache.
+  final channel = client
+      .channel('live_classes_list')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'live_classes',
+        callback: (_) => ref.invalidateSelf(),
+      )
+      .subscribe();
+  ref.onDispose(() => client.removeChannel(channel));
 
-  final enrolledSet = (enrollments as List)
-      .map((e) => e['course_id'] as String)
-      .where((id) => id.isNotEmpty)
-      .toSet();
-
-  // Fetch all non-cancelled classes
-  final allData = await client
+  final data = await client
       .from('live_classes')
       .select(_liveSelect)
       .not('status', 'eq', 'cancelled')
       .order('starts_at');
 
-  final allClasses = (allData as List)
+  return (data as List)
       .map((r) => LiveClass.fromJson(r as Map<String, dynamic>))
       .toList();
-
-  // Filter: standalone (course_id null) OR enrolled course
-  return allClasses.where((lc) {
-    if (lc.courseId == null || lc.courseId!.isEmpty) return true;
-    return enrolledSet.contains(lc.courseId);
-  }).toList();
 });
 
-// Keep old provider for backwards compat (room screen uses liveClassByIdProvider)
+// Kept for callers that don't need the realtime subscription.
 final liveClassesProvider = FutureProvider.autoDispose<List<LiveClass>>((ref) async {
   final data = await Supabase.instance.client
       .from('live_classes')

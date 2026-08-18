@@ -5,15 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/supabase_service.dart';
-import 'test_result_screen.dart';
+import 'data/question_image_resolver.dart';
 
 // ─────────────────────────────────────────────
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
+  static const primaryDark = Color(0xFF102A63);
 
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
@@ -237,6 +237,9 @@ class TestQuestion {
   final String questionType; // 'mcq', 'integer', 'fill_in_the_blank', 'match_column', etc.
   final List<MatchPair> matchCol1;
   final List<MatchPair> matchCol2;
+  final double marksCorrect;
+  final double marksWrong;
+  final bool isBonus;
 
   bool get isMatchType => questionType == 'match_column' || questionType == 'match';
 
@@ -261,9 +264,12 @@ class TestQuestion {
     this.explanation,
     this.matchCol1 = const [],
     this.matchCol2 = const [],
+    this.marksCorrect = 4,
+    this.marksWrong = -1,
+    this.isBonus = false,
   });
 
-  factory TestQuestion.fromJson(Map<String, dynamic> j) {
+  static Future<TestQuestion> fromJson(Map<String, dynamic> j) async {
     final rawOpts = j['options'];
     List<OptionItem> opts = [];
     List<MatchPair> matchCol1 = [];
@@ -293,18 +299,41 @@ class TestQuestion {
       matchCol1 = parsePairs(rawOpts['col1']);
       matchCol2 = parsePairs(rawOpts['col2']);
     } else if (rawOpts is List && rawOpts.isNotEmpty) {
-      opts = rawOpts.map((e) {
+      // option_images is a parallel jsonb array/map keyed by option index/id.
+      final rawOptImages = j['option_images'];
+      String? imageAt(int i, dynamic idKey) {
+        if (rawOptImages is List && i < rawOptImages.length) {
+          final v = rawOptImages[i];
+          return v is String && v.isNotEmpty ? v : null;
+        }
+        if (rawOptImages is Map) {
+          final v = rawOptImages[idKey?.toString()] ?? rawOptImages[i.toString()];
+          return v is String && v.isNotEmpty ? v : null;
+        }
+        return null;
+      }
+
+      opts = rawOpts.asMap().entries.map((entry) {
+        final i = entry.key;
+        final e = entry.value;
         if (e is Map) {
           final raw = (e['text'] ?? e['value'] ?? '').toString();
-          // Prefer a dedicated image key over extracting from HTML
+          // Prefer a dedicated image key over extracting from HTML,
+          // falling back to the parallel option_images column.
           final directImage = (e['image'] ?? e['image_url'] ?? e['imageUrl'] ?? '') as String;
-          if (directImage.isNotEmpty) {
+          final resolvedImage =
+              directImage.isNotEmpty ? directImage : imageAt(i, e['id']);
+          if (resolvedImage != null && resolvedImage.isNotEmpty) {
             final parsed = OptionItem.fromRaw(raw);
-            return OptionItem(text: parsed.text, imageUrl: directImage);
+            return OptionItem(text: parsed.text, imageUrl: resolvedImage);
           }
           return OptionItem.fromRaw(raw);
         }
-        return OptionItem.fromRaw(e.toString());
+        final resolvedImage = imageAt(i, null);
+        final parsed = OptionItem.fromRaw(e.toString());
+        return resolvedImage != null && resolvedImage.isNotEmpty
+            ? OptionItem(text: parsed.text, imageUrl: resolvedImage)
+            : parsed;
       }).toList();
     }
 
@@ -319,6 +348,15 @@ class TestQuestion {
     // we render images explicitly via CachedNetworkImage.
     if (imageUrls.isNotEmpty) {
       text = text.replaceAll(RegExp('<img[^>]*/?>', caseSensitive: false), '');
+    }
+
+    // Fall back to the dedicated question_image_url column if no <img> was
+    // embedded in question_text.
+    final dedicatedImageUrl = j['question_image_url'] as String?;
+    if (imageUrls.isEmpty &&
+        dedicatedImageUrl != null &&
+        dedicatedImageUrl.isNotEmpty) {
+      imageUrls.add(dedicatedImageUrl);
     }
 
     if (opts.isEmpty && hasHtml) {
@@ -359,11 +397,23 @@ class TestQuestion {
 
     final questionType = (j['question_type'] as String?)?.toLowerCase().trim() ?? 'mcq';
 
+    // Re-sign any question-images storage URLs that may be stale/expired.
+    final resolvedImageUrls = await Future.wait(
+      imageUrls.map(resolveQuestionImageUrl),
+    );
+    final resolvedOpts = await Future.wait(opts.map((o) async {
+      if (o.imageUrl == null || o.imageUrl!.isEmpty) return o;
+      return OptionItem(
+        text: o.text,
+        imageUrl: await resolveQuestionImageUrl(o.imageUrl!),
+      );
+    }));
+
     return TestQuestion(
       id: j['id'] as String,
       text: text,
-      imageUrls: imageUrls,
-      options: opts,
+      imageUrls: resolvedImageUrls,
+      options: resolvedOpts,
       correctIndex: correctIndex,
       correctAnswerText: correctAnswerText,
       subject: j['subject'] as String? ?? '',
@@ -372,7 +422,16 @@ class TestQuestion {
       questionType: questionType,
       matchCol1: matchCol1,
       matchCol2: matchCol2,
+      marksCorrect: _toDouble(j['marks_correct'], fallback: 4),
+      marksWrong: _toDouble(j['marks_wrong'], fallback: -1),
+      isBonus: j['is_bonus'] as bool? ?? false,
     );
+  }
+
+  static double _toDouble(dynamic v, {required double fallback}) {
+    if (v == null) return fallback;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? fallback;
   }
 }
 
@@ -388,7 +447,7 @@ class TestEngineScreen extends StatefulWidget {
 }
 
 class _TestEngineScreenState extends State<TestEngineScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _db = SupabaseService.client;
 
   bool _loading = true;
@@ -407,6 +466,16 @@ class _TestEngineScreenState extends State<TestEngineScreen>
   bool _submitting = false;
   Timer? _timer;
 
+  // ── Window-switch anti-cheating ──
+  // Backgrounding the app (task switcher, home button, another app taking
+  // focus) counts as a violation. 1st and 2nd show a warning; the 3rd
+  // auto-submits — mirrors the web app's visibilitychange-based logic.
+  static const _maxTabSwitches = 3;
+  int _tabSwitches = 0;
+  bool _autoSubmitBlocked = false;
+  DateTime? _lastViolationAt;
+  bool _started = false;
+
   // Animation for timer urgency
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
@@ -414,6 +483,7 @@ class _TestEngineScreenState extends State<TestEngineScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -427,12 +497,56 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _pulseCtrl.dispose();
     for (final c in _intCtrls.values) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_started || _submitting || _autoSubmitBlocked) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _registerTabSwitchViolation();
+    }
+  }
+
+  void _registerTabSwitchViolation() {
+    final now = DateTime.now();
+    if (_lastViolationAt != null &&
+        now.difference(_lastViolationAt!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastViolationAt = now;
+    final next = _tabSwitches + 1;
+
+    if (next >= _maxTabSwitches) {
+      _autoSubmitBlocked = true;
+      if (mounted) setState(() => _tabSwitches = next);
+      _submit(auto: true, reason: 'window_switch');
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _tabSwitches = next);
+      _showTabSwitchWarning(next);
+    }
+  }
+
+  void _showTabSwitchWarning(int count) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _TabSwitchWarningDialog(
+        violationCount: count,
+        maxViolations: _maxTabSwitches,
+      ),
+    );
   }
 
   Future<void> _loadTest() async {
@@ -449,14 +563,17 @@ class _TestEngineScreenState extends State<TestEngineScreen>
       final qData = await _db
           .from('test_questions')
           .select(
-            'id, question_text, options, correct_answer, subject, explanation, question_type',
+            'id, question_text, question_image_url, options, option_images, '
+            'correct_answer, subject, explanation, question_type, '
+            'marks_correct, marks_wrong, is_bonus',
           )
           .eq('test_id', widget.testId)
           .order('position', ascending: true);
 
-      _questions = (qData as List)
-          .map((r) => TestQuestion.fromJson(r as Map<String, dynamic>))
-          .toList();
+      _questions = await Future.wait(
+        (qData as List)
+            .map((r) => TestQuestion.fromJson(r as Map<String, dynamic>)),
+      );
 
       if (_questions.isEmpty) {
         setState(() {
@@ -492,6 +609,7 @@ class _TestEngineScreenState extends State<TestEngineScreen>
         if (_remaining % 30 == 0) _autosave();
       });
 
+      _started = true;
       setState(() => _loading = false);
     } catch (e) {
       setState(() {
@@ -546,56 +664,100 @@ class _TestEngineScreenState extends State<TestEngineScreen>
     return ans == q.correctIndex;
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({bool auto = false, String? reason}) async {
     if (_submitting) return;
     setState(() => _submitting = true);
     _timer?.cancel();
 
-    final score = _questions.where(_isCorrect).length;
-    final answered = _answeredCount;
     final userId = _db.auth.currentUser?.id;
+
+    // Per-question marks, matching the web app's metadata.questions shape —
+    // used by the result page's rank/leaderboard/response-sheet RPCs.
+    double scoredMarks = 0;
+    int correctCount = 0;
+    int attemptedCount = 0;
+    final subjectTotals = <String, double>{};
+    final answersPayload = <String, dynamic>{};
+    final questionMetas = <Map<String, dynamic>>[];
+
+    for (final q in _questions) {
+      final ans = _answers[q.id];
+      final attempted = q.isMatchType
+          ? (ans is Map && ans.values.every((v) => v != null))
+          : ans != null;
+      final correct = attempted && _isCorrect(q);
+      final marks = !attempted
+          ? 0.0
+          : q.isMatchType
+              ? 0.0 // not auto-graded
+              : (correct ? q.marksCorrect : q.marksWrong);
+
+      scoredMarks += marks;
+      if (correct) correctCount++;
+      if (attempted) attemptedCount++;
+      subjectTotals[q.subject] = (subjectTotals[q.subject] ?? 0) + q.marksCorrect;
+
+      if (ans != null) {
+        answersPayload[q.id] = {'selected': ans};
+      }
+
+      questionMetas.add({
+        'question_id': q.id,
+        'subject': q.subject,
+        'position': _questions.indexOf(q),
+        'attempted': attempted,
+        'is_correct': correct,
+        'is_bonus': q.isBonus,
+        'marks': marks,
+        'max_marks': q.marksCorrect,
+      });
+    }
 
     String? attemptId;
     try {
       if (userId != null) {
-        final pct = _questions.isEmpty
-            ? 0.0
-            : (score * 100 / _questions.length);
+        final record = {
+          'user_id': userId,
+          'test_id': widget.testId,
+          'test_name': _testTitle,
+          'score': scoredMarks,
+          'correct_answers': correctCount,
+          'total_questions': _questions.length,
+          'time_spent_seconds': _durationSeconds - _remaining,
+          'attempted_at': DateTime.now().toIso8601String(),
+          'answers': answersPayload,
+          'status': auto ? 'auto_submitted' : 'submitted',
+          'metadata': {
+            'total': _questions.length,
+            'correct': correctCount,
+            'attempted': attemptedCount,
+            'subjects': subjectTotals,
+            'questions': questionMetas,
+            'tab_switches': _tabSwitches,
+            if (auto && reason != null) 'auto_submitted_reason': reason,
+          },
+        };
         final res = await _db
             .from('test_attempts')
-            .insert({
-              'user_id': userId,
-              'test_id': widget.testId,
-              'test_name': _testTitle,
-              'score': pct,
-              'correct_answers': score,
-              'total_questions': _questions.length,
-              'percentile': pct,
-              'time_spent_seconds': _durationSeconds - _remaining,
-              'attempted_at': DateTime.now().toIso8601String(),
-              'answers': _answers.map((k, v) => MapEntry(k, v)),
-              'status': 'submitted',
-            })
+            .insert(record)
             .select('id')
             .single();
         attemptId = res['id'] as String?;
       }
     } catch (_) {}
 
-    TestResultScreen.lastResult = TestResult(
-      testId: widget.testId,
-      attemptId: attemptId ?? widget.testId,
-      title: _testTitle,
-      score: score,
-      total: _questions.length,
-      answered: answered,
-      answers: Map.of(_answers),
-      questions: _questions,
-    );
+    if (!mounted) return;
 
-    if (mounted) {
-      context.pushReplacement('/test-result/${attemptId ?? widget.testId}');
+    if (auto) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _AutoSubmittedDialog(),
+      );
+      if (!mounted) return;
     }
+
+    context.pushReplacement('/test-result/${attemptId ?? widget.testId}');
   }
 
   void _confirmLeave() async {
@@ -727,17 +889,13 @@ class _TestEngineScreenState extends State<TestEngineScreen>
                           controller: _intCtrls[q.id]!,
                         )
                       else
-                        ...List.generate(
-                          q.options.length,
-                          (i) => _OptionTile(
-                            index: i,
-                            option: q.options[i],
-                            selected: _answers[q.id] == i,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _answers[q.id] = i);
-                            },
-                          ),
+                        _OptionGrid(
+                          options: q.options,
+                          selectedIndex: _answers[q.id] as int?,
+                          onSelect: (i) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _answers[q.id] = i);
+                          },
                         ),
 
                       const SizedBox(height: DS.s16),
@@ -924,7 +1082,7 @@ class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
                     gradient: LinearGradient(
                       colors: timerRed
                           ? [const Color(0xFFFF6B6B), DS.error]
-                          : [const Color(0xFFFF8C38), DS.primary],
+                          : [const Color(0xFF2B5BB8), DS.primary],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -1009,7 +1167,7 @@ class _ProgressSection extends StatelessWidget {
                 height: 6,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFF8C38), DS.primary],
+                    colors: [Color(0xFF2B5BB8), DS.primary],
                   ),
                 ),
               ),
@@ -1110,7 +1268,7 @@ class _QuestionHeader extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFF8C38), DS.primary],
+              colors: [Color(0xFF2B5BB8), DS.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1590,6 +1748,41 @@ class _MatchColumnWidget extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
+// OPTION GRID — 2 columns, one option in front of another
+// ─────────────────────────────────────────────
+class _OptionGrid extends StatelessWidget {
+  final List<OptionItem> options;
+  final int? selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  const _OptionGrid({
+    required this.options,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: options.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: DS.s10,
+        mainAxisSpacing: DS.s10,
+        childAspectRatio: 2.6,
+      ),
+      itemBuilder: (_, i) => _OptionTile(
+        index: i,
+        option: options[i],
+        selected: selectedIndex == i,
+        onTap: () => onSelect(i),
+      ),
+    );
+  }
+}
+
 class _OptionTile extends StatelessWidget {
   final int index;
   final OptionItem option;
@@ -1609,9 +1802,7 @@ class _OptionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final letter = index < _letters.length ? _letters[index] : '${index + 1}';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: DS.s10),
-      child: GestureDetector(
+    return GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -1638,7 +1829,7 @@ class _OptionTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: selected
                       ? const LinearGradient(
-                          colors: [Color(0xFFFF8C38), DS.primary],
+                          colors: [Color(0xFF2B5BB8), DS.primary],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         )
@@ -1672,6 +1863,7 @@ class _OptionTile extends StatelessWidget {
                     if (option.text.isNotEmpty)
                       MathText(
                         option.text,
+                        maxLines: 3,
                         style: TextStyle(
                           color: selected ? DS.primaryDark : DS.textPrimary,
                           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
@@ -1713,8 +1905,7 @@ class _OptionTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -1798,7 +1989,7 @@ class _BottomNav extends StatelessWidget {
                         end: Alignment.bottomRight,
                       )
                     : const LinearGradient(
-                        colors: [Color(0xFFFF8C38), DS.primary],
+                        colors: [Color(0xFF2B5BB8), DS.primary],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -2108,6 +2299,202 @@ class _PaletteLegend extends StatelessWidget {
 // ─────────────────────────────────────────────
 // LEAVE DIALOG
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// TAB-SWITCH WARNING DIALOG — shown on violations 1 and 2
+// ─────────────────────────────────────────────
+class _TabSwitchWarningDialog extends StatelessWidget {
+  final int violationCount;
+  final int maxViolations;
+
+  const _TabSwitchWarningDialog({
+    required this.violationCount,
+    required this.maxViolations,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = maxViolations - violationCount;
+    final isFinal = remaining <= 1;
+
+    final title = isFinal
+        ? 'Final Warning — 1 chance left'
+        : 'Warning $violationCount of $maxViolations — Window Switch Detected';
+    final body = isFinal
+        ? 'You have switched windows twice. The next switch will auto-submit your test immediately.'
+        : 'You switched away from the test window. You have $remaining more chance${remaining == 1 ? '' : 's'} before your test is auto-submitted.';
+
+    return Dialog(
+      backgroundColor: DS.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DS.radiusXl),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(DS.s24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: DS.errorSurface,
+                    borderRadius: BorderRadius.circular(DS.radiusMd),
+                  ),
+                  child: const Icon(
+                    Icons.warning_rounded,
+                    color: DS.error,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: DS.s14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                      color: DS.textPrimary,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: DS.s14),
+            Text(
+              body,
+              style: const TextStyle(
+                color: DS.textSecondary,
+                fontSize: 13.5,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: DS.s10),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 12.5, color: DS.textSecondary),
+                children: [
+                  const TextSpan(text: 'Violations: '),
+                  TextSpan(
+                    text: '$violationCount',
+                    style: const TextStyle(
+                      color: DS.error,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  TextSpan(text: ' / $maxViolations'),
+                ],
+              ),
+            ),
+            const SizedBox(height: DS.s20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DS.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DS.radiusMd),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: DS.s14),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'I UNDERSTAND, CONTINUE',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// AUTO-SUBMITTED DIALOG — shown on the 3rd violation
+// ─────────────────────────────────────────────
+class _AutoSubmittedDialog extends StatelessWidget {
+  const _AutoSubmittedDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: DS.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DS.radiusXl),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(DS.s24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: DS.errorSurface,
+                borderRadius: BorderRadius.circular(DS.radiusMd),
+              ),
+              child: const Icon(
+                Icons.block_rounded,
+                color: DS.error,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: DS.s16),
+            const Text(
+              'Test auto-submitted',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: DS.textPrimary,
+              ),
+            ),
+            const SizedBox(height: DS.s8),
+            const Text(
+              'You switched the test window 3 times. As per the exam policy, '
+              'your test has been submitted automatically. The Bansal team '
+              'will review your attempt.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: DS.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: DS.s24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DS.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DS.radiusMd),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: DS.s14),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Exit Test',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LeaveDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -2231,7 +2618,7 @@ class _SubmitDialog extends StatelessWidget {
               height: 60,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFF8C38), DS.primary],
+                  colors: [Color(0xFF2B5BB8), DS.primary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -2350,7 +2737,7 @@ class _SubmitDialog extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF8C38), DS.primary],
+                        colors: [Color(0xFF2B5BB8), DS.primary],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),

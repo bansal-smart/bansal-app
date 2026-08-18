@@ -15,6 +15,9 @@ class UserProfile extends Equatable {
   final String? classLevel;
   final String? targetExam;
   final String? state;
+  final String? fatherName;
+  final String? parentPhone;
+  final String? rollNumber;
 
   const UserProfile({
     required this.id,
@@ -30,6 +33,9 @@ class UserProfile extends Equatable {
     this.schoolId,
     this.classLevel,
     this.targetExam,
+    this.fatherName,
+    this.parentPhone,
+    this.rollNumber,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
@@ -46,6 +52,9 @@ class UserProfile extends Equatable {
     schoolId: json['school_id'] as String?,
     classLevel: json['class_level'] as String?,
     targetExam: json['target_exam'] as String?,
+    fatherName: json['father_name'] as String?,
+    parentPhone: json['parent_phone'] as String?,
+    rollNumber: json['roll_number'] as String?,
   );
 
   Map<String, dynamic> toJson() => {
@@ -59,6 +68,8 @@ class UserProfile extends Equatable {
     'school_id': schoolId,
     'class_level': classLevel,
     'target_exam': targetExam,
+    'father_name': fatherName,
+    'parent_phone': parentPhone,
   };
 
   UserProfile copyWith({
@@ -72,6 +83,8 @@ class UserProfile extends Equatable {
     Object? schoolId = _sentinel,
     Object? classLevel = _sentinel,
     Object? targetExam = _sentinel,
+    String? fatherName,
+    String? parentPhone,
   }) => UserProfile(
     id: id,
     userId: userId,
@@ -86,6 +99,9 @@ class UserProfile extends Equatable {
     schoolId: schoolId == _sentinel ? this.schoolId : schoolId as String?,
     classLevel: classLevel == _sentinel ? this.classLevel : classLevel as String?,
     targetExam: targetExam == _sentinel ? this.targetExam : targetExam as String?,
+    fatherName: fatherName ?? this.fatherName,
+    parentPhone: parentPhone ?? this.parentPhone,
+    rollNumber: rollNumber,
   );
 
   @override
@@ -103,6 +119,9 @@ class UserProfile extends Equatable {
     schoolId,
     classLevel,
     targetExam,
+    fatherName,
+    parentPhone,
+    rollNumber,
   ];
 }
 

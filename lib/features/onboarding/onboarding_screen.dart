@@ -31,11 +31,11 @@ const _kSlides = [
   _Slide(
     image: 'assets/images/jee.png',
     examLabel: 'JEE',
-    examColor: Color(0xFFF97315),
+    examColor: Color(0xFF193F8F),
     headline: 'Crack the Exam.\nBuild the Future.',
     description: 'Top-notch preparation for JEE\nMain & Advanced.',
     tagline: 'Your dream rank is a step away!',
-    accentColor: Color(0xFFF97315),
+    accentColor: Color(0xFF193F8F),
     bgColor: Color(0xFFFFF7F0),
   ),
   _Slide(
@@ -61,11 +61,11 @@ const _kSlides = [
   _Slide(
     image: 'assets/images/foundation.png',
     examLabel: 'FOUNDATION',
-    examColor: Color(0xFFF97315),
+    examColor: Color(0xFF193F8F),
     headline: 'Strong Foundation.\nLimitless Future.',
     description: 'Build a strong base for JEE, NEET\nand beyond.',
     tagline: 'A strong start builds a strong future.',
-    accentColor: Color(0xFFF97315),
+    accentColor: Color(0xFF193F8F),
     bgColor: Color(0xFFFFF7F0),
   ),
 ];

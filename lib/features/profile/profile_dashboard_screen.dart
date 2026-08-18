@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/providers.dart';
+import '../../core/supabase/supabase_client.dart';
 import '../auth/data/auth_repository.dart';
-import '../auth/data/student_role_provider.dart';
+import '../auth/data/models/user_profile.dart';
+import '../auth/data/repositories/user_repository.dart';
+import '../enrollments/data/repositories/enrollments_repository.dart';
+import '../profile/data/dashboard_stats_providers.dart';
 import '../profile/data/profile_providers.dart';
 
 // ─────────────────────────────────────────────
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFEAF0FC);
+  static const primaryDark = Color(0xFF102A63);
 
-  static const background = Color(0xFFFFFBF8);
+  static const background = Color(0xFFF5F6FA);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceVariant = Color(0xFFF9FAFB);
 
@@ -39,7 +47,6 @@ abstract class DS {
   static const double s24 = 24;
   static const double s28 = 28;
   static const double s32 = 32;
-  static const double s48 = 48;
 
   static const double radiusSm = 10;
   static const double radiusMd = 14;
@@ -47,141 +54,75 @@ abstract class DS {
   static const double radiusXl = 28;
 }
 
+// Dropdown option lists — must match lib/features/auth/profile_setup_screen.dart
+const _kExams = ['JEE', 'NEET', 'Foundation'];
+const _kClasses = ['8th', '9th', '10th', '11th', '12th', 'Dropper'];
+const _kStates = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+  'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim',
+  'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+  'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir',
+  'Ladakh', 'Lakshadweep', 'Puducherry',
+];
+
 // ─────────────────────────────────────────────
-// PROFILE DASHBOARD SCREEN
+// PROFILE SCREEN (single self-contained screen — bottom-nav "Profile" tab)
 // ─────────────────────────────────────────────
-class ProfileDashboardScreen extends ConsumerWidget {
+class ProfileDashboardScreen extends ConsumerStatefulWidget {
   const ProfileDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authRepositoryProvider).currentUser();
-    final region = ref.watch(regionProvider);
-    final prefs = ref.read(prefsProvider);
-    final role = ref.watch(studentRoleProvider);
-    final profile = ref.watch(userProfileProvider).valueOrNull;
-    final setupInfo = ref.watch(profileSetupInfoProvider);
+  ConsumerState<ProfileDashboardScreen> createState() =>
+      _ProfileDashboardScreenState();
+}
 
-    ref.listen<AsyncValue<bool>>(studentRoleProvider, (prev, next) {
-      if (next.hasError && (prev == null || !prev.hasError)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't verify your account")),
-        );
-      }
-    });
+class _ProfileDashboardScreenState
+    extends ConsumerState<ProfileDashboardScreen> {
+  // Personal Info form controllers
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _parentPhoneCtrl = TextEditingController();
+  final _fatherNameCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
 
-    // Priority: Supabase profile → prefs (phone-auth setup) → auth metadata
-    final String name = profile?.fullName?.trim().isNotEmpty == true
-        ? profile!.fullName!.trim()
-        : setupInfo.name.isNotEmpty
-        ? setupInfo.name
-        : (user?.name ?? 'Learner');
-    final String email = user?.email ?? '—';
-    final String initials = _initials(name);
-    final String? avatarUrl = profile?.avatarUrl ?? user?.avatarUrl;
-    // Show class + exam from profile setup if available, else fall back to stored goal
-    final String goalTag = profile?.targetExam?.isNotEmpty == true
-        ? profile!.targetExam!
-        : setupInfo.exam.isNotEmpty
-        ? setupInfo.exam
-        : prefs.goal;
-    final String classTag = setupInfo.userClass;
+  String? _classLevel;
+  String? _targetExam;
+  String? _state;
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (!didPop) {
-          context.go('/home');
-        }
-      },
-      child: Scaffold(
-        backgroundColor: DS.background,
-        body: CustomScrollView(
-          slivers: [
-            // ── Sticky orange header ──
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _ProfileHeaderDelegate(
-                name: name,
-                email: email,
-                initials: initials,
-                avatarUrl: avatarUrl,
-                goal: goalTag,
-                classTag: classTag,
-                region: region,
-                onEdit: () => context.push('/edit-profile'),
-              ),
-            ),
+  bool _profileLoaded = false;
+  bool _saving = false;
+  bool _saved = false;
+  bool _uploadingAvatar = false;
+  String? _avatarUrl;
 
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                DS.s16,
-                DS.s20,
-                DS.s16,
-                DS.s32,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // ── Dashboard CTA ──
-                  if (role.isLoading) ...[
-                    _ShimmerCTA(),
-                    const SizedBox(height: DS.s20),
-                  ] else if (role.value == true || role.hasError) ...[
-                    _DashboardCTA(
-                      onTap: () => context.push('/student-dashboard'),
-                    ),
-                    const SizedBox(height: DS.s20),
-                  ],
-
-                  // ── Quick links ──
-                  _SectionHeader(title: 'Quick Links'),
-                  const SizedBox(height: DS.s12),
-                  _QuickLinksGrid(context: context),
-                  const SizedBox(height: DS.s24),
-
-                  // ── Account options ──
-                  _SectionHeader(title: 'Account'),
-                  const SizedBox(height: DS.s12),
-                  _AccountCard(
-                    onSettings: () => context.push('/settings'),
-                    onNotifications: () => context.push('/notifications'),
-                    onLogout: () async {
-                      final confirmed = await _confirmLogout(context);
-                      if (!confirmed || !context.mounted) return;
-                      await ref.read(authRepositoryProvider).signOut();
-                      ref.read(authStateProvider.notifier).refresh();
-                      if (context.mounted) context.go('/login');
-                    },
-                  ),
-                ]),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _parentPhoneCtrl.dispose();
+    _fatherNameCtrl.dispose();
+    _cityCtrl.dispose();
+    super.dispose();
   }
 
-  Future<bool> _confirmLogout(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirm logout'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
+  void _populateFromProfile(UserProfile profile) {
+    if (_profileLoaded) return;
+    _profileLoaded = true;
+    _nameCtrl.text = profile.fullName ?? '';
+    _phoneCtrl.text = profile.phone ?? '';
+    _parentPhoneCtrl.text = profile.parentPhone ?? '';
+    _fatherNameCtrl.text = profile.fatherName ?? '';
+    _cityCtrl.text = profile.city ?? '';
+    _classLevel = profile.classLevel;
+    _targetExam = profile.targetExam;
+    _state = profile.state;
+    if (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty) {
+      _avatarUrl = profile.avatarUrl;
+    }
+    setState(() {});
   }
 
   String _initials(String name) {
@@ -190,349 +131,676 @@ class ProfileDashboardScreen extends ConsumerWidget {
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
-}
 
-// ─────────────────────────────────────────────
-// SLIVER HEADER DELEGATE
-// ─────────────────────────────────────────────
-class _ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final String name, email, initials, goal, classTag, region;
-  final String? avatarUrl;
-  final VoidCallback onEdit;
+  Future<void> _pickAndUploadAvatar() async {
+    final sb = supabaseOrNull;
+    final user = ref.read(authRepositoryProvider).currentUser();
+    if (sb == null || user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to upload a photo.')),
+      );
+      return;
+    }
 
-  const _ProfileHeaderDelegate({
-    required this.name,
-    required this.email,
-    required this.initials,
-    required this.avatarUrl,
-    required this.goal,
-    required this.classTag,
-    required this.region,
-    required this.onEdit,
-  });
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1024,
+    );
+    if (file == null) return;
 
-  @override
-  double get minExtent => 90;
-  @override
-  double get maxExtent => 210;
+    setState(() => _uploadingAvatar = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final ext = file.name.split('.').last.toLowerCase();
+      final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+      final path = '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
 
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final progress = (shrinkOffset / maxExtent).clamp(0.0, 1.0);
-    final collapsedByScroll = progress > 0.6;
+      await sb.storage.from('avatars').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: contentType, upsert: true),
+      );
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [DS.primaryDark, DS.primary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      final url = sb.storage.from('avatars').getPublicUrl(path);
+      await sb.auth.updateUser(UserAttributes(data: {'avatar_url': url}));
+      await sb.from('profiles').update({'avatar_url': url}).eq('user_id', user.id);
+
+      if (!mounted) return;
+      setState(() => _avatarUrl = url);
+      ref.invalidate(userProfileProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _saved = false;
+    });
+    try {
+      final profile = ref.read(userProfileProvider).valueOrNull;
+      if (profile != null) {
+        final updated = profile.copyWith(
+          fullName: _nameCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          parentPhone: _parentPhoneCtrl.text.trim(),
+          fatherName: _fatherNameCtrl.text.trim(),
+          city: _cityCtrl.text.trim(),
+          state: _state,
+          classLevel: _classLevel,
+          targetExam: _targetExam,
+        );
+        await UserRepository().updateUserProfile(updated);
+
+        final sb = Supabase.instance.client;
+        await sb.auth.updateUser(UserAttributes(data: {
+          'full_name': updated.fullName ?? '',
+          if (updated.avatarUrl != null) 'avatar_url': updated.avatarUrl,
+        }));
+
+        final prefs = ref.read(prefsProvider);
+        if (updated.targetExam != null) {
+          await prefs.setUserExam(updated.targetExam!);
+        }
+        if (updated.classLevel != null) {
+          await prefs.setUserClass(updated.classLevel!);
+        }
+        if (updated.targetExam != null && updated.targetExam!.isNotEmpty) {
+          await EnrollmentsRepository().autoEnrollFreeCourses(
+            exam: updated.targetExam!,
+            userClass: updated.classLevel ?? '',
+          );
+        }
+
+        _profileLoaded = true;
+        ref.invalidate(userProfileProvider);
+        ref.invalidate(profileSetupInfoProvider);
+      }
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _saved = true;
+      });
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) setState(() => _saved = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _logout() async {
+    HapticFeedback.mediumImpact();
+    final confirmed = await _confirmLogout(context);
+    if (!confirmed || !mounted) return;
+    await ref.read(authRepositoryProvider).signOut();
+    ref.read(authStateProvider.notifier).refresh();
+    if (mounted) context.go('/login');
+  }
+
+  Future<bool> _confirmLogout(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text(
+          'You will be signed out of your account. You can log back in anytime.',
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(DS.radiusXl),
-          bottomRight: Radius.circular(DS.radiusXl),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: DS.primary.withOpacity(0.30),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              'Log Out',
+              style: TextStyle(color: DS.error, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AsyncValue<UserProfile?>>(userProfileProvider, (prev, next) {
+      final profile = next.valueOrNull;
+      if (profile != null) _populateFromProfile(profile);
+    });
+
+    final user = ref.watch(authRepositoryProvider).currentUser();
+    final profile = ref.watch(userProfileProvider).valueOrNull;
+    final setupInfo = ref.watch(profileSetupInfoProvider);
+    final prefs = ref.read(prefsProvider);
+
+    final String name = profile?.fullName?.trim().isNotEmpty == true
+        ? profile!.fullName!.trim()
+        : setupInfo.name.isNotEmpty
+            ? setupInfo.name
+            : (user?.name ?? 'Learner');
+    final String initials = _initials(name);
+    final String? avatarUrl = _avatarUrl ?? profile?.avatarUrl ?? user?.avatarUrl;
+    final String examTag = profile?.targetExam?.isNotEmpty == true
+        ? profile!.targetExam!
+        : setupInfo.exam.isNotEmpty
+            ? setupInfo.exam
+            : prefs.goal;
+    final String classTag = profile?.classLevel?.isNotEmpty == true
+        ? profile!.classLevel!
+        : setupInfo.userClass;
+
+    // Login identifier: prefer roll number, then phone, then email.
+    final String loginId = (profile?.rollNumber?.isNotEmpty == true)
+        ? profile!.rollNumber!
+        : (profile?.phone?.isNotEmpty == true)
+            ? profile!.phone!
+            : (user?.email ?? '—');
+
+    return Container(
+      color: DS.background,
       child: SafeArea(
-        bottom: false,
-        child: SizedBox.expand(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final tooShort = constraints.maxHeight < 120;
-              final collapsed = collapsedByScroll || tooShort;
-
-              if (tooShort) {
-                return Padding(
-                  key: const ValueKey('collapsed'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DS.s20,
-                    vertical: DS.s16,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.20),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.40),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: _HeaderAvatar(
-                          initials: initials,
-                          avatarUrl: avatarUrl,
-                          size: 40,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(width: DS.s12),
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: onEdit,
-                        child: Container(
-                          padding: const EdgeInsets.all(DS.s6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(DS.radiusSm),
-                          ),
-                          child: const Icon(
-                            Icons.edit_outlined,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: collapsed
-                    ? Padding(
-                        key: const ValueKey('collapsed'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: DS.s20,
-                          vertical: DS.s16,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withOpacity(0.20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.40),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: _HeaderAvatar(
-                                initials: initials,
-                                avatarUrl: avatarUrl,
-                                size: 40,
-                                fontSize: 15,
-                              ),
-                            ),
-                            const SizedBox(width: DS.s12),
-                            Expanded(
-                              child: Text(
-                                name,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: onEdit,
-                              child: Container(
-                                padding: const EdgeInsets.all(DS.s6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
-                                  borderRadius: BorderRadius.circular(
-                                    DS.radiusSm,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.edit_outlined,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Padding(
-                        key: const ValueKey('expanded'),
-                        padding: const EdgeInsets.fromLTRB(
-                          DS.s20,
-                          DS.s12,
-                          DS.s16,
-                          DS.s20,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 68,
-                              height: 68,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withOpacity(0.20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.45),
-                                  width: 2,
-                                ),
-                              ),
-                              child: _HeaderAvatar(
-                                initials: initials,
-                                avatarUrl: avatarUrl,
-                                size: 68,
-                                fontSize: 26,
-                              ),
-                            ),
-                            const SizedBox(width: DS.s16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      letterSpacing: -0.3,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: DS.s8),
-                                  Row(
-                                    children: [
-                                      if (goal.isNotEmpty) ...[
-                                        _Tag(label: goal),
-                                        const SizedBox(width: DS.s6),
-                                      ],
-                                      if (classTag.isNotEmpty)
-                                        _Tag(label: classTag)
-                                      else
-                                        _Tag(
-                                          label: region == 'AE'
-                                              ? '🇦🇪 Dubai'
-                                              : '🇮🇳 India',
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: onEdit,
-                              child: Container(
-                                padding: const EdgeInsets.all(DS.s8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
-                                  borderRadius: BorderRadius.circular(
-                                    DS.radiusSm,
-                                  ),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.25),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.edit_outlined,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-              );
-            },
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(DS.s16, DS.s16, DS.s16, DS.s32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _HeroCard(
+                name: name,
+                initials: initials,
+                avatarUrl: avatarUrl,
+                uploading: _uploadingAvatar,
+                onPickAvatar: _pickAndUploadAvatar,
+                examTag: examTag,
+                classTag: classTag,
+                loginId: loginId,
+              ),
+              const SizedBox(height: DS.s16),
+              const _StatsRow(),
+              const SizedBox(height: DS.s20),
+              _PersonalInfoCard(
+                nameCtrl: _nameCtrl,
+                phoneCtrl: _phoneCtrl,
+                parentPhoneCtrl: _parentPhoneCtrl,
+                fatherNameCtrl: _fatherNameCtrl,
+                cityCtrl: _cityCtrl,
+                classLevel: _classLevel,
+                targetExam: _targetExam,
+                state: _state,
+                saving: _saving,
+                saved: _saved,
+                onClassLevelChanged: (v) => setState(() => _classLevel = v),
+                onTargetExamChanged: (v) => setState(() => _targetExam = v),
+                onStateChanged: (v) => setState(() => _state = v),
+                onSave: _save,
+              ),
+              const SizedBox(height: DS.s24),
+              _SectionHeader(title: 'Account'),
+              const SizedBox(height: DS.s12),
+              _AccountCard(
+                onSettings: () => context.push('/settings'),
+                onNotifications: () => context.push('/notifications'),
+                onLogout: _logout,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-
-  @override
-  bool shouldRebuild(covariant _ProfileHeaderDelegate old) =>
-      name != old.name ||
-      email != old.email ||
-      avatarUrl != old.avatarUrl ||
-      goal != old.goal ||
-      classTag != old.classTag ||
-      region != old.region;
 }
 
-class _HeaderAvatar extends StatelessWidget {
+// ─────────────────────────────────────────────
+// HERO CARD
+// ─────────────────────────────────────────────
+class _HeroCard extends StatelessWidget {
+  final String name;
   final String initials;
   final String? avatarUrl;
-  final double size;
-  final double fontSize;
-  const _HeaderAvatar({
+  final bool uploading;
+  final VoidCallback onPickAvatar;
+  final String examTag;
+  final String classTag;
+  final String loginId;
+
+  const _HeroCard({
+    required this.name,
     required this.initials,
     required this.avatarUrl,
-    required this.size,
-    required this.fontSize,
+    required this.uploading,
+    required this.onPickAvatar,
+    required this.examTag,
+    required this.classTag,
+    required this.loginId,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      return ClipOval(
-        child: Image.network(
-          avatarUrl!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Center(
-            child: Text(
-              initials,
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(DS.s20, DS.s24, DS.s20, DS.s20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [DS.primaryDark, DS.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(DS.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: DS.primary.withOpacity(0.30),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.45),
+                    width: 2.5,
+                  ),
+                ),
+                child: uploading
+                    ? const Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : (avatarUrl != null && avatarUrl!.isNotEmpty)
+                        ? ClipOval(
+                            child: Image.network(
+                              avatarUrl!,
+                              width: 88,
+                              height: 88,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
               ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: onPickAvatar,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 15,
+                      color: DS.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DS.s12),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.3,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: DS.s8),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: DS.s6,
+            children: [
+              if (examTag.isNotEmpty) _Chip(label: examTag),
+              if (classTag.isNotEmpty) _Chip(label: classTag),
+            ],
+          ),
+          const SizedBox(height: DS.s10),
+          Text(
+            loginId,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: Colors.white.withOpacity(0.80),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  const _Chip({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: DS.s10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.20),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withOpacity(0.30), width: 1),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
       );
-    }
-    return Center(
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w800,
-          color: Colors.white,
+}
+
+// ─────────────────────────────────────────────
+// STATS ROW
+// ─────────────────────────────────────────────
+class _StatsRow extends ConsumerWidget {
+  const _StatsRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final streak = ref.watch(streakProvider);
+    final tests = ref.watch(testsCompletedProvider);
+    final accuracy = ref.watch(accuracyProvider);
+    final percentile = ref.watch(airPercentileProvider);
+
+    return Row(
+      children: [
+        Expanded(
+          child: _StatTile(
+            icon: Icons.local_fire_department_rounded,
+            color: const Color(0xFFF59E0B),
+            label: 'Streak',
+            value: streak.when(
+              data: (v) => '$v',
+              loading: () => '—',
+              error: (_, __) => '—',
+            ),
+          ),
         ),
+        const SizedBox(width: DS.s8),
+        Expanded(
+          child: _StatTile(
+            icon: Icons.assignment_turned_in_rounded,
+            color: const Color(0xFF6366F1),
+            label: 'Tests',
+            value: tests.when(
+              data: (v) => '$v',
+              loading: () => '—',
+              error: (_, __) => '—',
+            ),
+          ),
+        ),
+        const SizedBox(width: DS.s8),
+        Expanded(
+          child: _StatTile(
+            icon: Icons.track_changes_rounded,
+            color: DS.success,
+            label: 'Accuracy',
+            value: accuracy.when(
+              data: (v) => v == null ? '—' : '$v%',
+              loading: () => '—',
+              error: (_, __) => '—',
+            ),
+          ),
+        ),
+        const SizedBox(width: DS.s8),
+        Expanded(
+          child: _StatTile(
+            icon: Icons.leaderboard_rounded,
+            color: const Color(0xFF06B6D4),
+            label: 'Percentile',
+            value: percentile.when(
+              data: (v) => v == null ? '—' : v.toStringAsFixed(1),
+              loading: () => '—',
+              error: (_, __) => '—',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+
+  const _StatTile({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: DS.s12, horizontal: DS.s8),
+      decoration: BoxDecoration(
+        color: DS.surface,
+        borderRadius: BorderRadius.circular(DS.radiusMd),
+        border: Border.all(color: DS.border, width: 1.2),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: DS.s6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: DS.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10.5, color: DS.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────
-// SECTION HEADER
+// PERSONAL INFO CARD
 // ─────────────────────────────────────────────
+class _PersonalInfoCard extends StatelessWidget {
+  final TextEditingController nameCtrl;
+  final TextEditingController phoneCtrl;
+  final TextEditingController parentPhoneCtrl;
+  final TextEditingController fatherNameCtrl;
+  final TextEditingController cityCtrl;
+  final String? classLevel;
+  final String? targetExam;
+  final String? state;
+  final bool saving;
+  final bool saved;
+  final ValueChanged<String?> onClassLevelChanged;
+  final ValueChanged<String?> onTargetExamChanged;
+  final ValueChanged<String?> onStateChanged;
+  final VoidCallback onSave;
+
+  const _PersonalInfoCard({
+    required this.nameCtrl,
+    required this.phoneCtrl,
+    required this.parentPhoneCtrl,
+    required this.fatherNameCtrl,
+    required this.cityCtrl,
+    required this.classLevel,
+    required this.targetExam,
+    required this.state,
+    required this.saving,
+    required this.saved,
+    required this.onClassLevelChanged,
+    required this.onTargetExamChanged,
+    required this.onStateChanged,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(DS.s16),
+      decoration: BoxDecoration(
+        color: DS.surface,
+        borderRadius: BorderRadius.circular(DS.radiusLg),
+        border: Border.all(color: DS.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionHeader(title: 'Personal Info'),
+          const SizedBox(height: DS.s16),
+          _AppField(
+            controller: nameCtrl,
+            label: 'Full Name',
+            icon: Icons.person_outline_rounded,
+          ),
+          const SizedBox(height: DS.s12),
+          _AppField(
+            controller: phoneCtrl,
+            label: 'Phone',
+            icon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: DS.s12),
+          _AppField(
+            controller: parentPhoneCtrl,
+            label: "Parent's Phone",
+            icon: Icons.phone_in_talk_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: DS.s12),
+          _AppField(
+            controller: fatherNameCtrl,
+            label: "Father's Name",
+            icon: Icons.badge_outlined,
+          ),
+          const SizedBox(height: DS.s12),
+          _DropdownField<String>(
+            value: classLevel,
+            label: 'Class',
+            icon: Icons.class_outlined,
+            items: _kClasses,
+            labels: _kClasses,
+            onChanged: onClassLevelChanged,
+          ),
+          const SizedBox(height: DS.s12),
+          _DropdownField<String>(
+            value: targetExam,
+            label: 'Stream',
+            icon: Icons.emoji_events_outlined,
+            items: _kExams,
+            labels: _kExams,
+            onChanged: onTargetExamChanged,
+          ),
+          const SizedBox(height: DS.s12),
+          _AppField(
+            controller: cityCtrl,
+            label: 'City',
+            icon: Icons.location_city_outlined,
+          ),
+          const SizedBox(height: DS.s12),
+          _DropdownField<String>(
+            value: state,
+            label: 'State',
+            icon: Icons.map_outlined,
+            items: _kStates,
+            labels: _kStates,
+            onChanged: onStateChanged,
+          ),
+          const SizedBox(height: DS.s20),
+          if (saved) ...[_SuccessBanner(), const SizedBox(height: DS.s12)],
+          _PrimaryButton(
+            label: saved ? 'Saved!' : 'Save Changes',
+            loading: saving,
+            saved: saved,
+            onTap: saving ? null : onSave,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader({required this.title});
@@ -564,206 +832,235 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// TAG CHIP
-// ─────────────────────────────────────────────
-class _Tag extends StatelessWidget {
+class _AppField extends StatelessWidget {
+  final TextEditingController controller;
   final String label;
-  const _Tag({required this.label});
+  final IconData icon;
+  final TextInputType keyboardType;
 
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: DS.s8, vertical: 3),
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.20),
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: Colors.white.withOpacity(0.30), width: 1),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 11.5,
-        fontWeight: FontWeight.w700,
-      ),
-    ),
-  );
-}
-
-// ─────────────────────────────────────────────
-// DASHBOARD CTA BUTTON
-// ─────────────────────────────────────────────
-class _DashboardCTA extends StatelessWidget {
-  final VoidCallback onTap;
-  const _DashboardCTA({required this.onTap});
+  const _AppField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.keyboardType = TextInputType.text,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DS.s20,
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: const TextStyle(
+        fontSize: 15,
+        color: DS.textPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: DS.textSecondary, fontSize: 14),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: DS.s4),
+          child: Icon(icon, size: 20, color: DS.textSecondary),
+        ),
+        filled: true,
+        fillColor: DS.surfaceVariant,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: DS.s16,
           vertical: DS.s16,
         ),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF8C38), DS.primary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DS.radiusMd),
-          boxShadow: [
-            BoxShadow(
-              color: DS.primary.withOpacity(0.30),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          borderSide: const BorderSide(color: DS.border),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(DS.s8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.20),
-                borderRadius: BorderRadius.circular(DS.radiusSm),
-              ),
-              child: const Icon(
-                Icons.dashboard_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: DS.s12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Student Dashboard',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    'View your full learning overview',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.white70,
-              size: 16,
-            ),
-          ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          borderSide: const BorderSide(color: DS.border, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          borderSide: const BorderSide(color: DS.primary, width: 1.8),
         ),
       ),
     );
   }
 }
 
-class _ShimmerCTA extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 64,
-    decoration: BoxDecoration(
-      color: DS.primaryLight,
-      borderRadius: BorderRadius.circular(DS.radiusMd),
-    ),
-  );
-}
-
-// ─────────────────────────────────────────────
-// QUICK LINKS GRID
-// ─────────────────────────────────────────────
-class _QuickLinksGrid extends StatelessWidget {
-  final BuildContext context;
-  const _QuickLinksGrid({required this.context});
-
-  @override
-  Widget build(BuildContext ctx) {
-    final links = [
-      _QLData(Icons.chat_bubble_outline, 'Mentor Chat', '/mentor-chat'),
-      _QLData(Icons.flash_on_outlined, 'Compete', '/compete'),
-      _QLData(Icons.insights_outlined, 'My Analytics', '/analytics'),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1.15,
-        crossAxisSpacing: DS.s8,
-        mainAxisSpacing: DS.s8,
-      ),
-      itemCount: links.length,
-      itemBuilder: (_, i) => _QuickLinkTile(
-        data: links[i],
-        onTap: () => context.push(links[i].route),
-      ),
-    );
-  }
-}
-
-class _QLData {
+class _DropdownField<T> extends StatelessWidget {
+  final T? value;
+  final String label;
   final IconData icon;
-  final String label, route;
-  const _QLData(this.icon, this.label, this.route);
-}
+  final List<T> items;
+  final List<String> labels;
+  final ValueChanged<T?> onChanged;
 
-class _QuickLinkTile extends StatelessWidget {
-  final _QLData data;
-  final VoidCallback onTap;
-  const _QuickLinkTile({required this.data, required this.onTap});
+  const _DropdownField({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.items,
+    required this.labels,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: DS.surface,
-          borderRadius: BorderRadius.circular(DS.radiusMd),
-          border: Border.all(color: DS.border, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return DropdownButtonFormField<T>(
+      value: items.contains(value) ? value : null,
+      isExpanded: true,
+      icon: const Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: DS.textSecondary,
+        size: 20,
+      ),
+      style: const TextStyle(
+        fontSize: 14,
+        color: DS.textPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+      dropdownColor: DS.surface,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: DS.textSecondary, fontSize: 14),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: DS.s4),
+          child: Icon(icon, size: 18, color: DS.textSecondary),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: DS.primaryLight,
-                borderRadius: BorderRadius.circular(DS.radiusSm),
-              ),
-              child: Icon(data.icon, color: DS.primary, size: 20),
+        filled: true,
+        fillColor: DS.surfaceVariant,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: DS.s16,
+          vertical: DS.s14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          borderSide: const BorderSide(color: DS.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          borderSide: const BorderSide(color: DS.border, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          borderSide: const BorderSide(color: DS.primary, width: 1.8),
+        ),
+      ),
+      items: List.generate(
+        items.length,
+        (i) => DropdownMenuItem<T>(
+          value: items[i],
+          child: Text(
+            labels[i],
+            style: const TextStyle(fontSize: 13.5, color: DS.textPrimary),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _SuccessBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: DS.s16, vertical: DS.s12),
+      decoration: BoxDecoration(
+        color: DS.successSurface,
+        borderRadius: BorderRadius.circular(DS.radiusSm),
+        border: Border.all(color: DS.success.withOpacity(0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle_outline_rounded, color: DS.success, size: 18),
+          SizedBox(width: DS.s8),
+          Text(
+            'Profile updated successfully!',
+            style: TextStyle(
+              color: DS.success,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: DS.s6),
-            Text(
-              data.label,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: DS.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final bool saved;
+  final VoidCallback? onTap;
+
+  const _PrimaryButton({
+    required this.label,
+    required this.loading,
+    this.saved = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color startColor = saved ? DS.success : DS.primary;
+    final Color endColor = saved ? const Color(0xFF059669) : DS.primaryDark;
+
+    return SizedBox(
+      height: 52,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: onTap == null
+              ? null
+              : LinearGradient(colors: [startColor, endColor]),
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          boxShadow: onTap == null
+              ? []
+              : [
+                  BoxShadow(
+                    color: (saved ? DS.success : DS.primary).withOpacity(0.30),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+        ),
+        child: ElevatedButton(
+          onPressed: onTap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: DS.border,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DS.radiusMd),
             ),
-          ],
+          ),
+          child: loading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (saved) ...[
+                      const Icon(Icons.check_circle_rounded, size: 20),
+                      const SizedBox(width: DS.s8),
+                    ],
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

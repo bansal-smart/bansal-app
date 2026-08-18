@@ -69,8 +69,8 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
         // Chewie shows its own spinner while the controller is not yet initialized
         showControlsOnInitialize: false,
         materialProgressColors: ChewieProgressColors(
-          playedColor: const Color(0xFFF97315),
-          handleColor: const Color(0xFFF97315),
+          playedColor: const Color(0xFF193F8F),
+          handleColor: const Color(0xFF193F8F),
           bufferedColor: const Color(0xFFFFD5B0),
           backgroundColor: Colors.white24,
         ),
@@ -211,7 +211,7 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(
-              color: Color(0xFFF97315),
+              color: Color(0xFF193F8F),
               strokeWidth: 2.5,
             ),
             SizedBox(height: 14),
@@ -262,7 +262,7 @@ class _ErrorPanel extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF97315)),
+                backgroundColor: const Color(0xFF193F8F)),
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Retry'),

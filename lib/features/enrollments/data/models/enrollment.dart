@@ -6,6 +6,7 @@ class Enrollment {
   final DateTime? lastAccessedAt;
   final bool isActive;
   final DateTime createdAt;
+  final DateTime? expiresAt;
 
   // Joined course fields
   final String? courseTitle;
@@ -22,6 +23,7 @@ class Enrollment {
     this.lastAccessedAt,
     required this.isActive,
     required this.createdAt,
+    this.expiresAt,
     this.courseTitle,
     this.courseSubject,
     this.courseThumbnailUrl,
@@ -50,11 +52,14 @@ class Enrollment {
           : null,
       isActive: json['is_active'] as bool? ?? true,
       createdAt: DateTime.parse(json['created_at'] as String),
+      expiresAt: json['expires_at'] != null
+          ? DateTime.tryParse(json['expires_at'] as String)
+          : null,
       courseTitle: course?['name'] as String?,
-      courseSubject: course?['target'] as String?,
+      courseSubject: course?['subject'] as String?,
       courseThumbnailUrl: course?['thumbnail_url'] as String?,
-      courseEducatorName: course?['teacher_name'] as String?,
-      courseIsActive: course?['is_active'] as bool? ?? true,
+      courseEducatorName: course?['educator_name'] as String?,
+      courseIsActive: course?['is_published'] as bool? ?? true,
     );
   }
 }

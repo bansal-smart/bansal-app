@@ -10,8 +10,10 @@ class EnrollmentsRepository {
   EnrollmentsRepository({SupabaseClient? client})
       : _client = client ?? SupabaseService.client;
 
-  /// Auto-enrolls the student in every free course that matches their
-  /// target exam and class. Safe to call multiple times — duplicates are ignored.
+  /// Auto-enrolls the student in every free (price = 0) published course that
+  /// matches their target exam. Safe to call multiple times — duplicates are
+  /// ignored. `userClass` is accepted for call-site compatibility but is no
+  /// longer used for filtering — there is no class column on `courses`.
   Future<void> autoEnrollFreeCourses({
     required String exam,
     required String userClass,
@@ -20,25 +22,13 @@ class EnrollmentsRepository {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || exam.isEmpty) return;
 
-      // Normalise class: prefs stores '8th'/'9th'/'10th', DB stores '8'/'9'/'10'
-      final dbClass = userClass
-          .replaceAll('th', '')
-          .replaceAll('st', '')
-          .replaceAll('nd', '')
-          .replaceAll('rd', '');
-
-      // Fetch all free active courses for this exam
-      var query = _client
+      // Fetch all free published courses for this exam
+      final query = _client
           .from('courses')
-          .select('id, target, class')
-          .eq('is_course_free', true)
-          .eq('is_active', true)
-          .eq('target', exam);
-
-      // Foundation students only get courses for their specific class
-      if (exam == 'Foundation' && dbClass.isNotEmpty) {
-        query = query.eq('class', dbClass);
-      }
+          .select('id, target_exam, price')
+          .eq('price', 0)
+          .eq('is_published', true)
+          .eq('target_exam', exam);
 
       final rows = await query as List<dynamic>;
       if (rows.isEmpty) return;
@@ -99,16 +89,19 @@ class EnrollmentsRepository {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return [];
+      final nowIso = DateTime.now().toIso8601String();
       final data = await _client
           .from('enrollments')
           .select(
             'id, user_id, course_id, progress_percent, '
-            'last_accessed_at, is_active, created_at, '
-            'courses!inner(name, target, thumbnail_url, is_active)',
+            'last_accessed_at, is_active, created_at, expires_at, '
+            'courses!inner(name, subject, target_exam, thumbnail_url, '
+            'educator_name, is_published)',
           )
           .eq('user_id', userId)
           .eq('is_active', true)
-          .eq('courses.is_active', true)
+          .eq('courses.is_published', true)
+          .or('expires_at.is.null,expires_at.gt.$nowIso')
           .order('last_accessed_at', ascending: false);
       return (data as List<dynamic>)
           .map((r) => Enrollment.fromJson(r as Map<String, dynamic>))

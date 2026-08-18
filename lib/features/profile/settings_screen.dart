@@ -8,9 +8,9 @@ import '../auth/data/auth_repository.dart';
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
+  static const primaryDark = Color(0xFF102A63);
 
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
@@ -137,27 +137,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       DS.s32,
                     ),
                     children: [
-                      // ── Account ──
-                      _SectionLabel(
-                        label: 'Account',
-                        icon: Icons.person_outline_rounded,
-                        color: DS.primary,
-                      ),
-                      const SizedBox(height: DS.s10),
-                      _SettingsCard(
-                        children: [
-                          _SettingsTile(
-                            icon: Icons.person_outline_rounded,
-                            color: DS.primary,
-                            label: 'Edit Profile',
-                            subtitle: 'Update your name, photo and preferences',
-                            onTap: () => context.push('/edit-profile'),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: DS.s24),
-
                       // ── Privacy & Legal ──
                       _SectionLabel(
                         label: 'Privacy & Legal',
@@ -226,7 +205,7 @@ class _SettingsHeader extends StatelessWidget {
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFFF8C38), DS.primary],
+              colors: [Color(0xFF2B5BB8), DS.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -563,7 +542,7 @@ class _AppVersionFooter extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFF8C38), DS.primary],
+              colors: [Color(0xFF2B5BB8), DS.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

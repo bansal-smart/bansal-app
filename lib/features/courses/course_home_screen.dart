@@ -6,11 +6,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'data/courses_providers.dart';
 import 'data/models/course.dart';
-import 'data/models/folder.dart';
+import 'data/models/course_subject.dart';
 import '../enrollments/data/repositories/enrollments_repository.dart';
+import '../../core/error/app_exception.dart';
 
-const _kPrimary      = Color(0xFFF97015);
-const _kPrimaryLight = Color(0xFFFFF0E6);
+const _kPrimary      = Color(0xFF193F8F);
+const _kPrimaryLight = Color(0xFFE8EDF9);
 const _kBg           = Color(0xFFF5F6FA);
 const _kSurface      = Color(0xFFFFFFFF);
 const _kBorder       = Color(0xFFE8EAF0);
@@ -44,8 +45,8 @@ class _CourseHomeScreenState extends ConsumerState<CourseHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final courseAsync  = ref.watch(courseDetailProvider(widget.courseId));
-    final foldersAsync = ref.watch(courseFoldersProvider(widget.courseId));
+    final courseAsync   = ref.watch(courseDetailProvider(widget.courseId));
+    final subjectsAsync = ref.watch(courseSubjectsProvider(widget.courseId));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -54,18 +55,18 @@ class _CourseHomeScreenState extends ConsumerState<CourseHomeScreen> {
       ),
       child: Scaffold(
         backgroundColor: _kBg,
-        body: foldersAsync.when(
+        body: subjectsAsync.when(
           loading: () => _LoadingState(
             courseName: courseAsync.valueOrNull?.name ?? 'Course',
             onBack: () => context.pop(),
           ),
           error: (e, _) => _ErrorState(
-            message: 'Error: $e',
+            message: AppException.from(e).userMessage,
             onBack: () => context.pop(),
           ),
-          data: (folders) => _CourseBody(
+          data: (subjects) => _CourseBody(
             courseId: widget.courseId,
-            folders: folders,
+            subjects: subjects,
             course: courseAsync.valueOrNull,
           ),
         ),
@@ -79,26 +80,26 @@ class _CourseHomeScreenState extends ConsumerState<CourseHomeScreen> {
 // ─────────────────────────────────────────────
 class _CourseBody extends StatelessWidget {
   final String courseId;
-  final List<CourseFolder> folders;
+  final List<CourseSubject> subjects;
   final Course? course;
 
   const _CourseBody({
     required this.courseId,
-    required this.folders,
+    required this.subjects,
     required this.course,
   });
 
   bool get _showExpiry {
-    if (course?.courseEndDate == null) return false;
-    final days = course!.courseEndDate!.difference(DateTime.now()).inDays;
+    if (course?.endDate == null) return false;
+    final days = course!.endDate!.difference(DateTime.now()).inDays;
     return days >= 0 && days <= 7;
   }
 
-  List<CourseFolder> get _moduleFolders =>
-      folders.length <= 4 ? folders : folders.sublist(0, 4);
+  List<CourseSubject> get _moduleSubjects =>
+      subjects.length <= 4 ? subjects : subjects.sublist(0, 4);
 
-  List<CourseFolder> get _listFolders =>
-      folders.length <= 4 ? [] : folders.sublist(4);
+  List<CourseSubject> get _listSubjects =>
+      subjects.length <= 4 ? [] : subjects.sublist(4);
 
   @override
   Widget build(BuildContext context) {
@@ -114,14 +115,14 @@ class _CourseBody extends StatelessWidget {
                 if (_showExpiry)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: _ExpiryBanner(endDate: course!.courseEndDate!),
+                    child: _ExpiryBanner(endDate: course!.endDate!),
                   ),
 
                 if (course != null)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: Text(
-                      '${folders.fold<int>(0, (s, f) => s + (f.itemCount > 0 ? f.itemCount : 1))} Items available in this course',
+                      '${subjects.length} Subject${subjects.length == 1 ? '' : 's'} available in this course',
                       style: const TextStyle(
                         fontSize: 13,
                         color: _kPrimary,
@@ -130,17 +131,17 @@ class _CourseBody extends StatelessWidget {
                     ),
                   ),
 
-                if (course?.teacherName != null)
+                if (course?.educatorName != null)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                     child: _EducatorRow(course: course!),
                   ),
 
-                if (folders.isNotEmpty) ...[
+                if (subjects.isNotEmpty) ...[
                   const Padding(
                     padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
                     child: Text(
-                      'Learning Modules',
+                      'Subjects',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -153,22 +154,22 @@ class _CourseBody extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _ModuleGrid(
-                      folders: _moduleFolders,
+                      subjects: _moduleSubjects,
                       courseId: courseId,
                     ),
                   ),
 
-                  if (_listFolders.isNotEmpty) ...[
+                  if (_listSubjects.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    ..._listFolders.asMap().entries.map(
+                    ..._listSubjects.asMap().entries.map(
                       (e) => Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                        child: _FolderListTile(
-                          folder: e.value,
+                        child: _SubjectListTile(
+                          subject: e.value,
                           onTap: () {
                             HapticFeedback.selectionClick();
                             context.push(
-                              '/my-courses/$courseId/folder/${e.value.id}',
+                              '/my-courses/$courseId/subject/${e.value.id}',
                               extra: e.value.name,
                             );
                           },
@@ -179,7 +180,7 @@ class _CourseBody extends StatelessWidget {
                 ] else
                   const Padding(
                     padding: EdgeInsets.all(32),
-                    child: _EmptyFolders(),
+                    child: _EmptySubjects(),
                   ),
 
               ],
@@ -293,7 +294,7 @@ class _CourseHeader extends StatelessWidget {
                 if (course != null)
                   Row(
                     children: [
-                      _TagPill(label: course!.target.toUpperCase()),
+                      _TagPill(label: (course!.targetExam ?? '').toUpperCase()),
                       const SizedBox(width: 8),
                       const _TagPill(
                         label: 'ADVANCED',
@@ -395,7 +396,7 @@ class _EducatorRow extends StatelessWidget {
       ),
       const SizedBox(width: 8),
       Text(
-        course.teacherName ?? 'Educator',
+        course.educatorName ?? 'Educator',
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -446,15 +447,14 @@ class _MiniAvatar extends StatelessWidget {
 // ─────────────────────────────────────────────
 // MODULE GRID (2×2)
 // ─────────────────────────────────────────────
-// All folders use the generic folder icon.
-// Content-type icons (live-class, exam, pdf, video) are only used inside folder content lists.
-String _svgForFolder(String name) => 'assets/SVGs/folder-blank.svg';
+// All subjects use the generic folder icon.
+String _svgForSubject(String name) => 'assets/SVGs/folder-blank.svg';
 
 class _ModuleGrid extends StatelessWidget {
-  final List<CourseFolder> folders;
+  final List<CourseSubject> subjects;
   final String courseId;
 
-  const _ModuleGrid({required this.folders, required this.courseId});
+  const _ModuleGrid({required this.subjects, required this.courseId});
 
   static const _moduleConfigs = [
     _ModuleConfig(_kRed,    Color(0xFFFEF2F2)),
@@ -465,7 +465,7 @@ class _ModuleGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final count = folders.length.clamp(0, 4);
+    final count = subjects.length.clamp(0, 4);
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -479,13 +479,13 @@ class _ModuleGrid extends StatelessWidget {
       itemBuilder: (_, i) {
         final cfg = _moduleConfigs[i % _moduleConfigs.length];
         return _ModuleTile(
-          folder: folders[i],
+          subject: subjects[i],
           config: cfg,
           onTap: () {
             HapticFeedback.selectionClick();
             context.push(
-              '/my-courses/$courseId/folder/${folders[i].id}',
-              extra: folders[i].name,
+              '/my-courses/$courseId/subject/${subjects[i].id}',
+              extra: subjects[i].name,
             );
           },
         );
@@ -501,12 +501,12 @@ class _ModuleConfig {
 }
 
 class _ModuleTile extends StatelessWidget {
-  final CourseFolder folder;
+  final CourseSubject subject;
   final _ModuleConfig config;
   final VoidCallback onTap;
 
   const _ModuleTile({
-    required this.folder,
+    required this.subject,
     required this.config,
     required this.onTap,
   });
@@ -531,7 +531,7 @@ class _ModuleTile extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SvgPicture.asset(
-            _svgForFolder(folder.name),
+            _svgForSubject(subject.name),
             width: 52,
             height: 52,
             fit: BoxFit.contain,
@@ -540,7 +540,7 @@ class _ModuleTile extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
-              folder.name,
+              subject.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -558,14 +558,14 @@ class _ModuleTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// FOLDER LIST TILE (5th folder onwards)
+// SUBJECT LIST TILE (5th subject onwards)
 // ─────────────────────────────────────────────
-class _FolderListTile extends StatelessWidget {
-  final CourseFolder folder;
+class _SubjectListTile extends StatelessWidget {
+  final CourseSubject subject;
   final VoidCallback onTap;
 
-  const _FolderListTile({
-    required this.folder,
+  const _SubjectListTile({
+    required this.subject,
     required this.onTap,
   });
 
@@ -589,30 +589,20 @@ class _FolderListTile extends StatelessWidget {
       child: Row(
         children: [
           SvgPicture.asset(
-            _svgForFolder(folder.name),
+            _svgForSubject(subject.name),
             width: 40,
             height: 40,
             fit: BoxFit.contain,
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  folder.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _kText,
-                  ),
-                ),
-                if (folder.itemCount > 0)
-                  Text(
-                    '${folder.itemCount} Lectures available',
-                    style: const TextStyle(fontSize: 12, color: _kSub),
-                  ),
-              ],
+            child: Text(
+              subject.name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _kText,
+              ),
             ),
           ),
           const Icon(Icons.chevron_right_rounded, color: _kSub, size: 20),
@@ -694,10 +684,10 @@ class _ExpiryBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// EMPTY FOLDERS
+// EMPTY SUBJECTS
 // ─────────────────────────────────────────────
-class _EmptyFolders extends StatelessWidget {
-  const _EmptyFolders();
+class _EmptySubjects extends StatelessWidget {
+  const _EmptySubjects();
 
   @override
   Widget build(BuildContext context) => Center(
@@ -709,7 +699,7 @@ class _EmptyFolders extends StatelessWidget {
           height: 72,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFF8C38), _kPrimary],
+              colors: [Color(0xFF2B5BB8), _kPrimary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

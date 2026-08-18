@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/config/env.dart';
-import 'models/content_item.dart';
 import 'models/course.dart';
-import 'models/folder.dart';
+import 'models/course_subject.dart';
+import 'models/course_topic.dart';
+import 'models/subtopic_pdf.dart';
+import 'models/subtopic_video.dart';
 import 'repositories/courses_repository.dart';
 
 // ── Video URL resolution (unchanged) ──────────────────────────────────────
@@ -19,6 +21,15 @@ Future<String?> resolveVideoUrl(String rawPath) async {
   return null;
 }
 
+const _courseColumns =
+    'id, slug, name, description, subject, educator_name, level, target_exam, '
+    'thumbnail_url, price, original_price, discount_percent, rating, '
+    'total_enrolled, total_lessons, duration_hours, tags, badge, '
+    'is_featured, is_published, what_youll_learn, requirements, sort_order, '
+    'short_description, education_level, duration_label, mode, language, '
+    'subjects_covered, description_html, included_services, centre_id, '
+    'is_global, end_date';
+
 // ── Repository provider ────────────────────────────────────────────────────
 final coursesRepositoryProvider = Provider<CoursesRepository>(
   (_) => CoursesRepository(),
@@ -33,13 +44,7 @@ final courseDetailProvider =
     FutureProvider.autoDispose.family<Course, String>((ref, id) async {
   final data = await SupabaseService.client
       .from('courses')
-      .select(
-        'id, name, internal_name, description, thumbnail_url, target, "class", '
-        'language, mrp, sale_price, discount_percent, show_price_with_gst, '
-        'is_course_free, max_usage_days, course_end_date, priority, badge, '
-        'is_active, is_featured, tags, rating, '
-        'assigned_teacher_id, what_youll_learn, requirements',
-      )
+      .select(_courseColumns)
       .eq('id', id)
       .single();
   return Course.fromJson(data);
@@ -50,107 +55,166 @@ final courseBySlugProvider =
     FutureProvider.autoDispose.family<Course, String>((ref, slug) async {
   final data = await SupabaseService.client
       .from('courses')
-      .select(
-        'id, name, internal_name, description, thumbnail_url, target, "class", '
-        'language, mrp, sale_price, discount_percent, show_price_with_gst, '
-        'is_course_free, max_usage_days, course_end_date, priority, badge, '
-        'is_active, is_featured, tags, rating, '
-        'assigned_teacher_id, what_youll_learn, requirements',
-      )
+      .select(_courseColumns)
       .eq('slug', slug)
       .single();
   return Course.fromJson(data);
 });
 
-// ── Level-2 folders for a course (parent_id is null) ──────────────────────
-final courseFoldersProvider =
-    FutureProvider.autoDispose.family<List<CourseFolder>, String>(
+// ── Subjects within a course ───────────────────────────────────────────────
+final courseSubjectsProvider =
+    FutureProvider.autoDispose.family<List<CourseSubject>, String>(
         (ref, courseId) async {
   final data = await SupabaseService.client
-      .from('folders')
-      .select('id, course_id, parent_id, name, "order", created_at')
+      .from('course_subjects')
+      .select('id, course_id, name, icon, color, position')
       .eq('course_id', courseId)
-      .isFilter('parent_id', null)
-      .order('order', ascending: true)
-      .order('created_at', ascending: true);
+      .order('position', ascending: true);
   return (data as List<dynamic>)
-      .map((r) => CourseFolder.fromJson(r as Map<String, dynamic>))
+      .map((r) => CourseSubject.fromJson(r as Map<String, dynamic>))
       .toList();
 });
 
-// ── Sub-folders (level 3) for a given folder ──────────────────────────────
-final subFoldersProvider =
-    FutureProvider.autoDispose.family<List<CourseFolder>, String>(
-        (ref, folderId) async {
+// ── Topics within a subject ────────────────────────────────────────────────
+final courseTopicsProvider =
+    FutureProvider.autoDispose.family<List<CourseTopic>, String>(
+        (ref, subjectId) async {
   final data = await SupabaseService.client
-      .from('folders')
-      .select('id, course_id, parent_id, name, "order", created_at')
-      .eq('parent_id', folderId)
-      .order('order', ascending: true)
-      .order('created_at', ascending: true);
+      .from('course_topics')
+      .select('id, course_id, subject_id, name, position')
+      .eq('subject_id', subjectId)
+      .order('position', ascending: true);
   return (data as List<dynamic>)
-      .map((r) => CourseFolder.fromJson(r as Map<String, dynamic>))
+      .map((r) => CourseTopic.fromJson(r as Map<String, dynamic>))
       .toList();
 });
 
-// ── Video/recorded_lecture items (Lectures tab) ────────────────────────────
-// Always returns only admin-marked free-preview items regardless of enrollment.
-// Enrolled users access all content through the course home → folder view flow.
-final freePreviewItemsProvider =
-    FutureProvider.autoDispose.family<List<ContentItem>, String>(
+// ── Videos within a topic ──────────────────────────────────────────────────
+final topicVideosProvider =
+    FutureProvider.autoDispose.family<List<SubtopicVideo>, String>(
+        (ref, topicId) async {
+  final data = await SupabaseService.client
+      .from('subtopic_videos')
+      .select(
+        'id, course_id, subtopic_id, topic_id, subtopic_label, title, '
+        'youtube_url, youtube_video_id, thumbnail_url, duration_label, '
+        'description, position, is_preview',
+      )
+      .eq('topic_id', topicId)
+      .order('position', ascending: true);
+  return (data as List<dynamic>)
+      .map((r) => SubtopicVideo.fromJson(r as Map<String, dynamic>))
+      .toList();
+});
+
+// ── PDFs within a topic ────────────────────────────────────────────────────
+final topicPdfsProvider =
+    FutureProvider.autoDispose.family<List<SubtopicPdf>, String>(
+        (ref, topicId) async {
+  final data = await SupabaseService.client
+      .from('subtopic_pdfs')
+      .select(
+        'id, course_id, subtopic_id, topic_id, subtopic_label, title, '
+        'file_url, file_size_kb, position',
+      )
+      .eq('topic_id', topicId)
+      .order('position', ascending: true);
+  return (data as List<dynamic>)
+      .map((r) => SubtopicPdf.fromJson(r as Map<String, dynamic>))
+      .toList();
+});
+
+// ── Free-preview videos for a whole course (used on Course Detail screen) ──
+final courseFreePreviewVideosProvider =
+    FutureProvider.autoDispose.family<List<SubtopicVideo>, String>(
         (ref, courseId) async {
   final data = await SupabaseService.client
-      .from('content_items')
+      .from('subtopic_videos')
       .select(
-        'id, course_id, folder_id, type, title, description, '
-        'file_url, video_url, video_source, zoom_link, scheduled_at, '
-        'test_id, "order", is_free_preview',
+        'id, course_id, subtopic_id, topic_id, subtopic_label, title, '
+        'youtube_url, youtube_video_id, thumbnail_url, duration_label, '
+        'description, position, is_preview',
       )
       .eq('course_id', courseId)
-      .inFilter('type', ['video', 'recorded_lecture'])
-      .eq('is_free_preview', true)
-      .order('order');
+      .eq('is_preview', true)
+      .order('position', ascending: true);
   return (data as List<dynamic>)
-      .map((r) => ContentItem.fromJson(r as Map<String, dynamic>))
+      .map((r) => SubtopicVideo.fromJson(r as Map<String, dynamic>))
       .toList();
 });
 
-// ── All PDF content items for a course (PDFs tab) ─────────────────────────
-final coursePdfItemsProvider =
-    FutureProvider.autoDispose.family<List<ContentItem>, String>(
+// ── All PDFs for a whole course (used on Course Detail screen) ────────────
+final coursePdfsProvider =
+    FutureProvider.autoDispose.family<List<SubtopicPdf>, String>(
         (ref, courseId) async {
   final data = await SupabaseService.client
-      .from('content_items')
+      .from('subtopic_pdfs')
       .select(
-        'id, course_id, folder_id, type, title, description, '
-        'file_url, video_url, video_source, zoom_link, scheduled_at, '
-        'test_id, "order", is_free_preview',
+        'id, course_id, subtopic_id, topic_id, subtopic_label, title, '
+        'file_url, file_size_kb, position',
       )
       .eq('course_id', courseId)
-      .eq('type', 'pdf')
-      .order('order');
+      .order('position', ascending: true);
   return (data as List<dynamic>)
-      .map((r) => ContentItem.fromJson(r as Map<String, dynamic>))
+      .map((r) => SubtopicPdf.fromJson(r as Map<String, dynamic>))
       .toList();
 });
 
-// ── Content items for a folder ─────────────────────────────────────────────
-final contentItemsProvider =
-    FutureProvider.autoDispose.family<List<ContentItem>, String>(
-        (ref, folderId) async {
+// ── Per-user video progress for a course — set of completed video IDs ─────
+final videoProgressProvider =
+    FutureProvider.autoDispose.family<Set<String>, String>(
+        (ref, courseId) async {
+  final userId = SupabaseService.client.auth.currentUser?.id;
+  if (userId == null) return <String>{};
   final data = await SupabaseService.client
-      .from('content_items')
-      .select(
-        'id, course_id, folder_id, type, title, description, '
-        'file_url, video_url, video_source, zoom_link, scheduled_at, '
-        'test_id, "order", is_free_preview',
-      )
-      .eq('folder_id', folderId)
-      .order('order');
+      .from('subtopic_video_progress')
+      .select('video_id, is_completed')
+      .eq('user_id', userId)
+      .eq('course_id', courseId);
   return (data as List<dynamic>)
-      .map((r) => ContentItem.fromJson(r as Map<String, dynamic>))
-      .toList();
+      .where((r) => (r as Map<String, dynamic>)['is_completed'] == true)
+      .map((r) => (r as Map<String, dynamic>)['video_id'] as String)
+      .toSet();
 });
+
+/// Upserts a student's watch progress for a single video.
+Future<void> markVideoProgress({
+  required String videoId,
+  String? subtopicId,
+  required String courseId,
+  bool isCompleted = true,
+  int? watchTimeSeconds,
+}) async {
+  final client = SupabaseService.client;
+  final userId = client.auth.currentUser?.id;
+  if (userId == null) return;
+
+  final existing = await client
+      .from('subtopic_video_progress')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('video_id', videoId)
+      .maybeSingle();
+
+  final payload = {
+    'user_id': userId,
+    'video_id': videoId,
+    if (subtopicId != null) 'subtopic_id': subtopicId,
+    'course_id': courseId,
+    'is_completed': isCompleted,
+    if (watchTimeSeconds != null) 'watch_time_seconds': watchTimeSeconds,
+    'last_accessed_at': DateTime.now().toIso8601String(),
+  };
+
+  if (existing != null) {
+    await client
+        .from('subtopic_video_progress')
+        .update(payload)
+        .eq('id', existing['id'] as String);
+  } else {
+    await client.from('subtopic_video_progress').insert(payload);
+  }
+}
 
 // ── Enrollment with enrolled_at (for free-course expiry check) ────────────
 class EnrollmentInfo {

@@ -15,9 +15,9 @@ import 'pdf_viewer_screen.dart';
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryLight = Color(0xFFFFF0E6);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryLight = Color(0xFFE8EDF9);
+  static const primaryDark = Color(0xFF102A63);
 
   static const background = Color(0xFFFFFBF8);
   static const surface = Color(0xFFFFFFFF);
@@ -216,7 +216,7 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
                 lessonTitle: activeLesson?.title ?? courseTitle,
                 onBack: () => context.canPop()
                     ? context.pop()
-                    : context.go('/my-learning'),
+                    : context.go('/home'),
               ),
 
               // ── Tab bar ──
@@ -764,7 +764,7 @@ class _LessonTile extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: isActive
                     ? const LinearGradient(
-                        colors: [Color(0xFFFF8C38), DS.primary],
+                        colors: [Color(0xFF2B5BB8), DS.primary],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )

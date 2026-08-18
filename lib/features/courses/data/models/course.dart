@@ -2,94 +2,118 @@ import 'package:equatable/equatable.dart';
 
 class Course extends Equatable {
   final String id;
+  final String slug;
   final String name;
-  final String? internalName;
   final String? description;
+  final String? subject;
+  final String? educatorName;
+  final String? level;
+  final String? targetExam;
   final String? thumbnailUrl;
-  final String target;       // 'IIT-JEE' | 'NEET' | 'Foundation'
-  final String courseClass;  // '8'..'12' | '12th_pass'
-  final String language;     // 'Hindi' | 'English'
-  final double mrp;
-  final double salePrice;
-  final double discountPercent;
-  final bool showPriceWithGst;
-  final bool isCourseFree;
-  final int? maxUsageDays;
-  final DateTime? courseEndDate;
-  final int priority;
-  final String? badge;
-  final bool isActive;
-  final bool isFeatured;
-  final List<String> tags;
+  final double price;
+  final double? originalPrice;
+  final int discountPercent;
   final double rating;
-  final String? assignedTeacherId;
+  final int totalEnrolled;
+  final int totalLessons;
+  final int durationHours;
+  final List<String> tags;
+  final String? badge;
+  final bool isFeatured;
+  final bool isPublished;
   final List<String> whatYoullLearn;
   final List<String> requirements;
-
-  // Joined teacher name (from profiles/teachers table if joined)
-  final String? teacherName;
+  final int sortOrder;
+  final String? shortDescription;
+  final String? educationLevel;
+  final String? durationLabel;
+  final String? mode;
+  final String language;
+  final List<String> subjectsCovered;
+  final String? descriptionHtml;
+  final List<String> includedServices;
+  final String? centreId;
+  final bool isGlobal;
+  final DateTime? endDate;
 
   const Course({
     required this.id,
+    required this.slug,
     required this.name,
-    this.internalName,
     this.description,
+    this.subject,
+    this.educatorName,
+    this.level,
+    this.targetExam,
     this.thumbnailUrl,
-    required this.target,
-    required this.courseClass,
-    this.language = 'Hindi',
-    this.mrp = 0,
-    this.salePrice = 0,
+    this.price = 0,
+    this.originalPrice,
     this.discountPercent = 0,
-    this.showPriceWithGst = false,
-    this.isCourseFree = false,
-    this.maxUsageDays,
-    this.courseEndDate,
-    this.priority = 0,
-    this.badge,
-    this.isActive = true,
-    this.isFeatured = false,
-    this.tags = const [],
     this.rating = 0,
-    this.assignedTeacherId,
+    this.totalEnrolled = 0,
+    this.totalLessons = 0,
+    this.durationHours = 0,
+    this.tags = const [],
+    this.badge,
+    this.isFeatured = false,
+    this.isPublished = true,
     this.whatYoullLearn = const [],
     this.requirements = const [],
-    this.teacherName,
+    this.sortOrder = 0,
+    this.shortDescription,
+    this.educationLevel,
+    this.durationLabel,
+    this.mode,
+    this.language = 'English',
+    this.subjectsCovered = const [],
+    this.descriptionHtml,
+    this.includedServices = const [],
+    this.centreId,
+    this.isGlobal = false,
+    this.endDate,
   });
 
-  double get displayPrice =>
-      showPriceWithGst ? salePrice * 1.18 : salePrice;
-
-  bool get hasDiscount => mrp > 0 && salePrice < mrp;
+  bool get hasDiscount => originalPrice != null && originalPrice! > price;
 
   factory Course.fromJson(Map<String, dynamic> j) => Course(
         id: j['id'] as String,
+        slug: j['slug'] as String? ?? '',
         name: j['name'] as String? ?? '',
-        internalName: j['internal_name'] as String?,
         description: j['description'] as String?,
+        subject: j['subject'] as String?,
+        educatorName: j['educator_name'] as String?,
+        level: j['level'] as String?,
+        targetExam: j['target_exam'] as String?,
         thumbnailUrl: j['thumbnail_url'] as String?,
-        target: j['target'] as String? ?? 'JEE',
-        courseClass: j['class'] as String? ?? '11',
-        language: j['language'] as String? ?? 'Hindi',
-        mrp: _toDouble(j['mrp']),
-        salePrice: _toDouble(j['sale_price']),
-        discountPercent: _toDouble(j['discount_percent']),
-        showPriceWithGst: j['show_price_with_gst'] as bool? ?? false,
-        isCourseFree: j['is_course_free'] as bool? ?? false,
-        maxUsageDays: _toInt(j['max_usage_days']),
-        courseEndDate: j['course_end_date'] != null
-            ? DateTime.tryParse(j['course_end_date'] as String)
+        price: _toDouble(j['price']),
+        originalPrice: j['original_price'] != null
+            ? _toDouble(j['original_price'])
             : null,
-        priority: _toInt(j['priority']) ?? 0,
-        badge: j['badge'] as String?,
-        isActive: j['is_active'] as bool? ?? true,
-        isFeatured: j['is_featured'] as bool? ?? false,
-        tags: _toStringList(j['tags']),
+        discountPercent: _toInt(j['discount_percent']) ?? 0,
         rating: _toDouble(j['rating']),
-        assignedTeacherId: j['assigned_teacher_id'] as String?,
+        totalEnrolled: _toInt(j['total_enrolled']) ?? 0,
+        totalLessons: _toInt(j['total_lessons']) ?? 0,
+        durationHours: _toInt(j['duration_hours']) ?? 0,
+        tags: _toStringList(j['tags']),
+        badge: j['badge'] as String?,
+        isFeatured: j['is_featured'] as bool? ?? false,
+        isPublished: j['is_published'] as bool? ?? true,
         whatYoullLearn: _toStringList(j['what_youll_learn']),
         requirements: _toStringList(j['requirements']),
-        teacherName: j['teacher_name'] as String?,
+        sortOrder: _toInt(j['sort_order']) ?? 0,
+        shortDescription: j['short_description'] as String?,
+        educationLevel: j['education_level'] as String?,
+        durationLabel: j['duration_label'] as String?,
+        mode: j['mode'] as String?,
+        language: j['language'] as String? ?? 'English',
+        subjectsCovered: _toStringList(j['subjects_covered']),
+        descriptionHtml: j['description_html'] as String?,
+        includedServices: _toStringList(j['included_services']),
+        centreId: j['centre_id'] as String?,
+        isGlobal: j['is_global'] as bool? ?? false,
+        endDate: j['end_date'] != null
+            ? DateTime.tryParse(j['end_date'] as String)
+            : null,
       );
 
   static double _toDouble(dynamic v) {
@@ -109,5 +133,5 @@ class Course extends Equatable {
       (v as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [];
 
   @override
-  List<Object?> get props => [id, name, target, courseClass, salePrice, isFeatured];
+  List<Object?> get props => [id, name, targetExam, price, isFeatured];
 }

@@ -94,10 +94,10 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
           child: YoutubePlayer(
             controller: _controller,
             showVideoProgressIndicator: true,
-            progressIndicatorColor: const Color(0xFFF97315),
+            progressIndicatorColor: const Color(0xFF193F8F),
             progressColors: const ProgressBarColors(
-              playedColor: Color(0xFFF97315),
-              handleColor: Color(0xFFF97315),
+              playedColor: Color(0xFF193F8F),
+              handleColor: Color(0xFF193F8F),
               bufferedColor: Color(0xFFFFD5B0),
               backgroundColor: Colors.black26,
             ),
@@ -141,10 +141,10 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
                 child: YoutubePlayer(
                   controller: _controller,
                   showVideoProgressIndicator: true,
-                  progressIndicatorColor: const Color(0xFFF97315),
+                  progressIndicatorColor: const Color(0xFF193F8F),
                   progressColors: const ProgressBarColors(
-                    playedColor: Color(0xFFF97315),
-                    handleColor: Color(0xFFF97315),
+                    playedColor: Color(0xFF193F8F),
+                    handleColor: Color(0xFF193F8F),
                     bufferedColor: Color(0xFFFFD5B0),
                     backgroundColor: Colors.black26,
                   ),
@@ -210,10 +210,10 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
             YoutubePlayer(
               controller: _controller,
               showVideoProgressIndicator: true,
-              progressIndicatorColor: const Color(0xFFF97315),
+              progressIndicatorColor: const Color(0xFF193F8F),
               progressColors: const ProgressBarColors(
-                playedColor: Color(0xFFF97315),
-                handleColor: Color(0xFFF97315),
+                playedColor: Color(0xFF193F8F),
+                handleColor: Color(0xFF193F8F),
                 bufferedColor: Color(0xFFFFD5B0),
                 backgroundColor: Colors.black26,
               ),
@@ -256,12 +256,12 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
                         child: const Row(
                           children: [
                             Icon(Icons.fullscreen_rounded,
-                                color: Color(0xFFF97315), size: 18),
+                                color: Color(0xFF193F8F), size: 18),
                             SizedBox(width: 8),
                             Text(
                               'Tap to watch in fullscreen',
                               style: TextStyle(
-                                color: Color(0xFFF97315),
+                                color: Color(0xFF193F8F),
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),

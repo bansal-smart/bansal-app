@@ -12,8 +12,8 @@ import '../enrollments/data/repositories/enrollments_repository.dart';
 // 💡 Move DS to lib/core/theme/design_system.dart
 // ─────────────────────────────────────────────
 abstract class DS {
-  static const primary = Color(0xFFF97315);
-  static const primaryDark = Color(0xFFE05A00);
+  static const primary = Color(0xFF193F8F);
+  static const primaryDark = Color(0xFF102A63);
   static const surface = Color(0xFFFFFFFF);
 }
 
@@ -166,17 +166,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final auth  = ref.read(authRepositoryProvider);
     if (!prefs.onboardingDone) {
       context.go('/onboarding');
-    } else if (auth.isSignedIn && !prefs.profileSetupDone) {
-      context.go('/profile-setup');
     } else {
-      if (auth.isSignedIn && prefs.profileSetupDone) {
+      if (auth.isSignedIn) {
         // Re-run auto-enrollment on every launch so new free courses are picked up
         EnrollmentsRepository().autoEnrollFreeCourses(
           exam: prefs.userExam,
           userClass: prefs.userClass,
         );
       }
-      context.go(auth.isSignedIn ? '/courses' : '/login');
+      context.go(auth.isSignedIn ? '/home' : '/login');
     }
   }
 
@@ -210,7 +208,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 gradient: LinearGradient(
                   colors: [
                     Color(0xFFFFAA55),
-                    Color(0xFFFF8C38),
+                    Color(0xFF2B5BB8),
                     DS.primary,
                     DS.primaryDark,
                   ],
@@ -290,7 +288,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: SlideTransition(
                       position: _taglineSlide,
                       child: Text(
-                        'Learn. Compete. Achieve.',
+                        'Learn. Practice. Achieve.',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.78),
                           fontSize: 14.5,
