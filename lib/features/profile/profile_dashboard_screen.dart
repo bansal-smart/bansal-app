@@ -58,14 +58,42 @@ abstract class DS {
 const _kExams = ['JEE', 'NEET', 'Foundation'];
 const _kClasses = ['8th', '9th', '10th', '11th', '12th', 'Dropper'];
 const _kStates = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
-  'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim',
-  'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
-  'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh',
-  'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir',
-  'Ladakh', 'Lakshadweep', 'Puducherry',
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+  'Andaman and Nicobar Islands',
+  'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
+  'Lakshadweep',
+  'Puducherry',
 ];
 
 // ─────────────────────────────────────────────
@@ -157,27 +185,32 @@ class _ProfileDashboardScreenState
       final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
       final path = '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$ext';
 
-      await sb.storage.from('avatars').uploadBinary(
-        path,
-        bytes,
-        fileOptions: FileOptions(contentType: contentType, upsert: true),
-      );
+      await sb.storage
+          .from('avatars')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType, upsert: true),
+          );
 
       final url = sb.storage.from('avatars').getPublicUrl(path);
       await sb.auth.updateUser(UserAttributes(data: {'avatar_url': url}));
-      await sb.from('profiles').update({'avatar_url': url}).eq('user_id', user.id);
+      await sb
+          .from('profiles')
+          .update({'avatar_url': url})
+          .eq('user_id', user.id);
 
       if (!mounted) return;
       setState(() => _avatarUrl = url);
       ref.invalidate(userProfileProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -204,10 +237,14 @@ class _ProfileDashboardScreenState
         await UserRepository().updateUserProfile(updated);
 
         final sb = Supabase.instance.client;
-        await sb.auth.updateUser(UserAttributes(data: {
-          'full_name': updated.fullName ?? '',
-          if (updated.avatarUrl != null) 'avatar_url': updated.avatarUrl,
-        }));
+        await sb.auth.updateUser(
+          UserAttributes(
+            data: {
+              'full_name': updated.fullName ?? '',
+              if (updated.avatarUrl != null) 'avatar_url': updated.avatarUrl,
+            },
+          ),
+        );
 
         final prefs = ref.read(prefsProvider);
         if (updated.targetExam != null) {
@@ -237,9 +274,9 @@ class _ProfileDashboardScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
   }
 
@@ -293,15 +330,16 @@ class _ProfileDashboardScreenState
     final String name = profile?.fullName?.trim().isNotEmpty == true
         ? profile!.fullName!.trim()
         : setupInfo.name.isNotEmpty
-            ? setupInfo.name
-            : (user?.name ?? 'Learner');
+        ? setupInfo.name
+        : (user?.name ?? 'Learner');
     final String initials = _initials(name);
-    final String? avatarUrl = _avatarUrl ?? profile?.avatarUrl ?? user?.avatarUrl;
+    final String? avatarUrl =
+        _avatarUrl ?? profile?.avatarUrl ?? user?.avatarUrl;
     final String examTag = profile?.targetExam?.isNotEmpty == true
         ? profile!.targetExam!
         : setupInfo.exam.isNotEmpty
-            ? setupInfo.exam
-            : prefs.goal;
+        ? setupInfo.exam
+        : prefs.goal;
     final String classTag = profile?.classLevel?.isNotEmpty == true
         ? profile!.classLevel!
         : setupInfo.userClass;
@@ -310,8 +348,8 @@ class _ProfileDashboardScreenState
     final String loginId = (profile?.rollNumber?.isNotEmpty == true)
         ? profile!.rollNumber!
         : (profile?.phone?.isNotEmpty == true)
-            ? profile!.phone!
-            : (user?.email ?? '—');
+        ? profile!.phone!
+        : (user?.email ?? '—');
 
     return Container(
       color: DS.background,
@@ -335,23 +373,6 @@ class _ProfileDashboardScreenState
               const SizedBox(height: DS.s16),
               const _StatsRow(),
               const SizedBox(height: DS.s20),
-              _PersonalInfoCard(
-                nameCtrl: _nameCtrl,
-                phoneCtrl: _phoneCtrl,
-                parentPhoneCtrl: _parentPhoneCtrl,
-                fatherNameCtrl: _fatherNameCtrl,
-                cityCtrl: _cityCtrl,
-                classLevel: _classLevel,
-                targetExam: _targetExam,
-                state: _state,
-                saving: _saving,
-                saved: _saved,
-                onClassLevelChanged: (v) => setState(() => _classLevel = v),
-                onTargetExamChanged: (v) => setState(() => _targetExam = v),
-                onStateChanged: (v) => setState(() => _state = v),
-                onSave: _save,
-              ),
-              const SizedBox(height: DS.s24),
               _SectionHeader(title: 'Account'),
               const SizedBox(height: DS.s12),
               _AccountCard(
@@ -437,25 +458,13 @@ class _HeroCard extends StatelessWidget {
                         ),
                       )
                     : (avatarUrl != null && avatarUrl!.isNotEmpty)
-                        ? ClipOval(
-                            child: Image.network(
-                              avatarUrl!,
-                              width: 88,
-                              height: 88,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Center(
-                                child: Text(
-                                  initials,
-                                  style: const TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )
-                        : Center(
+                    ? ClipOval(
+                        child: Image.network(
+                          avatarUrl!,
+                          width: 88,
+                          height: 88,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
                             child: Text(
                               initials,
                               style: const TextStyle(
@@ -465,6 +474,18 @@ class _HeroCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
               ),
               Positioned(
                 bottom: 0,
@@ -537,21 +558,21 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: DS.s10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.20),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white.withOpacity(0.30), width: 1),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: DS.s10, vertical: 4),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.20),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: Colors.white.withOpacity(0.30), width: 1),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────
