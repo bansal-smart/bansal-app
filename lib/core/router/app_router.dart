@@ -12,7 +12,7 @@ import '../../features/auth/signup_screen.dart';
 import '../../features/courses/course_detail_screen.dart';
 import '../../features/courses/course_home_screen.dart';
 import '../../features/courses/courses_list_screen.dart';
-import '../../features/courses/course_store_screen.dart';
+import '../../features/store/store_screen.dart';
 import '../../features/courses/topic_list_screen.dart';
 import '../../features/courses/topic_content_screen.dart';
 import '../../features/courses/lecture_player_screen.dart';
@@ -135,10 +135,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/live', builder: (_, __) => const LiveListScreen()),
           GoRoute(path: '/tests', builder: (_, __) => const TestsListScreen()),
-          GoRoute(
-            path: '/store',
-            builder: (_, __) => const CourseStoreScreen(),
-          ),
+          GoRoute(path: '/store', builder: (_, __) => const StoreScreen()),
           GoRoute(
             path: '/profile',
             builder: (_, __) => const ProfileDashboardScreen(),

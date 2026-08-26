@@ -29,19 +29,29 @@ class SubtopicVideo {
     this.isPreview = false,
   });
 
-  factory SubtopicVideo.fromJson(Map<String, dynamic> j) => SubtopicVideo(
-        id: j['id'] as String,
-        courseId: j['course_id'] as String,
-        subtopicId: j['subtopic_id'] as String?,
-        topicId: j['topic_id'] as String,
-        subtopicLabel: j['subtopic_label'] as String?,
-        title: j['title'] as String? ?? '',
-        youtubeUrl: j['youtube_url'] as String?,
-        youtubeVideoId: j['youtube_video_id'] as String?,
-        thumbnailUrl: j['thumbnail_url'] as String?,
-        durationLabel: j['duration_label'] as String?,
-        description: j['description'] as String?,
-        position: (j['position'] as num?)?.toInt() ?? 0,
-        isPreview: j['is_preview'] as bool? ?? false,
-      );
+  factory SubtopicVideo.fromJson(Map<String, dynamic> j) {
+    final storedLabel = (j['subtopic_label'] as String?)?.trim();
+    final relatedSubtopic = j['course_subtopics'];
+    final relatedLabel = relatedSubtopic is Map
+        ? (relatedSubtopic['name'] as String?)?.trim()
+        : null;
+
+    return SubtopicVideo(
+      id: j['id'] as String,
+      courseId: j['course_id'] as String,
+      subtopicId: j['subtopic_id'] as String?,
+      topicId: j['topic_id'] as String,
+      subtopicLabel: storedLabel?.isNotEmpty == true
+          ? storedLabel
+          : relatedLabel,
+      title: j['title'] as String? ?? '',
+      youtubeUrl: j['youtube_url'] as String?,
+      youtubeVideoId: j['youtube_video_id'] as String?,
+      thumbnailUrl: j['thumbnail_url'] as String?,
+      durationLabel: j['duration_label'] as String?,
+      description: j['description'] as String?,
+      position: (j['position'] as num?)?.toInt() ?? 0,
+      isPreview: j['is_preview'] as bool? ?? false,
+    );
+  }
 }

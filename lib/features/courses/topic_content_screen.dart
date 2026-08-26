@@ -444,6 +444,20 @@ class _VideoCard extends ConsumerWidget {
                       height: 1.35,
                     ),
                   ),
+                  const SizedBox(height: DS.s4),
+                  Text(
+                    'Subtopic: ${video.subtopicLabel?.trim().isNotEmpty == true
+                        ? video.subtopicLabel!.trim()
+                        : '—'}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: DS.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
                   if (video.durationLabel != null) ...[
                     const SizedBox(height: DS.s4),
                     Text(

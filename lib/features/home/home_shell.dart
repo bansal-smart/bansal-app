@@ -69,10 +69,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       label: 'Course',
     ),
     (
-      route: '/live',
-      iconOff: Icons.sensors_outlined,
-      iconOn: Icons.sensors_rounded,
-      label: 'Live',
+      route: '/store',
+      iconOff: Icons.storefront_outlined,
+      iconOn: Icons.storefront_rounded,
+      label: 'Store',
     ),
     (
       route: '/tests',
@@ -380,17 +380,91 @@ class _BottomNav extends StatelessWidget {
               final tab = tabs[i];
               final isActive = i == currentIndex;
               return Expanded(
-                child: _NavItem(
-                  icon: isActive ? tab.iconOn : tab.iconOff,
-                  label: tab.label,
-                  isActive: isActive,
-                  isLive: false,
-                  onTap: () => onTap(i),
-                ),
+                child: i == 2
+                    ? _RaisedStoreNavItem(
+                        icon: isActive ? tab.iconOn : tab.iconOff,
+                        label: tab.label,
+                        isActive: isActive,
+                        onTap: () => onTap(i),
+                      )
+                    : _NavItem(
+                        icon: isActive ? tab.iconOn : tab.iconOff,
+                        label: tab.label,
+                        isActive: isActive,
+                        isLive: false,
+                        onTap: () => onTap(i),
+                      ),
               );
             }),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RaisedStoreNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _RaisedStoreNavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Positioned(
+            top: -18,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: isActive ? DS.primary : DS.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isActive ? DS.primaryLight : DS.border,
+                  width: 4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: DS.primary.withValues(alpha: isActive ? 0.28 : 0.12),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                size: 25,
+                color: isActive ? Colors.white : DS.primary,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 3,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: isActive ? DS.primary : DS.textSecondary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

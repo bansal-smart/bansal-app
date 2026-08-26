@@ -98,7 +98,8 @@ final topicVideosProvider =
       .select(
         'id, course_id, subtopic_id, topic_id, subtopic_label, title, '
         'youtube_url, youtube_video_id, thumbnail_url, duration_label, '
-        'description, position, is_preview',
+        'description, position, is_preview, '
+        'course_subtopics!subtopic_videos_subtopic_id_fkey(name)',
       )
       .eq('topic_id', topicId)
       .order('position', ascending: true);
@@ -133,7 +134,8 @@ final courseFreePreviewVideosProvider =
       .select(
         'id, course_id, subtopic_id, topic_id, subtopic_label, title, '
         'youtube_url, youtube_video_id, thumbnail_url, duration_label, '
-        'description, position, is_preview',
+        'description, position, is_preview, '
+        'course_subtopics!subtopic_videos_subtopic_id_fkey(name)',
       )
       .eq('course_id', courseId)
       .eq('is_preview', true)
@@ -214,6 +216,16 @@ Future<void> markVideoProgress({
   } else {
     await client.from('subtopic_video_progress').insert(payload);
   }
+
+  final now = DateTime.now();
+  final date =
+      '${now.year.toString().padLeft(4, '0')}-'
+      '${now.month.toString().padLeft(2, '0')}-'
+      '${now.day.toString().padLeft(2, '0')}';
+  await client.from('study_sessions').upsert({
+    'user_id': userId,
+    'session_date': date,
+  }, onConflict: 'user_id,session_date', ignoreDuplicates: true);
 }
 
 // ── Enrollment with enrolled_at (for free-course expiry check) ────────────

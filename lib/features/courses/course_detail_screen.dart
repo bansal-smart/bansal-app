@@ -1582,6 +1582,20 @@ class _FreePreviewVideoCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: DS.s4),
+                  Text(
+                    'Subtopic: ${item.subtopicLabel?.trim().isNotEmpty == true
+                        ? item.subtopicLabel!.trim()
+                        : '—'}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: DS.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: DS.s4),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: DS.s8, vertical: DS.s2),

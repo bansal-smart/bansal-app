@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -19,6 +21,22 @@ class YoutubePlayerScreen extends StatefulWidget {
 class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
   late YoutubePlayerController _controller;
   bool _isFullScreen = false;
+  bool _loadingQualities = false;
+  List<String> _qualities = const [];
+  String _selectedQuality = 'auto';
+
+  static const _qualityLabels = <String, String>{
+    'highres': 'Best available',
+    'hd2160': '2160p',
+    'hd1440': '1440p',
+    'hd1080': '1080p',
+    'hd720': '720p',
+    'large': '480p',
+    'medium': '360p',
+    'small': '240p',
+    'tiny': '144p',
+    'auto': 'Auto',
+  };
 
   @override
   void initState() {
@@ -34,13 +52,119 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
         useHybridComposition: true,
       ),
     );
+    _controller.addListener(_loadQualitiesWhenPlaying);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_loadQualitiesWhenPlaying);
     _controller.dispose();
     _setPortrait();
     super.dispose();
+  }
+
+  void _loadQualitiesWhenPlaying() {
+    if (_controller.value.isReady &&
+        _controller.value.isPlaying &&
+        _qualities.isEmpty &&
+        !_loadingQualities) {
+      _loadAvailableQualities();
+    }
+  }
+
+  Future<void> _loadAvailableQualities() async {
+    final webView = _controller.value.webViewController;
+    if (webView == null || _loadingQualities) return;
+    _loadingQualities = true;
+    try {
+      final raw = await webView.evaluateJavascript(
+        source: 'player.getAvailableQualityLevels()',
+      );
+      final dynamic decoded = raw is String && raw.startsWith('[')
+          ? jsonDecode(raw)
+          : raw;
+      final levels = decoded is List
+          ? decoded.whereType<String>().toList()
+          : <String>[];
+      if (mounted && levels.isNotEmpty) {
+        setState(() => _qualities = levels);
+      }
+    } catch (_) {
+      // YouTube may not report levels until playback has buffered enough.
+    } finally {
+      _loadingQualities = false;
+    }
+  }
+
+  void _seekBy(int seconds) {
+    final duration = _controller.metadata.duration;
+    final current = _controller.value.position;
+    final targetSeconds = (current.inSeconds + seconds).clamp(
+      0,
+      duration.inSeconds,
+    );
+    _controller.seekTo(Duration(seconds: targetSeconds));
+  }
+
+  Future<void> _changeQuality(String quality) async {
+    final webView = _controller.value.webViewController;
+    if (webView == null) return;
+    await webView.evaluateJavascript(
+      source: 'player.setPlaybackQuality(${jsonEncode(quality)})',
+    );
+    if (mounted) setState(() => _selectedQuality = quality);
+  }
+
+  List<Widget> _playerActions({
+    required VoidCallback onFullScreen,
+    required bool isFullScreen,
+  }) {
+    final qualityItems = ['auto', ..._qualities.where((q) => q != 'auto')];
+    return [
+      PlayPauseButton(controller: _controller),
+      _SeekButton(
+        icon: Icons.replay_10_rounded,
+        tooltip: 'Back 10 seconds',
+        onPressed: () => _seekBy(-10),
+      ),
+      _SeekButton(
+        icon: Icons.forward_10_rounded,
+        tooltip: 'Forward 10 seconds',
+        onPressed: () => _seekBy(10),
+      ),
+      const ProgressBar(isExpanded: true),
+      const RemainingDuration(),
+      PlaybackSpeedButton(
+        controller: _controller,
+        icon: const Icon(Icons.speed_rounded, color: Colors.white, size: 21),
+      ),
+      PopupMenuButton<String>(
+        tooltip: 'Video quality',
+        onSelected: _changeQuality,
+        initialValue: _selectedQuality,
+        itemBuilder: (context) => qualityItems
+            .map(
+              (quality) => CheckedPopupMenuItem<String>(
+                value: quality,
+                checked: quality == _selectedQuality,
+                child: Text(_qualityLabels[quality] ?? quality),
+              ),
+            )
+            .toList(),
+        icon: const Icon(Icons.hd_rounded, color: Colors.white, size: 22),
+      ),
+      IconButton(
+        tooltip: isFullScreen ? 'Exit fullscreen' : 'Fullscreen',
+        icon: Icon(
+          isFullScreen
+              ? Icons.fullscreen_exit_rounded
+              : Icons.fullscreen_rounded,
+          color: Colors.white,
+          size: 24,
+        ),
+        onPressed: onFullScreen,
+      ),
+    ];
   }
 
   void _setPortrait() {
@@ -78,9 +202,7 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: _isFullScreen
-            ? _buildFullScreen()
-            : _buildNormal(),
+        body: _isFullScreen ? _buildFullScreen() : _buildNormal(),
       ),
     );
   }
@@ -93,6 +215,7 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
         Positioned.fill(
           child: YoutubePlayer(
             controller: _controller,
+            onReady: _loadAvailableQualities,
             showVideoProgressIndicator: true,
             progressIndicatorColor: const Color(0xFF193F8F),
             progressColors: const ProgressBarColors(
@@ -102,16 +225,10 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
               backgroundColor: Colors.black26,
             ),
             topActions: const [SizedBox.shrink()],
-            bottomActions: [
-              const CurrentPosition(),
-              const ProgressBar(isExpanded: true),
-              const RemainingDuration(),
-              IconButton(
-                icon: const Icon(Icons.fullscreen_exit_rounded,
-                    color: Colors.white, size: 24),
-                onPressed: _exitFullScreen,
-              ),
-            ],
+            bottomActions: _playerActions(
+              onFullScreen: _exitFullScreen,
+              isFullScreen: true,
+            ),
           ),
         ),
         // Exit button top-left (backup)
@@ -119,8 +236,11 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
           top: MediaQuery.of(context).padding.top + 4,
           left: 4,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded,
-                color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
             onPressed: _exitFullScreen,
           ),
         ),
@@ -140,6 +260,7 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
               Positioned.fill(
                 child: YoutubePlayer(
                   controller: _controller,
+                  onReady: _loadAvailableQualities,
                   showVideoProgressIndicator: true,
                   progressIndicatorColor: const Color(0xFF193F8F),
                   progressColors: const ProgressBarColors(
@@ -149,24 +270,21 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
                     backgroundColor: Colors.black26,
                   ),
                   topActions: const [SizedBox.shrink()],
-                  bottomActions: [
-                    const CurrentPosition(),
-                    const ProgressBar(isExpanded: true),
-                    const RemainingDuration(),
-                    IconButton(
-                      icon: const Icon(Icons.fullscreen_rounded,
-                          color: Colors.white, size: 24),
-                      onPressed: _enterFullScreen,
-                    ),
-                  ],
+                  bottomActions: _playerActions(
+                    onFullScreen: _enterFullScreen,
+                    isFullScreen: false,
+                  ),
                 ),
               ),
               Positioned(
                 top: MediaQuery.of(context).padding.top + 4,
                 left: 4,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded,
-                      color: Colors.white, size: 22),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
@@ -185,8 +303,10 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     Expanded(
@@ -209,6 +329,7 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
             // Player
             YoutubePlayer(
               controller: _controller,
+              onReady: _loadAvailableQualities,
               showVideoProgressIndicator: true,
               progressIndicatorColor: const Color(0xFF193F8F),
               progressColors: const ProgressBarColors(
@@ -218,16 +339,10 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
                 backgroundColor: Colors.black26,
               ),
               topActions: const [SizedBox.shrink()],
-              bottomActions: [
-                const CurrentPosition(),
-                const ProgressBar(isExpanded: true),
-                const RemainingDuration(),
-                IconButton(
-                  icon: const Icon(Icons.fullscreen_rounded,
-                      color: Colors.white, size: 24),
-                  onPressed: _enterFullScreen,
-                ),
-              ],
+              bottomActions: _playerActions(
+                onFullScreen: _enterFullScreen,
+                isFullScreen: false,
+              ),
             ),
             // Info panel
             Expanded(
@@ -255,8 +370,11 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
                         onTap: _enterFullScreen,
                         child: const Row(
                           children: [
-                            Icon(Icons.fullscreen_rounded,
-                                color: Color(0xFF193F8F), size: 18),
+                            Icon(
+                              Icons.fullscreen_rounded,
+                              color: Color(0xFF193F8F),
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Tap to watch in fullscreen',
@@ -279,4 +397,26 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
       },
     );
   }
+}
+
+class _SeekButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _SeekButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    visualDensity: VisualDensity.compact,
+    padding: const EdgeInsets.symmetric(horizontal: 3),
+    constraints: const BoxConstraints(minWidth: 32, minHeight: 40),
+    icon: Icon(icon, color: Colors.white, size: 21),
+    onPressed: onPressed,
+  );
 }

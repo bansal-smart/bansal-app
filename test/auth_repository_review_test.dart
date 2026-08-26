@@ -14,16 +14,16 @@ void main() {
     final prefs = await Prefs.create();
     final repository = AuthRepository(prefs);
 
-    await repository.sendPhoneOtp(phone: '8302654527');
+    await repository.sendPhoneOtp(phone: '830260000');
     final hasCompletedProfile = await repository.verifyPhoneOtp(
-      phone: '+918302654527',
+      phone: '+91830260000',
       token: '123456',
     );
 
     expect(hasCompletedProfile, isTrue);
     expect(repository.isSignedIn, isTrue);
     expect(repository.currentUser()?.id, 'google-play-review-user');
-    expect(prefs.phoneNumber, '+918302654527');
+    expect(prefs.phoneNumber, '+91830260000');
     expect(prefs.phoneSignedIn, isTrue);
     expect(prefs.profileSetupDone, isTrue);
     expect(prefs.userName, 'Demo Student');
@@ -36,7 +36,7 @@ void main() {
     final repository = AuthRepository(prefs);
 
     expect(
-      repository.verifyPhoneOtp(phone: '8302654527', token: '654321'),
+      repository.verifyPhoneOtp(phone: '830260000', token: '654321'),
       throwsA(
         isA<Exception>().having(
           (error) => error.toString(),

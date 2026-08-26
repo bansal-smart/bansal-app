@@ -743,6 +743,16 @@ class _TestEngineScreenState extends State<TestEngineScreen>
             .select('id')
             .single();
         attemptId = res['id'] as String?;
+
+        final now = DateTime.now();
+        final date =
+            '${now.year.toString().padLeft(4, '0')}-'
+            '${now.month.toString().padLeft(2, '0')}-'
+            '${now.day.toString().padLeft(2, '0')}';
+        await _db.from('study_sessions').upsert({
+          'user_id': userId,
+          'session_date': date,
+        }, onConflict: 'user_id,session_date', ignoreDuplicates: true);
       }
     } catch (_) {}
 

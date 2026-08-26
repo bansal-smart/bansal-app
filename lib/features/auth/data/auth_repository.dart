@@ -14,7 +14,7 @@ class AuthUser {
 }
 
 class AuthRepository {
-  static const _reviewPhone = '+918302654527';
+  static const _reviewPhone = '+91830260000';
   static const _reviewOtp = '123456';
 
   final Prefs _prefs;
@@ -80,9 +80,9 @@ class AuthRepository {
   }
 
   /// Step 2 — verify the OTP entered by the user and establish a session.
-  /// Calls the `prpsms-verify-otp` edge function, which validates the OTP,
-  /// finds-or-creates the auth user for this phone, and mints a magic-link
-  /// token; that token is then exchanged here for a real Supabase session.
+  /// Calls the mobile OTP edge function, which validates the OTP,
+  /// finds-or-creates the auth user for this phone, and returns a real
+  /// Supabase session.
   /// Returns true if the profile is already set up (returning user).
   Future<bool> verifyPhoneOtp({
     required String phone,
@@ -137,26 +137,43 @@ class AuthRepository {
     Map<String, dynamic> result;
     try {
       final res = await sb.functions.invoke(
-        'prpsms-verify-otp',
+        'mobile-prpsms-verify-otp',
         body: {'phone': phone, 'otp': token, 'purpose': 'login'},
       );
       if (res.status != 200 || res.data is! Map) {
         final msg = (res.data is Map) ? res.data['error'] as String? : null;
+        debugPrint(
+          '[Auth] Mobile OTP function rejected verification: '
+          'status=${res.status}, error=${msg ?? 'unknown'}',
+        );
         throw Exception(msg ?? 'Incorrect or expired OTP.');
       }
       result = Map<String, dynamic>.from(res.data as Map);
     } on FunctionException catch (e) {
       final msg = (e.details is Map) ? e.details['error'] as String? : null;
+      debugPrint(
+        '[Auth] Mobile OTP function exception: '
+        'status=${e.status}, error=${msg ?? e.reasonPhrase}',
+      );
       throw Exception(msg ?? 'Incorrect or expired OTP.');
     }
 
-    final tokenHash = result['token_hash'] as String?;
-    final email = result['email'] as String?;
-    if (tokenHash == null || email == null) {
+    final accessToken = result['access_token'] as String?;
+    final refreshToken = result['refresh_token'] as String?;
+    if (accessToken == null || refreshToken == null) {
+      debugPrint(
+        '[Auth] Mobile OTP response did not contain session credentials. '
+        'Keys=${result.keys.toList()}',
+      );
       throw Exception('Verification failed. Please try again.');
     }
 
-    await sb.auth.verifyOTP(tokenHash: tokenHash, type: OtpType.magiclink);
+    try {
+      await sb.auth.setSession(refreshToken, accessToken: accessToken);
+    } catch (error) {
+      debugPrint('[Auth] Could not establish OTP session: $error');
+      rethrow;
+    }
 
     await _prefs.setPhoneNumber(phone);
     await _prefs.setPhoneSignedIn(true);
