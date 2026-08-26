@@ -17,11 +17,10 @@ abstract class _DS {
   static const double radiusSm = 10;
   static const double radiusMd = 14;
   static const double radiusLg = 20;
-  static const double radiusXl = 28;
 }
 
 /// Loading placeholder for [HomeScreen] — mirrors its exact section layout
-/// (greeting hero, quick actions grid, progress grid, today card, continue
+/// (banner carousel, quick actions grid, progress grid, today card, continue
 /// learning card) so the page doesn't visibly jump once real data arrives.
 class HomeSkeleton extends StatefulWidget {
   const HomeSkeleton({super.key});
@@ -61,8 +60,8 @@ class _HomeSkeletonState extends State<HomeSkeleton>
           _DS.s32,
         ),
         children: [
-          // ── Greeting hero card ──
-          _HeroCardSkeleton(controller: _ctrl),
+// ── Banner carousel ────────────────────────────────────────────────────────
+          _BannerCarouselSkeleton(controller: _ctrl),
 
           const SizedBox(height: _DS.s16),
 
@@ -128,65 +127,32 @@ class _HomeSkeletonState extends State<HomeSkeleton>
   }
 }
 
-// ── Greeting hero card (navy gradient + inner text-line placeholders) ──────
-class _HeroCardSkeleton extends StatelessWidget {
+// ── Banner carousel ────────────────────────────────────────────────────────
+class _BannerCarouselSkeleton extends StatelessWidget {
   final AnimationController controller;
-  const _HeroCardSkeleton({required this.controller});
+  const _BannerCarouselSkeleton({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF193F8F), Color(0xFF0B1F4D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return AspectRatio(
+      aspectRatio: 2,
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) => DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_DS.radiusLg),
+            gradient: LinearGradient(
+              begin: Alignment(-1.0 - controller.value * 2, 0),
+              end: Alignment(1.0 - controller.value * 2, 0),
+              colors: const [
+                Color(0xFFE9ECF1),
+                Color(0xFFF6F7F9),
+                Color(0xFFE9ECF1),
+              ],
+              stops: const [0.35, 0.5, 0.65],
+            ),
+          ),
         ),
-        borderRadius: BorderRadius.circular(_DS.radiusXl),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ShimmerBox(
-            controller: controller,
-            width: 130,
-            height: 11,
-            radius: 4,
-            dark: true,
-          ),
-          const SizedBox(height: 10),
-          _ShimmerBox(
-            controller: controller,
-            width: 210,
-            height: 22,
-            radius: 6,
-            dark: true,
-          ),
-          const SizedBox(height: 10),
-          _ShimmerBox(
-            controller: controller,
-            width: double.infinity,
-            height: 13,
-            radius: 4,
-            dark: true,
-          ),
-          const SizedBox(height: 6),
-          _ShimmerBox(
-            controller: controller,
-            width: 160,
-            height: 13,
-            radius: 4,
-            dark: true,
-          ),
-          const SizedBox(height: 16),
-          _ShimmerBox(
-            controller: controller,
-            width: 160,
-            height: 46,
-            radius: _DS.radiusMd,
-          ),
-        ],
       ),
     );
   }
@@ -377,7 +343,6 @@ class _ShimmerBox extends StatelessWidget {
   final double? width;
   final double height;
   final double radius;
-  final bool dark;
   final bool bordered;
 
   const _ShimmerBox({
@@ -385,16 +350,13 @@ class _ShimmerBox extends StatelessWidget {
     this.width,
     required this.height,
     required this.radius,
-    this.dark = false,
     this.bordered = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = dark ? const Color(0xFF2B3A5C) : const Color(0xFFE9ECF1);
-    final highlightColor = dark
-        ? const Color(0xFF3D4E78)
-        : const Color(0xFFF6F7F9);
+    const baseColor = Color(0xFFE9ECF1);
+    const highlightColor = Color(0xFFF6F7F9);
 
     return AnimatedBuilder(
       animation: controller,

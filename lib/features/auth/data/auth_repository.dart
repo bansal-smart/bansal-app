@@ -5,7 +5,6 @@ import '../../../core/supabase/supabase_client.dart';
 import '../../../core/storage/preferences.dart';
 import '../../../core/providers.dart';
 
-
 class AuthUser {
   final String id;
   final String? email;
@@ -15,12 +14,23 @@ class AuthUser {
 }
 
 class AuthRepository {
+  static const _reviewPhone = '+918302654527';
+  static const _reviewOtp = '123456';
+
   final Prefs _prefs;
   AuthRepository(this._prefs);
 
+  String _toE164(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    return digits.length == 10 ? '+91$digits' : '+$digits';
+  }
+
+  bool _isReviewPhone(String phone) => _toE164(phone) == _reviewPhone;
+
   User? get _user => supabaseOrNull?.auth.currentUser;
 
-  bool get isSignedIn => _user != null || _mockUser != null || _prefs.phoneSignedIn;
+  bool get isSignedIn =>
+      _user != null || _mockUser != null || _prefs.phoneSignedIn;
 
   AuthUser? _mockUser; // kept only as fallback when Supabase is unavailable
 
@@ -29,6 +39,9 @@ class AuthRepository {
   /// wired in as the `prpsms-send-otp` / `prpsms-verify-otp` edge functions
   /// instead (same ones the web app uses).
   Future<void> sendPhoneOtp({required String phone}) async {
+    // Google Play review account: no SMS is sent for this one fixed number.
+    if (_isReviewPhone(phone)) return;
+
     final sb = supabaseOrNull;
     if (sb == null) return;
     try {
@@ -53,7 +66,10 @@ class AuthRepository {
     final sb = supabaseOrNull;
     if (sb == null) return false;
     try {
-      final result = await sb.rpc('is_phone_registered', params: {'p_phone': phone});
+      final result = await sb.rpc(
+        'is_phone_registered',
+        params: {'p_phone': phone},
+      );
       final registered = result as bool? ?? false;
       debugPrint('[Auth] isPhoneRegistered: phone=$phone → $registered');
       return registered;
@@ -72,6 +88,33 @@ class AuthRepository {
     required String phone,
     required String token,
   }) async {
+    if (_isReviewPhone(phone)) {
+      if (token != _reviewOtp) {
+        throw Exception('Invalid OTP');
+      }
+
+      // Keep the review account local and least-privileged. It can enter the
+      // app, but receives no fabricated Supabase session or protected data.
+      try {
+        await supabaseOrNull?.auth.signOut();
+      } catch (error) {
+        // Supabase clears its local session before attempting remote sign-out.
+        // Do not make an offline Play review depend on that remote cleanup.
+        debugPrint('[Auth] Review-session cleanup warning: $error');
+      }
+      _mockUser = const AuthUser(
+        id: 'google-play-review-user',
+        name: 'Demo Student',
+      );
+      await _prefs.setPhoneNumber(_reviewPhone);
+      await _prefs.setPhoneSignedIn(true);
+      await _prefs.setUserName('Demo Student');
+      await _prefs.setUserClass('12');
+      await _prefs.setUserExam('IIT-JEE');
+      await _prefs.setProfileSetupDone(true);
+      return true;
+    }
+
     final sb = supabaseOrNull;
     if (sb == null) return false;
     final e164 = phone.startsWith('+') ? phone : '+91$phone';
@@ -113,16 +156,15 @@ class AuthRepository {
       throw Exception('Verification failed. Please try again.');
     }
 
-    await sb.auth.verifyOTP(
-      tokenHash: tokenHash,
-      type: OtpType.magiclink,
-    );
+    await sb.auth.verifyOTP(tokenHash: tokenHash, type: OtpType.magiclink);
 
     await _prefs.setPhoneNumber(phone);
     await _prefs.setPhoneSignedIn(true);
 
     final hasProfile = await restoreProfileFromDb();
-    debugPrint('[Auth] verifyPhoneOtp → hasProfile=$hasProfile uid=${sb.auth.currentUser?.id}');
+    debugPrint(
+      '[Auth] verifyPhoneOtp → hasProfile=$hasProfile uid=${sb.auth.currentUser?.id}',
+    );
     return hasProfile;
   }
 
@@ -136,18 +178,20 @@ class AuthRepository {
     try {
       final row = await sb
           .from('profiles')
-          .select('full_name, class_level, target_exam, phone, onboarding_completed')
+          .select(
+            'full_name, class_level, target_exam, phone, onboarding_completed',
+          )
           .eq('user_id', uid)
           .maybeSingle();
       debugPrint('[Auth] restoreProfileFromDb: uid=$uid row=$row');
       if (row == null) return false;
-      final name      = row['full_name'] as String? ?? '';
-      final cls       = row['class_level'] as String? ?? '';
-      final exam      = row['target_exam'] as String? ?? '';
+      final name = row['full_name'] as String? ?? '';
+      final cls = row['class_level'] as String? ?? '';
+      final exam = row['target_exam'] as String? ?? '';
       debugPrint('[Auth] restoreProfileFromDb: name="$name" cls="$cls"');
-      // Students are created by super admin with their data already filled
-      // in, so a name on the profile is enough to treat this as a returning
-      // user — there is no in-app onboarding wizard to complete.
+      // Students created by super admin already have their data filled in, so
+      // a name is enough to treat them as registered. A brand-new phone-auth
+      // profile is created blank and must complete the in-app setup wizard.
       if (name.isEmpty) return false;
       await _prefs.setUserName(name);
       await _prefs.setUserClass(cls);
@@ -178,7 +222,14 @@ class AuthRepository {
         avatarUrl: _user!.userMetadata?['avatar_url'] as String?,
       );
     }
-    return _mockUser;
+    if (_mockUser != null) return _mockUser;
+    if (_prefs.phoneSignedIn && _isReviewPhone(_prefs.phoneNumber)) {
+      return const AuthUser(
+        id: 'google-play-review-user',
+        name: 'Demo Student',
+      );
+    }
+    return null;
   }
 
   // ── Email + password login (existing accounts) ──────────────────────────
@@ -211,11 +262,7 @@ class AuthRepository {
       await sb.auth.signInWithOtp(
         email: email,
         shouldCreateUser: true,
-        data: {
-          'full_name': name,
-          'phone': phone ?? '',
-          'region': region,
-        },
+        data: {'full_name': name, 'phone': phone ?? '', 'region': region},
       );
     } else {
       _mockUser = AuthUser(
@@ -230,10 +277,7 @@ class AuthRepository {
   Future<void> signInWithGoogle(String email) async {
     final sb = supabaseOrNull;
     if (sb == null) return;
-    await sb.auth.signInWithOtp(
-      email: email,
-      shouldCreateUser: true,
-    );
+    await sb.auth.signInWithOtp(email: email, shouldCreateUser: true);
   }
 
   // ── Verify 6-digit OTP entered by the user ───────────────────────────────
@@ -244,11 +288,7 @@ class AuthRepository {
   }) async {
     final sb = supabaseOrNull;
     if (sb == null) return;
-    await sb.auth.verifyOTP(
-      email: email,
-      token: token,
-      type: OtpType.email,
-    );
+    await sb.auth.verifyOTP(email: email, token: token, type: OtpType.email);
   }
 
   // ── Resend OTP ───────────────────────────────────────────────────────────
@@ -258,10 +298,7 @@ class AuthRepository {
   }) async {
     final sb = supabaseOrNull;
     if (sb != null) {
-      await sb.auth.signInWithOtp(
-        email: email,
-        shouldCreateUser: true,
-      );
+      await sb.auth.signInWithOtp(email: email, shouldCreateUser: true);
     }
   }
 
@@ -269,10 +306,7 @@ class AuthRepository {
   Future<void> sendPasswordResetOtp(String email) async {
     final sb = supabaseOrNull;
     if (sb != null) {
-      await sb.auth.signInWithOtp(
-        email: email,
-        shouldCreateUser: false,
-      );
+      await sb.auth.signInWithOtp(email: email, shouldCreateUser: false);
     }
   }
 
@@ -322,8 +356,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(prefs);
 });
 
-final authStateProvider =
-    StateNotifierProvider<AuthStateNotifier, bool>((ref) {
+final authStateProvider = StateNotifierProvider<AuthStateNotifier, bool>((ref) {
   return AuthStateNotifier(ref.watch(authRepositoryProvider));
 });
 

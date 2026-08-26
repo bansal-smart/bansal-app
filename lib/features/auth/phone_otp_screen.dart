@@ -6,32 +6,34 @@ import '../../core/providers.dart';
 import 'data/auth_repository.dart';
 
 abstract class _C {
-  static const primary      = Color(0xFF193F8F);
-  static const bg           = Color(0xFFFFFFFF);
-  static const surface      = Color(0xFFF9FAFB);
-  static const border       = Color(0xFFE5E7EB);
+  static const primary = Color(0xFF193F8F);
+  static const bg = Color(0xFFFFFFFF);
+  static const surface = Color(0xFFF9FAFB);
+  static const border = Color(0xFFE5E7EB);
   static const primaryLight = Color(0xFFE8EDF9);
-  static const textPrimary  = Color(0xFF111827);
-  static const textSub      = Color(0xFF6B7280);
-  static const error        = Color(0xFFEF4444);
+  static const textPrimary = Color(0xFF111827);
+  static const textSub = Color(0xFF6B7280);
+  static const error = Color(0xFFEF4444);
 }
 
 const _kOtpLength = 6;
 
 class PhoneOtpScreen extends ConsumerStatefulWidget {
   final String phone;
-  final bool isRegistered;
-  const PhoneOtpScreen({super.key, required this.phone, this.isRegistered = false});
+  const PhoneOtpScreen({super.key, required this.phone});
 
   @override
   ConsumerState<PhoneOtpScreen> createState() => _PhoneOtpScreenState();
 }
 
 class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
-  final _controllers = List.generate(_kOtpLength, (_) => TextEditingController());
-  final _focusNodes  = List.generate(_kOtpLength, (_) => FocusNode());
+  final _controllers = List.generate(
+    _kOtpLength,
+    (_) => TextEditingController(),
+  );
+  final _focusNodes = List.generate(_kOtpLength, (_) => FocusNode());
 
-  bool _loading   = false;
+  bool _loading = false;
   bool _resending = false;
   String? _error;
 
@@ -45,13 +47,17 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
 
   @override
   void dispose() {
-    for (final c in _controllers) { c.dispose(); }
-    for (final f in _focusNodes)  { f.dispose(); }
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
-  String get _otp        => _controllers.map((c) => c.text).join();
-  bool   get _isComplete => _otp.length == _kOtpLength;
+  String get _otp => _controllers.map((c) => c.text).join();
+  bool get _isComplete => _otp.length == _kOtpLength;
 
   void _onDigitChanged(int index, String value) {
     if (value.isEmpty) {
@@ -60,8 +66,9 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
     }
     final digit = value[value.length - 1];
     _controllers[index].text = digit;
-    _controllers[index].selection =
-        TextSelection.fromPosition(const TextPosition(offset: 1));
+    _controllers[index].selection = TextSelection.fromPosition(
+      const TextPosition(offset: 1),
+    );
     if (index < _kOtpLength - 1) {
       _focusNodes[index + 1].requestFocus();
     } else {
@@ -76,29 +83,40 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
       setState(() => _error = 'Please enter the complete 6-digit OTP');
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     // Block the router redirect while we verify so onAuthStateChange cannot
     // fire a premature navigation before restoreProfileFromDb completes.
     ref.read(verifyingOtpProvider.notifier).state = true;
     try {
       final repo = ref.read(authRepositoryProvider);
-      await repo.verifyPhoneOtp(
+      final hasCompletedProfile = await repo.verifyPhoneOtp(
         phone: widget.phone,
         token: _otp,
       );
       if (!mounted) return;
-      context.go('/home');
+      ref.read(authStateProvider.notifier).refresh();
+      ref.read(needsProfileSetupProvider.notifier).state = !hasCompletedProfile;
+      context.go(hasCompletedProfile ? '/home' : '/profile-setup');
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString().toLowerCase();
-      final friendly = msg.contains('invalid') || msg.contains('incorrect') || msg.contains('expired')
+      final friendly = msg.contains('invalid otp')
+          ? 'Invalid OTP'
+          : msg.contains('invalid') ||
+                msg.contains('incorrect') ||
+                msg.contains('expired')
           ? 'Incorrect or expired OTP. Please try again.'
           : 'Verification failed. Please try again.';
       setState(() {
         _loading = false;
         _error = friendly;
       });
-      for (final c in _controllers) { c.clear(); }
+      for (final c in _controllers) {
+        c.clear();
+      }
       if (mounted) _focusNodes[0].requestFocus();
     } finally {
       if (mounted) ref.read(verifyingOtpProvider.notifier).state = false;
@@ -106,8 +124,13 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
   }
 
   Future<void> _resend() async {
-    setState(() { _resending = true; _error = null; });
-    for (final c in _controllers) { c.clear(); }
+    setState(() {
+      _resending = true;
+      _error = null;
+    });
+    for (final c in _controllers) {
+      c.clear();
+    }
     _focusNodes[0].requestFocus();
     try {
       await ref.read(authRepositoryProvider).sendPhoneOtp(phone: widget.phone);
@@ -142,8 +165,10 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(8, 4, 0, 0),
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded,
-                        color: _C.textPrimary),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: _C.textPrimary,
+                    ),
                     onPressed: () => context.pop(),
                   ),
                 ),
@@ -182,9 +207,14 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                       RichText(
                         text: TextSpan(
                           style: const TextStyle(
-                              fontSize: 14, color: _C.textSub, height: 1.5),
+                            fontSize: 14,
+                            color: _C.textSub,
+                            height: 1.5,
+                          ),
                           children: [
-                            const TextSpan(text: "We've sent a 6-digit OTP to "),
+                            const TextSpan(
+                              text: "We've sent a 6-digit OTP to ",
+                            ),
                             TextSpan(
                               text: maskedPhone,
                               style: const TextStyle(
@@ -218,7 +248,9 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                         Text(
                           _error!,
                           style: const TextStyle(
-                              color: _C.error, fontSize: 12.5),
+                            color: _C.error,
+                            fontSize: 12.5,
+                          ),
                         ),
                       ],
 
@@ -229,8 +261,9 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed:
-                              (_loading || !_isComplete) ? null : _verify,
+                          onPressed: (_loading || !_isComplete)
+                              ? null
+                              : _verify,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _C.primary,
                             foregroundColor: Colors.white,
@@ -270,7 +303,9 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                             const Text(
                               "Didn't receive OTP?  ",
                               style: TextStyle(
-                                  fontSize: 13.5, color: _C.textSub),
+                                fontSize: 13.5,
+                                color: _C.textSub,
+                              ),
                             ),
                             GestureDetector(
                               onTap: _resending ? null : _resend,
@@ -303,8 +338,11 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const [
-                            Icon(Icons.shield_outlined,
-                                size: 14, color: _C.textSub),
+                            Icon(
+                              Icons.shield_outlined,
+                              size: 14,
+                              color: _C.textSub,
+                            ),
                             SizedBox(width: 5),
                             Text(
                               'YOUR NUMBER IS SECURE',
@@ -376,7 +414,11 @@ class _OtpBox extends StatelessWidget {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(
-              color: hasError ? _C.error : hasValue ? _C.primary : _C.border,
+              color: hasError
+                  ? _C.error
+                  : hasValue
+                  ? _C.primary
+                  : _C.border,
               width: hasValue ? 2 : 1.5,
             ),
           ),

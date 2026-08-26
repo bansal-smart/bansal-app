@@ -6,13 +6,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'data/auth_repository.dart';
 
 abstract class DS {
-  static const primary     = Color(0xFF193F8F);
-  static const bg          = Color(0xFFFFFFFF);
-  static const surface     = Color(0xFFF9FAFB);
-  static const border      = Color(0xFFE5E7EB);
+  static const primary = Color(0xFF193F8F);
+  static const bg = Color(0xFFFFFFFF);
+  static const surface = Color(0xFFF9FAFB);
+  static const border = Color(0xFFE5E7EB);
   static const textPrimary = Color(0xFF111827);
-  static const textSub     = Color(0xFF6B7280);
-  static const error       = Color(0xFFEF4444);
+  static const textSub = Color(0xFF6B7280);
+  static const error = Color(0xFFEF4444);
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -39,17 +39,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _error = 'Enter a valid 10-digit mobile number');
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final repo = ref.read(authRepositoryProvider);
-      // Check registration status BEFORE sending OTP so the OTP screen
-      // knows upfront whether to route to home or profile-setup.
-      final isRegistered = await repo.isPhoneRegistered(phone: phone);
       await repo.sendPhoneOtp(phone: phone);
       if (!mounted) return;
-      context.push(
-        '/phone-otp?phone=${Uri.encodeComponent(phone)}&registered=${isRegistered ? '1' : '0'}',
-      );
+      context.push('/phone-otp?phone=${Uri.encodeComponent(phone)}');
     } catch (e) {
       final raw = e.toString().replaceFirst('Exception: ', '');
       final friendly = raw.isNotEmpty && raw != 'null'
@@ -63,7 +61,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mq      = MediaQuery.of(context);
+    final mq = MediaQuery.of(context);
     final screenH = mq.size.height - mq.padding.top - mq.padding.bottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -97,7 +95,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Expanded(
                       child: SingleChildScrollView(
                         padding: EdgeInsets.fromLTRB(
-                            24, 16, 24, mq.viewInsets.bottom + 16),
+                          24,
+                          16,
+                          24,
+                          mq.viewInsets.bottom + 16,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -145,17 +147,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 14),
+                                      horizontal: 12,
+                                      vertical: 14,
+                                    ),
                                     decoration: const BoxDecoration(
                                       border: Border(
                                         right: BorderSide(
-                                            color: DS.border, width: 1.3),
+                                          color: DS.border,
+                                          width: 1.3,
+                                        ),
                                       ),
                                     ),
                                     child: const Row(
                                       children: [
-                                        Text('📞',
-                                            style: TextStyle(fontSize: 16)),
+                                        Text(
+                                          '📞',
+                                          style: TextStyle(fontSize: 16),
+                                        ),
                                         SizedBox(width: 6),
                                         Text(
                                           '+91',
@@ -194,7 +202,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                         border: InputBorder.none,
                                         contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 14),
+                                          horizontal: 12,
+                                          vertical: 14,
+                                        ),
                                         counterText: '',
                                       ),
                                     ),
@@ -208,7 +218,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Text(
                                 _error!,
                                 style: const TextStyle(
-                                    color: DS.error, fontSize: 12.5),
+                                  color: DS.error,
+                                  fontSize: 12.5,
+                                ),
                               ),
                             ],
 
@@ -249,8 +261,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                             ),
                                           ),
                                           SizedBox(width: 8),
-                                          Icon(Icons.arrow_forward_rounded,
-                                              size: 20),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 20,
+                                          ),
                                         ],
                                       ),
                               ),
@@ -269,8 +283,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           children: [
                             const Text(
                               'By continuing, you agree to our ',
-                              style:
-                                  TextStyle(fontSize: 12, color: DS.textSub),
+                              style: TextStyle(fontSize: 12, color: DS.textSub),
                             ),
                             GestureDetector(
                               onTap: () => launchUrl(
@@ -290,8 +303,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const Text(
                               ' and ',
-                              style: TextStyle(
-                                  fontSize: 12, color: DS.textSub),
+                              style: TextStyle(fontSize: 12, color: DS.textSub),
                             ),
                             GestureDetector(
                               onTap: () => launchUrl(

@@ -163,11 +163,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void _route() async {
     if (!mounted) return;
     final prefs = ref.read(prefsProvider);
-    final auth  = ref.read(authRepositoryProvider);
+    final auth = ref.read(authRepositoryProvider);
     if (!prefs.onboardingDone) {
       context.go('/onboarding');
     } else {
       if (auth.isSignedIn) {
+        // Re-check Supabase before routing an unfinished session. This covers
+        // app reinstalls or a close immediately after the server saved setup
+        // but before local preferences were updated.
+        if (!prefs.profileSetupDone) {
+          final hasCompletedProfile = await auth.restoreProfileFromDb();
+          if (!mounted) return;
+          ref.read(needsProfileSetupProvider.notifier).state =
+              !hasCompletedProfile;
+        }
+
         // Re-run auto-enrollment on every launch so new free courses are picked up
         EnrollmentsRepository().autoEnrollFreeCourses(
           exam: prefs.userExam,

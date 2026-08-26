@@ -59,27 +59,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       final verifyingOtp = ref.read(verifyingOtpProvider);
       if (verifyingOtp) return null;
       final signedIn = auth.isSignedIn || ref.read(authStateProvider);
-      final atAuth = loc == '/login' || loc == '/signup' || loc == '/verify-otp';
-      final atPasswordReset = loc == '/forgot' || loc == '/forgot-otp' || loc == '/reset-password';
+      final prefs = ref.read(prefsProvider);
+      final needsProfileSetup =
+          ref.read(needsProfileSetupProvider) ||
+          (prefs.phoneSignedIn && !prefs.profileSetupDone);
+      final atAuth =
+          loc == '/login' || loc == '/signup' || loc == '/verify-otp';
+      final atPasswordReset =
+          loc == '/forgot' || loc == '/forgot-otp' || loc == '/reset-password';
       if (loc == '/onboarding') return null;
       if (loc == '/phone-otp') return null;
       debugPrint('[Router] loc=$loc signedIn=$signedIn');
-      if (loc == '/profile-setup') return null;
+      if (loc == '/profile-setup') {
+        if (!signedIn) return '/login';
+        return needsProfileSetup ? null : '/home';
+      }
       if (!signedIn && !atAuth && !atPasswordReset) return '/login';
+      if (signedIn && needsProfileSetup) return '/profile-setup';
       if (signedIn && atAuth) return '/home';
       return null;
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, __) => const OnboardingScreen(),
+      ),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(
         path: '/phone-otp',
         parentNavigatorKey: _rootKey,
-        builder: (ctx, s) => PhoneOtpScreen(
-          phone: s.uri.queryParameters['phone'] ?? '',
-          isRegistered: s.uri.queryParameters['registered'] == '1',
-        ),
+        builder: (ctx, s) =>
+            PhoneOtpScreen(phone: s.uri.queryParameters['phone'] ?? ''),
       ),
       GoRoute(
         path: '/profile-setup',
@@ -95,9 +106,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-otp',
         parentNavigatorKey: _rootKey,
-        builder: (_, state) => ForgotOtpScreen(
-          email: state.uri.queryParameters['email'] ?? '',
-        ),
+        builder: (_, state) =>
+            ForgotOtpScreen(email: state.uri.queryParameters['email'] ?? ''),
       ),
       GoRoute(
         path: '/reset-password',
@@ -123,14 +133,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/courses',
             builder: (_, __) => const CoursesListScreen(),
           ),
-          GoRoute(
-            path: '/live',
-            builder: (_, __) => const LiveListScreen(),
-          ),
-          GoRoute(
-            path: '/tests',
-            builder: (_, __) => const TestsListScreen(),
-          ),
+          GoRoute(path: '/live', builder: (_, __) => const LiveListScreen()),
+          GoRoute(path: '/tests', builder: (_, __) => const TestsListScreen()),
           GoRoute(
             path: '/store',
             builder: (_, __) => const CourseStoreScreen(),
@@ -232,6 +236,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _AuthListenable extends ChangeNotifier {
   _AuthListenable(Ref ref) {
-    ref.listen(authStateProvider, (_, __) => notifyListeners());
+    ref.listen(authStateProvider, (_, _) => notifyListeners());
+    ref.listen(needsProfileSetupProvider, (_, _) => notifyListeners());
   }
 }

@@ -8,7 +8,7 @@ class EnrollmentsRepository {
   final SupabaseClient _client;
 
   EnrollmentsRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService.client;
+    : _client = client ?? SupabaseService.client;
 
   /// Auto-enrolls the student in every free (price = 0) published course that
   /// matches their target exam. Safe to call multiple times — duplicates are
@@ -22,29 +22,46 @@ class EnrollmentsRepository {
       final userId = _client.auth.currentUser?.id;
       if (userId == null || exam.isEmpty) return;
 
-      // Fetch all free published courses for this exam
+      // Accept both current web profile values and legacy course values.
+      final targetExams = switch (exam) {
+        'IIT-JEE' => const ['IIT-JEE', 'JEE'],
+        'Pre Foundation' || 'Pre-Foundation' => const [
+          'Pre Foundation',
+          'Pre-Foundation',
+          'Foundation',
+        ],
+        _ => [exam],
+      };
+
+      // Fetch all free published courses for this target exam.
       final query = _client
           .from('courses')
           .select('id, target_exam, price')
           .eq('price', 0)
           .eq('is_published', true)
-          .eq('target_exam', exam);
+          .inFilter('target_exam', targetExams);
 
       final rows = await query as List<dynamic>;
       if (rows.isEmpty) return;
 
       final records = rows
-          .map((r) => {
-                'user_id': userId,
-                'course_id': (r as Map<String, dynamic>)['id'] as String,
-                'is_active': true,
-                'progress_percent': 0,
-              })
+          .map(
+            (r) => {
+              'user_id': userId,
+              'course_id': (r as Map<String, dynamic>)['id'] as String,
+              'is_active': true,
+              'progress_percent': 0,
+            },
+          )
           .toList();
 
       await _client
           .from('enrollments')
-          .upsert(records, onConflict: 'user_id,course_id', ignoreDuplicates: true);
+          .upsert(
+            records,
+            onConflict: 'user_id,course_id',
+            ignoreDuplicates: true,
+          );
     } catch (e) {
       // Non-fatal — log and continue
       debugPrint('[AutoEnroll] error: $e');

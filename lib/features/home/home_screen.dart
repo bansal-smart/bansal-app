@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/providers.dart';
 import '../../skeleton_loading/home_skeleton.dart';
-import '../auth/data/auth_repository.dart';
-import '../profile/data/profile_providers.dart';
 import '../profile/data/dashboard_stats_providers.dart';
 import '../courses/data/courses_providers.dart';
 import '../live/data/live_providers.dart';
 import '../enrollments/data/enrollments_providers.dart';
 import '../enrollments/data/models/enrollment.dart';
+import 'data/landing_hero_banners_provider.dart';
+import 'widgets/landing_banner_carousel.dart';
 
 abstract class DS {
   static const primary = Color(0xFF193F8F);
@@ -44,7 +43,6 @@ abstract class DS {
   static const double radiusSm = 10;
   static const double radiusMd = 14;
   static const double radiusLg = 20;
-  static const double radiusXl = 28;
 }
 
 class HomeScreen extends ConsumerWidget {
@@ -52,19 +50,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authRepositoryProvider).currentUser();
-    final profile = ref.watch(userProfileProvider).valueOrNull;
-    final setupInfo = ref.watch(profileSetupInfoProvider);
-    final firstName = _firstName(
-      profile?.fullName?.trim().isNotEmpty == true
-          ? profile!.fullName!.trim()
-          : setupInfo.name.isNotEmpty
-          ? setupInfo.name
-          : (user?.name?.trim().isNotEmpty == true
-                ? user!.name!.trim()
-                : 'Learner'),
-    );
-
     final liveAsync = ref.watch(accessibleLiveClassesProvider);
     final coursesAsync = ref.watch(coursesProvider);
     final enrollmentsAsync = ref.watch(enrollmentsProvider);
@@ -72,6 +57,7 @@ class HomeScreen extends ConsumerWidget {
     final streakAsync = ref.watch(streakProvider);
     final accuracyAsync = ref.watch(accuracyProvider);
     final airPercentileAsync = ref.watch(airPercentileProvider);
+    final bannersAsync = ref.watch(landingHeroBannersProvider);
     final showSkeleton =
         liveAsync.isLoading &&
         coursesAsync.isLoading &&
@@ -112,10 +98,12 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(streakProvider);
           ref.invalidate(accuracyProvider);
           ref.invalidate(airPercentileProvider);
+          ref.invalidate(landingHeroBannersProvider);
           await Future.wait([
             ref.read(accessibleLiveClassesProvider.future),
             ref.read(coursesProvider.future),
             ref.read(enrollmentsProvider.future),
+            ref.read(landingHeroBannersProvider.future),
           ]);
         },
         child: ListView(
@@ -126,15 +114,16 @@ class HomeScreen extends ConsumerWidget {
             DS.s32,
           ),
           children: [
-            // ── Greeting hero card ──
-            _GreetingHero(
-              name: firstName,
-              onOpenCourse: () => recentEnrollment != null
-                  ? context.push('/my-courses/${recentEnrollment.courseId}')
-                  : context.go('/courses'),
+            // Same admin-managed carousel used by the website hero.
+            bannersAsync.when(
+              data: (banners) => LandingBannerCarousel(banners: banners),
+              loading: () => const _BannerLoadingPlaceholder(),
+              error: (_, _) => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: DS.s16),
+            if (bannersAsync.valueOrNull?.isNotEmpty == true ||
+                bannersAsync.isLoading)
+              const SizedBox(height: DS.s16),
 
             // ── Quick action grid ──
             _QuickActionsGrid(
@@ -195,128 +184,31 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  static String _firstName(String name) => name.trim().split(' ').first;
-
   static bool _isToday(DateTime d) {
     final now = DateTime.now();
     return d.year == now.year && d.month == now.month && d.day == now.day;
   }
 }
 
-// ── Greeting hero card ───────────────────────────────────────────────────────
-class _GreetingHero extends StatelessWidget {
-  final String name;
-  final VoidCallback onOpenCourse;
-  const _GreetingHero({required this.name, required this.onOpenCourse});
+class _BannerLoadingPlaceholder extends StatelessWidget {
+  const _BannerLoadingPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    return Container(
-      padding: const EdgeInsets.all(DS.s20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [DS.primary, Color(0xFF0B1F4D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return AspectRatio(
+      aspectRatio: 2,
+      child: Container(
+        decoration: BoxDecoration(
+          color: DS.primaryLight,
+          borderRadius: BorderRadius.circular(DS.radiusLg),
         ),
-        borderRadius: BorderRadius.circular(DS.radiusXl),
-        boxShadow: [
-          BoxShadow(
-            color: DS.primary.withValues(alpha: 0.30),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _dateLabel(now).toUpperCase(),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: DS.s6),
-          Text(
-            '${_greeting(now)}, $name.',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: DS.s8),
-          Text(
-            'Ready to start? Open your course and take the first lesson today.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontSize: 13.5,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: DS.s16),
-          SizedBox(
-            height: 46,
-            child: ElevatedButton.icon(
-              onPressed: onOpenCourse,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: DS.primary,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: DS.s20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DS.radiusMd),
-                ),
-              ),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-              label: const Text(
-                'Open My Course',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
+        alignment: Alignment.center,
+        child: const SizedBox.square(
+          dimension: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       ),
     );
-  }
-
-  static String _dateLabel(DateTime d) {
-    const weekdays = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${weekdays[d.weekday - 1]}, ${d.day} ${months[d.month - 1]}';
-  }
-
-  static String _greeting(DateTime d) {
-    if (d.hour < 12) return 'Good morning';
-    if (d.hour < 17) return 'Good afternoon';
-    return 'Good evening';
   }
 }
 

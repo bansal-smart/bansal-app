@@ -170,6 +170,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen>
       ref.read(passwordResetInProgressProvider.notifier).state = false;
       ref.read(authStateProvider.notifier).refresh();
       if (!mounted) return;
+      ref.read(needsProfileSetupProvider.notifier).state = !hasProfile;
       context.go(hasProfile ? '/home' : '/profile-setup');
     } catch (e) {
       ref.read(passwordResetInProgressProvider.notifier).state = false;

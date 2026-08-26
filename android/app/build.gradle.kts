@@ -12,7 +12,7 @@ val keyProperties = Properties()
 keyProperties.load(FileInputStream(keyPropertiesFile))
 
 android {
-    namespace = "com.bansal.app"
+    namespace = "com.bansalclasses.official"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.bansal.app"
+        applicationId = "com.bansalclasses.official"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
