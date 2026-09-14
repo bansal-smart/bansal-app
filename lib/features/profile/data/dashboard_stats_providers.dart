@@ -4,6 +4,96 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _completedStatuses = ['submitted', 'auto_submitted'];
 
+class TestReportSummary {
+  final String attemptId;
+  final String title;
+  final double score;
+  final double totalMarks;
+  final int correct;
+  final int wrong;
+  final int unattempted;
+  final DateTime? submittedAt;
+  final bool released;
+
+  const TestReportSummary({
+    required this.attemptId,
+    required this.title,
+    required this.score,
+    required this.totalMarks,
+    required this.correct,
+    required this.wrong,
+    required this.unattempted,
+    required this.submittedAt,
+    required this.released,
+  });
+}
+
+/// Completed attempts are fetched independently of the active test catalogue,
+/// so closing or unpublishing an exam cannot remove its historical report.
+final testReportHistoryProvider =
+    FutureProvider.autoDispose<List<TestReportSummary>>((ref) async {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return const [];
+      final data = await client
+          .from('test_attempts')
+          .select(
+            'id,test_name,score,total_questions,correct_answers,submitted_at,attempted_at,metadata',
+          )
+          .eq('user_id', userId)
+          .inFilter('status', _completedStatuses)
+          .order('submitted_at', ascending: false)
+          .limit(20);
+
+      final reports = <TestReportSummary>[];
+      for (final raw in data as List) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        final metadata = row['metadata'] as Map?;
+        final metaQuestions = metadata?['questions'] as List? ?? const [];
+        final attempted =
+            (metadata?['attempted'] as num?)?.toInt() ??
+            metaQuestions
+                .where((q) => q is Map && q['attempted'] == true)
+                .length;
+        final total =
+            (row['total_questions'] as num?)?.toInt() ?? metaQuestions.length;
+        final correct = (row['correct_answers'] as num?)?.toInt() ?? 0;
+        final maxMarks = metaQuestions.fold<double>(
+          0,
+          (sum, q) =>
+              sum +
+              ((q is Map ? q['max_marks'] : null) as num? ?? 0).toDouble(),
+        );
+        var released = false;
+        try {
+          final rank = await client.rpc(
+            'get_test_rank',
+            params: {'_attempt_id': row['id']},
+          );
+          released = rank is Map && rank['released'] == true;
+        } catch (_) {
+          // Older installations may not expose ranking; the result screen will
+          // still enforce its own release state when opened.
+        }
+        reports.add(
+          TestReportSummary(
+            attemptId: row['id'] as String,
+            title: row['test_name'] as String? ?? 'Test',
+            score: (row['score'] as num?)?.toDouble() ?? 0,
+            totalMarks: maxMarks,
+            correct: correct,
+            wrong: (attempted - correct).clamp(0, total),
+            unattempted: (total - attempted).clamp(0, total),
+            submittedAt: DateTime.tryParse(
+              (row['submitted_at'] ?? row['attempted_at'] ?? '').toString(),
+            ),
+            released: released,
+          ),
+        );
+      }
+      return reports;
+    });
+
 /// Total number of test attempts the student has actually completed.
 final testsCompletedProvider = FutureProvider.autoDispose<int>((ref) async {
   final client = Supabase.instance.client;

@@ -131,22 +131,30 @@ class MathText extends StatelessWidget {
     // and wrap math runs in $...$, leaving prose untouched.
     final latexToken = RegExp(r'\\[a-zA-Z]');
     final lines = s.split('\n');
-    final result = lines.map((line) {
-      if (line.contains('\$')) return line; // already delimited
-      if (!latexToken.hasMatch(line)) return line; // pure prose
-      // Tokenise on whitespace, group consecutive math tokens, wrap them.
-      final tokens = line.split(RegExp(r'(?<=\S)(?=\s)|(?<=\s)(?=\S)'));
-      final buf = StringBuffer();
-      bool inMath = false;
-      for (final tok in tokens) {
-        final isMath = latexToken.hasMatch(tok);
-        if (isMath && !inMath) { buf.write('\$'); inMath = true; }
-        if (!isMath && inMath) { buf.write('\$'); inMath = false; }
-        buf.write(tok);
-      }
-      if (inMath) buf.write('\$');
-      return buf.toString();
-    }).join('\n');
+    final result = lines
+        .map((line) {
+          if (line.contains('\$')) return line; // already delimited
+          if (!latexToken.hasMatch(line)) return line; // pure prose
+          // Tokenise on whitespace, group consecutive math tokens, wrap them.
+          final tokens = line.split(RegExp(r'(?<=\S)(?=\s)|(?<=\s)(?=\S)'));
+          final buf = StringBuffer();
+          bool inMath = false;
+          for (final tok in tokens) {
+            final isMath = latexToken.hasMatch(tok);
+            if (isMath && !inMath) {
+              buf.write('\$');
+              inMath = true;
+            }
+            if (!isMath && inMath) {
+              buf.write('\$');
+              inMath = false;
+            }
+            buf.write(tok);
+          }
+          if (inMath) buf.write('\$');
+          return buf.toString();
+        })
+        .join('\n');
     return result;
   }
 
@@ -156,7 +164,8 @@ class MathText extends StatelessWidget {
     // Strip HTML, then normalise LaTeX delimiters before splitting on $.
     final cleaned = _normalizeMath(_stripHtml(text));
     final parts = cleaned.split(RegExp(r'\$'));
-    if (parts.length == 1) return Text(cleaned, style: base, maxLines: maxLines);
+    if (parts.length == 1)
+      return Text(cleaned, style: base, maxLines: maxLines);
 
     final spans = <InlineSpan>[];
     for (int i = 0; i < parts.length; i++) {
@@ -190,7 +199,7 @@ class MathText extends StatelessWidget {
 // MATCH PAIR — one row in a match-the-column question
 // ─────────────────────────────────────────────
 class MatchPair {
-  final String key;   // e.g. "A", "B"
+  final String key; // e.g. "A", "B"
   final String value; // e.g. "CH₄"
   const MatchPair({required this.key, required this.value});
 }
@@ -199,21 +208,21 @@ class MatchPair {
 // OPTION ITEM — text + optional image URL
 // ─────────────────────────────────────────────
 class OptionItem {
-  final String text;       // plain text, HTML tags stripped
-  final String? imageUrl;  // extracted <img src> if present
+  final String text; // plain text, HTML tags stripped
+  final String? imageUrl; // extracted <img src> if present
 
   const OptionItem({required this.text, this.imageUrl});
 
-  static final _imgRe = RegExp('<img[^>]+src=["\']([^"\']+)["\']', caseSensitive: false);
+  static final _imgRe = RegExp(
+    '<img[^>]+src=["\']([^"\']+)["\']',
+    caseSensitive: false,
+  );
   static final _tagRe = RegExp('<[^>]+>');
 
   factory OptionItem.fromRaw(String raw) {
     final imgMatch = _imgRe.firstMatch(raw);
     final imageUrl = imgMatch?.group(1);
-    var text = raw
-        .replaceAll(_imgRe, '')
-        .replaceAll(_tagRe, '')
-        .trim();
+    var text = raw.replaceAll(_imgRe, '').replaceAll(_tagRe, '').trim();
     // Decode HTML entities (run twice for double-encoded strings)
     text = MathText._decodeEntities(text);
     text = MathText._decodeEntities(text);
@@ -234,22 +243,23 @@ class TestQuestion {
   final String subject;
   final String? explanation;
   final bool hasHtml;
-  final String questionType; // 'mcq', 'integer', 'fill_in_the_blank', 'match_column', etc.
+  final String
+  questionType; // 'mcq', 'integer', 'fill_in_the_blank', 'match_column', etc.
   final List<MatchPair> matchCol1;
   final List<MatchPair> matchCol2;
   final double marksCorrect;
   final double marksWrong;
   final bool isBonus;
 
-  bool get isMatchType => questionType == 'match_column' || questionType == 'match';
+  bool get isMatchType =>
+      questionType == 'match_column' || questionType == 'match';
 
   bool get isIntegerType =>
-      !isMatchType && (
-        questionType == 'integer' ||
-        questionType == 'fill_in_the_blank' ||
-        questionType == 'numerical' ||
-        options.isEmpty
-      );
+      !isMatchType &&
+      (questionType == 'integer' ||
+          questionType == 'fill_in_the_blank' ||
+          questionType == 'numerical' ||
+          options.isEmpty);
 
   const TestQuestion({
     required this.id,
@@ -296,6 +306,7 @@ class TestQuestion {
           return MatchPair(key: '', value: decodeVal(e.toString()));
         }).toList();
       }
+
       matchCol1 = parsePairs(rawOpts['col1']);
       matchCol2 = parsePairs(rawOpts['col2']);
     } else if (rawOpts is List && rawOpts.isNotEmpty) {
@@ -307,7 +318,8 @@ class TestQuestion {
           return v is String && v.isNotEmpty ? v : null;
         }
         if (rawOptImages is Map) {
-          final v = rawOptImages[idKey?.toString()] ?? rawOptImages[i.toString()];
+          final v =
+              rawOptImages[idKey?.toString()] ?? rawOptImages[i.toString()];
           return v is String && v.isNotEmpty ? v : null;
         }
         return null;
@@ -320,9 +332,11 @@ class TestQuestion {
           final raw = (e['text'] ?? e['value'] ?? '').toString();
           // Prefer a dedicated image key over extracting from HTML,
           // falling back to the parallel option_images column.
-          final directImage = (e['image'] ?? e['image_url'] ?? e['imageUrl'] ?? '') as String;
-          final resolvedImage =
-              directImage.isNotEmpty ? directImage : imageAt(i, e['id']);
+          final directImage =
+              (e['image'] ?? e['image_url'] ?? e['imageUrl'] ?? '') as String;
+          final resolvedImage = directImage.isNotEmpty
+              ? directImage
+              : imageAt(i, e['id']);
           if (resolvedImage != null && resolvedImage.isNotEmpty) {
             final parsed = OptionItem.fromRaw(raw);
             return OptionItem(text: parsed.text, imageUrl: resolvedImage);
@@ -341,8 +355,14 @@ class TestQuestion {
     final hasHtml = text.contains('<') && text.contains('>');
 
     // Extract all <img src="..."> URLs before any text manipulation
-    final imgRegex = RegExp('<img[^>]+src=["\']([^"\']+)["\']', caseSensitive: false);
-    final imageUrls = imgRegex.allMatches(text).map((m) => m.group(1)!).toList();
+    final imgRegex = RegExp(
+      '<img[^>]+src=["\']([^"\']+)["\']',
+      caseSensitive: false,
+    );
+    final imageUrls = imgRegex
+        .allMatches(text)
+        .map((m) => m.group(1)!)
+        .toList();
 
     // Strip <img> tags so flutter_html doesn't fail on them;
     // we render images explicitly via CachedNetworkImage.
@@ -366,9 +386,7 @@ class TestQuestion {
       );
       final matches = optRegex.allMatches(text);
       if (matches.isNotEmpty) {
-        opts = matches
-            .map((m) => OptionItem.fromRaw(m.group(1)!))
-            .toList();
+        opts = matches.map((m) => OptionItem.fromRaw(m.group(1)!)).toList();
         final firstOptIdx = text.indexOf(RegExp(r'<br\s*/?>\s*<strong>\(1\)'));
         if (firstOptIdx > 0) text = text.substring(0, firstOptIdx).trim();
       }
@@ -395,19 +413,22 @@ class TestQuestion {
       correctAnswerText = correctIndex.toString();
     }
 
-    final questionType = (j['question_type'] as String?)?.toLowerCase().trim() ?? 'mcq';
+    final questionType =
+        (j['question_type'] as String?)?.toLowerCase().trim() ?? 'mcq';
 
     // Re-sign any question-images storage URLs that may be stale/expired.
     final resolvedImageUrls = await Future.wait(
       imageUrls.map(resolveQuestionImageUrl),
     );
-    final resolvedOpts = await Future.wait(opts.map((o) async {
-      if (o.imageUrl == null || o.imageUrl!.isEmpty) return o;
-      return OptionItem(
-        text: o.text,
-        imageUrl: await resolveQuestionImageUrl(o.imageUrl!),
-      );
-    }));
+    final resolvedOpts = await Future.wait(
+      opts.map((o) async {
+        if (o.imageUrl == null || o.imageUrl!.isEmpty) return o;
+        return OptionItem(
+          text: o.text,
+          imageUrl: await resolveQuestionImageUrl(o.imageUrl!),
+        );
+      }),
+    );
 
     return TestQuestion(
       id: j['id'] as String,
@@ -464,6 +485,9 @@ class _TestEngineScreenState extends State<TestEngineScreen>
   int _remaining = 0;
   bool _saving = false;
   bool _submitting = false;
+  String? _attemptId;
+  DateTime? _startedAt;
+  final Set<String> _visited = {};
   Timer? _timer;
 
   // ── Window-switch anti-cheating ──
@@ -551,9 +575,13 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 
   Future<void> _loadTest() async {
     try {
+      final userId = _db.auth.currentUser?.id;
+      if (userId == null) {
+        throw StateError('Please sign in before starting a test.');
+      }
       final testData = await _db
           .from('tests')
-          .select('title, duration_minutes')
+          .select('title, duration_minutes, starts_at, ends_at')
           .eq('id', widget.testId)
           .single();
 
@@ -571,8 +599,9 @@ class _TestEngineScreenState extends State<TestEngineScreen>
           .order('position', ascending: true);
 
       _questions = await Future.wait(
-        (qData as List)
-            .map((r) => TestQuestion.fromJson(r as Map<String, dynamic>)),
+        (qData as List).map(
+          (r) => TestQuestion.fromJson(r as Map<String, dynamic>),
+        ),
       );
 
       if (_questions.isEmpty) {
@@ -589,15 +618,109 @@ class _TestEngineScreenState extends State<TestEngineScreen>
           final ctrl = TextEditingController();
           ctrl.addListener(() {
             final val = ctrl.text.trim();
-            _answers[q.id] = val.isEmpty ? null : val;
+            if (mounted) {
+              setState(() => _answers[q.id] = val.isEmpty ? null : val);
+            }
           });
           _intCtrls[q.id] = ctrl;
         } else if (q.isMatchType) {
           // Pre-populate with null selections for each col1 row
-          _answers[q.id] = <String, String?>{for (final p in q.matchCol1) p.key: null};
+          _answers[q.id] = <String, String?>{
+            for (final p in q.matchCol1) p.key: null,
+          };
         }
       }
-      _remaining = _durationSeconds;
+
+      // Use the same guarded attempt lifecycle as the CBT web client. A test
+      // is started once, resumed by id, and that exact row is later submitted.
+      final inProgress = await _db
+          .from('test_attempts')
+          .select('id, started_at, answers, question_statuses')
+          .eq('user_id', userId)
+          .eq('test_id', widget.testId)
+          .eq('status', 'in_progress')
+          .order('started_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (inProgress != null) {
+        _attemptId = inProgress['id'] as String;
+        _startedAt = DateTime.tryParse(
+          inProgress['started_at'] as String? ?? '',
+        );
+        _restoreProgress(inProgress);
+      } else {
+        final completed = await _db
+            .from('test_attempts')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('test_id', widget.testId)
+            .inFilter('status', const ['submitted', 'auto_submitted'])
+            .order('submitted_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (completed != null) {
+          final allowed = await _db.rpc(
+            'can_reattempt_test',
+            params: {'_user_id': userId, '_test_id': widget.testId},
+          );
+          if (allowed != true) {
+            if (!mounted) return;
+            context.pushReplacement('/test-result/${completed['id']}');
+            return;
+          }
+        }
+
+        final now = DateTime.now();
+        final startsAt = DateTime.tryParse(
+          testData['starts_at'] as String? ?? '',
+        );
+        final endsAt = DateTime.tryParse(testData['ends_at'] as String? ?? '');
+        if (startsAt != null &&
+            now.isBefore(startsAt.subtract(const Duration(minutes: 1)))) {
+          throw StateError('This test has not opened yet.');
+        }
+        if (endsAt != null && now.isAfter(endsAt)) {
+          throw StateError('This test window has closed.');
+        }
+
+        final created = await _db
+            .from('test_attempts')
+            .insert({
+              'user_id': userId,
+              'test_id': widget.testId,
+              'test_name': _testTitle,
+              'status': 'in_progress',
+              'started_at': now.toIso8601String(),
+              'answers': <String, dynamic>{},
+              'question_statuses': <String, dynamic>{},
+            })
+            .select('id, started_at')
+            .single();
+        _attemptId = created['id'] as String;
+        _startedAt =
+            DateTime.tryParse(created['started_at'] as String? ?? '') ?? now;
+      }
+
+      final hardEnd = DateTime.tryParse(testData['ends_at'] as String? ?? '');
+      if (inProgress != null &&
+          hardEnd != null &&
+          DateTime.now().isAfter(hardEnd)) {
+        _remaining = 0;
+        _started = true;
+        if (mounted) setState(() => _loading = false);
+        await _submit(auto: true, reason: 'test_window_closed');
+        return;
+      }
+
+      _remaining =
+          (_durationSeconds -
+                  (_startedAt == null
+                      ? 0
+                      : DateTime.now().difference(_startedAt!).inSeconds))
+              .clamp(0, _durationSeconds);
+      _visited.add(_questions.first.id);
 
       _timer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return;
@@ -621,8 +744,64 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 
   Future<void> _autosave() async {
     if (mounted) setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) setState(() => _saving = false);
+    try {
+      final attemptId = _attemptId;
+      if (attemptId == null) return;
+      await _db
+          .from('test_attempts')
+          .update({
+            'answers': _answersPayload,
+            'question_statuses': _questionStatuses,
+            'time_spent_seconds': _durationSeconds - _remaining,
+            'metadata': {'tab_switches': _tabSwitches},
+          })
+          .eq('id', attemptId)
+          .eq('status', 'in_progress');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Map<String, dynamic> get _answersPayload => {
+    for (final q in _questions)
+      if (_hasAnswer(q)) q.id: {'selected': _answers[q.id]},
+  };
+
+  Map<String, dynamic> get _questionStatuses => {
+    for (final q in _questions)
+      q.id: _marked.contains(q.id)
+          ? 'marked'
+          : _hasAnswer(q)
+          ? 'answered'
+          : _visited.contains(q.id)
+          ? 'not-answered'
+          : 'not-visited',
+  };
+
+  void _restoreProgress(Map<String, dynamic> row) {
+    final saved = (row['answers'] as Map?)?.cast<String, dynamic>() ?? const {};
+    for (final q in _questions) {
+      final raw = saved[q.id];
+      final selected = raw is Map ? raw['selected'] : raw;
+      if (selected == null) continue;
+      _answers[q.id] = selected;
+      if (q.isIntegerType) _intCtrls[q.id]?.text = selected.toString();
+    }
+    final statuses =
+        (row['question_statuses'] as Map?)?.cast<String, dynamic>() ?? const {};
+    for (final entry in statuses.entries) {
+      if (entry.value == 'marked' || entry.value == 'answered-marked') {
+        _marked.add(entry.key);
+      }
+      if (entry.value != 'not-visited') _visited.add(entry.key);
+    }
+  }
+
+  void _goToQuestion(int index) {
+    setState(() {
+      _index = index;
+      _visited.add(_questions[index].id);
+    });
   }
 
   String _fmt(int s) {
@@ -649,6 +828,15 @@ class _TestEngineScreenState extends State<TestEngineScreen>
     return count;
   }
 
+  bool _hasAnswer(TestQuestion q) {
+    final ans = _answers[q.id];
+    if (q.isMatchType) {
+      return ans is Map && ans.isNotEmpty && ans.values.every((v) => v != null);
+    }
+    if (ans is String) return ans.trim().isNotEmpty;
+    return ans != null;
+  }
+
   int get _markedCount => _marked.length;
 
   bool _isCorrect(TestQuestion q) {
@@ -670,6 +858,20 @@ class _TestEngineScreenState extends State<TestEngineScreen>
     _timer?.cancel();
 
     final userId = _db.auth.currentUser?.id;
+    final attemptId = _attemptId;
+    if (userId == null || attemptId == null) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This attempt could not be identified. Please try again.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
 
     // Per-question marks, matching the web app's metadata.questions shape —
     // used by the result page's rank/leaderboard/response-sheet RPCs.
@@ -689,15 +891,16 @@ class _TestEngineScreenState extends State<TestEngineScreen>
       final marks = !attempted
           ? 0.0
           : q.isMatchType
-              ? 0.0 // not auto-graded
-              : (correct ? q.marksCorrect : q.marksWrong);
+          ? 0.0 // not auto-graded
+          : (correct ? q.marksCorrect : q.marksWrong);
 
       scoredMarks += marks;
       if (correct) correctCount++;
       if (attempted) attemptedCount++;
-      subjectTotals[q.subject] = (subjectTotals[q.subject] ?? 0) + q.marksCorrect;
+      subjectTotals[q.subject] =
+          (subjectTotals[q.subject] ?? 0) + q.marksCorrect;
 
-      if (ans != null) {
+      if (attempted) {
         answersPayload[q.id] = {'selected': ans};
       }
 
@@ -713,48 +916,62 @@ class _TestEngineScreenState extends State<TestEngineScreen>
       });
     }
 
-    String? attemptId;
     try {
-      if (userId != null) {
-        final record = {
-          'user_id': userId,
-          'test_id': widget.testId,
-          'test_name': _testTitle,
-          'score': scoredMarks,
-          'correct_answers': correctCount,
-          'total_questions': _questions.length,
-          'time_spent_seconds': _durationSeconds - _remaining,
-          'attempted_at': DateTime.now().toIso8601String(),
-          'answers': answersPayload,
-          'status': auto ? 'auto_submitted' : 'submitted',
-          'metadata': {
-            'total': _questions.length,
-            'correct': correctCount,
-            'attempted': attemptedCount,
-            'subjects': subjectTotals,
-            'questions': questionMetas,
-            'tab_switches': _tabSwitches,
-            if (auto && reason != null) 'auto_submitted_reason': reason,
-          },
-        };
-        final res = await _db
-            .from('test_attempts')
-            .insert(record)
-            .select('id')
-            .single();
-        attemptId = res['id'] as String?;
+      final record = {
+        'score': scoredMarks,
+        'correct_answers': correctCount,
+        'total_questions': _questions.length,
+        'time_spent_seconds': _durationSeconds - _remaining,
+        'attempted_at': DateTime.now().toIso8601String(),
+        'submitted_at': DateTime.now().toIso8601String(),
+        'answers': answersPayload,
+        'question_statuses': _questionStatuses,
+        'status': auto ? 'auto_submitted' : 'submitted',
+        'metadata': {
+          'total': _questions.length,
+          'correct': correctCount,
+          'attempted': attemptedCount,
+          'subjects': subjectTotals,
+          'questions': questionMetas,
+          'tab_switches': _tabSwitches,
+          if (auto && reason != null) 'auto_submitted_reason': reason,
+        },
+      };
+      await _db
+          .from('test_attempts')
+          .update(record)
+          .eq('id', attemptId)
+          .eq('user_id', userId);
+      // Server-side evaluation is authoritative and supports all configured
+      // question types/partial marking. The local totals above are fallback
+      // metadata only and are replaced by this RPC where available.
+      await _db.rpc('submit_test_attempt', params: {'_attempt_id': attemptId});
 
-        final now = DateTime.now();
-        final date =
-            '${now.year.toString().padLeft(4, '0')}-'
-            '${now.month.toString().padLeft(2, '0')}-'
-            '${now.day.toString().padLeft(2, '0')}';
-        await _db.from('study_sessions').upsert({
-          'user_id': userId,
-          'session_date': date,
-        }, onConflict: 'user_id,session_date', ignoreDuplicates: true);
-      }
-    } catch (_) {}
+      final now = DateTime.now();
+      final date =
+          '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}';
+      await _db
+          .from('study_sessions')
+          .upsert(
+            {'user_id': userId, 'session_date': date},
+            onConflict: 'user_id,session_date',
+            ignoreDuplicates: true,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) return t.cancel();
+        setState(() => _remaining--);
+        if (_remaining <= 0) t.cancel();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Submission failed: ${e.toString()}')),
+      );
+      return;
+    }
 
     if (!mounted) return;
 
@@ -767,7 +984,7 @@ class _TestEngineScreenState extends State<TestEngineScreen>
       if (!mounted) return;
     }
 
-    context.pushReplacement('/test-result/${attemptId ?? widget.testId}');
+    context.pushReplacement('/test-result/$attemptId');
   }
 
   void _confirmLeave() async {
@@ -806,6 +1023,14 @@ class _TestEngineScreenState extends State<TestEngineScreen>
     if (_error != null) return _ErrorScaffold(message: _error!);
 
     final q = _questions[_index];
+    final subjects = _questions
+        .map(
+          (question) => question.subject.trim().isEmpty
+              ? 'General'
+              : question.subject.trim(),
+        )
+        .toSet()
+        .toList();
     final timerRed = _remaining < 60;
     final progress = (_index + 1) / _questions.length;
 
@@ -828,6 +1053,8 @@ class _TestEngineScreenState extends State<TestEngineScreen>
           pulseAnim: _pulseAnim,
           onClose: _confirmLeave,
           fmtTime: _fmt,
+          submitting: _submitting,
+          onSubmit: _confirmSubmit,
         ),
 
         body: SafeArea(
@@ -842,6 +1069,24 @@ class _TestEngineScreenState extends State<TestEngineScreen>
                 total: _questions.length,
                 markedCount: _markedCount,
               ),
+
+              if (subjects.length > 1)
+                _SubjectNavigation(
+                  subjects: subjects,
+                  activeSubject: q.subject.trim().isEmpty
+                      ? 'General'
+                      : q.subject.trim(),
+                  onSelected: (subject) {
+                    final first = _questions.indexWhere(
+                      (question) =>
+                          (question.subject.trim().isEmpty
+                              ? 'General'
+                              : question.subject.trim()) ==
+                          subject,
+                    );
+                    if (first >= 0) _goToQuestion(first);
+                  },
+                ),
 
               // ── Question content ──
               Expanded(
@@ -860,6 +1105,8 @@ class _TestEngineScreenState extends State<TestEngineScreen>
                         index: _index,
                         total: _questions.length,
                         subject: q.subject,
+                        marksCorrect: q.marksCorrect,
+                        marksWrong: q.marksWrong,
                         marked: _marked.contains(q.id),
                         onToggleMark: () {
                           HapticFeedback.selectionClick();
@@ -882,12 +1129,17 @@ class _TestEngineScreenState extends State<TestEngineScreen>
                       if (q.isMatchType)
                         _MatchColumnWidget(
                           question: q,
-                          selections: (_answers[q.id] as Map?)?.cast<String, String?>() ?? {},
+                          selections:
+                              (_answers[q.id] as Map?)
+                                  ?.cast<String, String?>() ??
+                              {},
                           onChanged: (col1Key, col2Key) {
                             HapticFeedback.selectionClick();
                             setState(() {
                               final current = Map<String, String?>.from(
-                                (_answers[q.id] as Map?)?.cast<String, String?>() ?? {},
+                                (_answers[q.id] as Map?)
+                                        ?.cast<String, String?>() ??
+                                    {},
                               );
                               current[col1Key] = col2Key;
                               _answers[q.id] = current;
@@ -895,9 +1147,7 @@ class _TestEngineScreenState extends State<TestEngineScreen>
                           },
                         )
                       else if (q.isIntegerType && _intCtrls[q.id] != null)
-                        _IntegerAnswerField(
-                          controller: _intCtrls[q.id]!,
-                        )
+                        _IntegerAnswerField(controller: _intCtrls[q.id]!)
                       else
                         _OptionGrid(
                           options: q.options,
@@ -929,10 +1179,10 @@ class _TestEngineScreenState extends State<TestEngineScreen>
                   );
                 },
                 onPalette: _showPalette,
-                onPrev: _index > 0 ? () => setState(() => _index--) : null,
+                onPrev: _index > 0 ? () => _goToQuestion(_index - 1) : null,
                 onNext: () {
                   if (_index < _questions.length - 1) {
-                    setState(() => _index++);
+                    _goToQuestion(_index + 1);
                   } else {
                     _confirmSubmit();
                   }
@@ -957,9 +1207,10 @@ class _TestEngineScreenState extends State<TestEngineScreen>
         questions: _questions,
         answers: _answers,
         marked: _marked,
+        visited: _visited,
         currentIdx: _index,
         onTap: (i) {
-          setState(() => _index = i);
+          _goToQuestion(i);
           Navigator.pop(context);
         },
       ),
@@ -973,9 +1224,10 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final int index, total, remaining;
-  final bool timerRed, saving;
+  final bool timerRed, saving, submitting;
   final Animation<double> pulseAnim;
   final VoidCallback onClose;
+  final VoidCallback onSubmit;
   final String Function(int) fmtTime;
 
   const _TestAppBar({
@@ -988,6 +1240,8 @@ class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.pulseAnim,
     required this.onClose,
     required this.fmtTime,
+    required this.submitting,
+    required this.onSubmit,
   });
 
   @override
@@ -1079,6 +1333,40 @@ class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 const SizedBox(width: DS.s8),
               ],
+
+              SizedBox(
+                height: 34,
+                child: ElevatedButton(
+                  onPressed: submitting ? null : onSubmit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DS.error,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: DS.error.withValues(alpha: 0.5),
+                    padding: const EdgeInsets.symmetric(horizontal: DS.s10),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(DS.radiusSm),
+                    ),
+                  ),
+                  child: submitting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Submit',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: DS.s6),
 
               // Timer
               ScaleTransition(
@@ -1249,12 +1537,58 @@ class _ProgressStat extends StatelessWidget {
   );
 }
 
+class _SubjectNavigation extends StatelessWidget {
+  final List<String> subjects;
+  final String activeSubject;
+  final ValueChanged<String> onSelected;
+
+  const _SubjectNavigation({
+    required this.subjects,
+    required this.activeSubject,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    color: DS.surface,
+    padding: const EdgeInsets.fromLTRB(DS.s12, DS.s4, DS.s12, DS.s8),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: subjects.map((subject) {
+          final active = subject == activeSubject;
+          return Padding(
+            padding: const EdgeInsets.only(right: DS.s8),
+            child: ChoiceChip(
+              selected: active,
+              label: Text(subject),
+              onSelected: (_) => onSelected(subject),
+              showCheckmark: false,
+              selectedColor: DS.primary,
+              backgroundColor: DS.surfaceVariant,
+              side: BorderSide(color: active ? DS.primary : DS.border),
+              labelStyle: TextStyle(
+                color: active ? Colors.white : DS.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+          );
+        }).toList(),
+      ),
+    ),
+  );
+}
+
 // ─────────────────────────────────────────────
 // QUESTION HEADER
 // ─────────────────────────────────────────────
 class _QuestionHeader extends StatelessWidget {
   final int index, total;
   final String subject;
+  final double marksCorrect, marksWrong;
   final bool marked;
   final VoidCallback onToggleMark;
 
@@ -1262,6 +1596,8 @@ class _QuestionHeader extends StatelessWidget {
     required this.index,
     required this.total,
     required this.subject,
+    required this.marksCorrect,
+    required this.marksWrong,
     required this.marked,
     required this.onToggleMark,
   });
@@ -1316,6 +1652,18 @@ class _QuestionHeader extends StatelessWidget {
               ),
             ),
           ),
+
+        const SizedBox(width: DS.s6),
+        Text(
+          marksWrong < 0
+              ? '+${marksCorrect.toStringAsFixed(marksCorrect % 1 == 0 ? 0 : 1)} / ${marksWrong.toStringAsFixed(marksWrong % 1 == 0 ? 0 : 1)}'
+              : '+${marksCorrect.toStringAsFixed(marksCorrect % 1 == 0 ? 0 : 1)}',
+          style: TextStyle(
+            color: marksWrong < 0 ? DS.error : DS.success,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
 
         const Spacer(),
 
@@ -1431,8 +1779,11 @@ class _QuestionTextCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(DS.radiusSm),
                       ),
                       child: const Center(
-                        child: Icon(Icons.broken_image_outlined,
-                            color: DS.textSecondary, size: 32),
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: DS.textSecondary,
+                          size: 32,
+                        ),
                       ),
                     ),
                   ),
@@ -1506,8 +1857,11 @@ class _IntegerAnswerField extends StatelessWidget {
               valueListenable: controller,
               builder: (_, v, _) => v.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded,
-                          color: DS.textSecondary, size: 18),
+                      icon: const Icon(
+                        Icons.clear_rounded,
+                        color: DS.textSecondary,
+                        size: 18,
+                      ),
                       onPressed: controller.clear,
                     )
                   : const SizedBox.shrink(),
@@ -1651,7 +2005,9 @@ class _MatchColumnWidget extends StatelessWidget {
                         width: 130,
                         height: 38,
                         decoration: BoxDecoration(
-                          color: selected != null ? DS.primaryLight : DS.surfaceVariant,
+                          color: selected != null
+                              ? DS.primaryLight
+                              : DS.surfaceVariant,
                           borderRadius: BorderRadius.circular(DS.radiusSm),
                           border: Border.all(
                             color: selected != null ? DS.primary : DS.border,
@@ -1667,7 +2023,9 @@ class _MatchColumnWidget extends StatelessWidget {
                               color: DS.textSecondary,
                               size: 18,
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: DS.s8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DS.s8,
+                            ),
                             hint: Text(
                               '— select —',
                               style: TextStyle(
@@ -1813,109 +2171,130 @@ class _OptionTile extends StatelessWidget {
     final letter = index < _letters.length ? _letters[index] : '${index + 1}';
 
     return GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(DS.s14),
-          decoration: BoxDecoration(
-            color: selected ? DS.primaryLight : DS.surface,
-            borderRadius: BorderRadius.circular(DS.radiusMd),
-            border: Border.all(
-              color: selected ? DS.primary : DS.border,
-              width: selected ? 1.8 : 1.2,
-            ),
-            boxShadow: selected
-                ? [BoxShadow(color: DS.primary.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 3))]
-                : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 1))],
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(DS.s14),
+        decoration: BoxDecoration(
+          color: selected ? DS.primaryLight : DS.surface,
+          borderRadius: BorderRadius.circular(DS.radiusMd),
+          border: Border.all(
+            color: selected ? DS.primary : DS.border,
+            width: selected ? 1.8 : 1.2,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Letter badge
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: selected
-                      ? const LinearGradient(
-                          colors: [Color(0xFF2B5BB8), DS.primary],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  color: selected ? null : DS.surfaceVariant,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected ? DS.primary : DS.border,
-                    width: 1.2,
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: DS.primary.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Letter badge
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                gradient: selected
+                    ? const LinearGradient(
+                        colors: [Color(0xFF2B5BB8), DS.primary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: selected ? null : DS.surfaceVariant,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? DS.primary : DS.border,
+                  width: 1.2,
                 ),
-                child: Center(
-                  child: Text(
-                    letter,
-                    style: TextStyle(
-                      color: selected ? Colors.white : DS.textSecondary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
+              ),
+              child: Center(
+                child: Text(
+                  letter,
+                  style: TextStyle(
+                    color: selected ? Colors.white : DS.textSecondary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(width: DS.s12),
+            const SizedBox(width: DS.s12),
 
-              // Option content (text + optional image)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (option.text.isNotEmpty)
-                      MathText(
-                        option.text,
-                        maxLines: 3,
-                        style: TextStyle(
-                          color: selected ? DS.primaryDark : DS.textPrimary,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                          fontSize: 14.5,
-                          height: 1.4,
-                        ),
+            // Option content (text + optional image)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (option.text.isNotEmpty)
+                    MathText(
+                      option.text,
+                      maxLines: 3,
+                      style: TextStyle(
+                        color: selected ? DS.primaryDark : DS.textPrimary,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        fontSize: 14.5,
+                        height: 1.4,
                       ),
-                    if (option.imageUrl != null) ...[
-                      if (option.text.isNotEmpty) const SizedBox(height: DS.s8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(DS.radiusSm),
-                        child: CachedNetworkImage(
-                          imageUrl: option.imageUrl!,
-                          fit: BoxFit.contain,
-                          placeholder: (_, _) => Container(
-                            height: 80,
-                            color: DS.surfaceVariant,
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2, color: DS.primary),
+                    ),
+                  if (option.imageUrl != null) ...[
+                    if (option.text.isNotEmpty) const SizedBox(height: DS.s8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(DS.radiusSm),
+                      child: CachedNetworkImage(
+                        imageUrl: option.imageUrl!,
+                        fit: BoxFit.contain,
+                        placeholder: (_, _) => Container(
+                          height: 80,
+                          color: DS.surfaceVariant,
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: DS.primary,
                             ),
                           ),
-                          errorWidget: (_, _, _) => const Icon(
-                            Icons.broken_image_outlined,
-                            color: DS.textSecondary,
-                            size: 28,
-                          ),
+                        ),
+                        errorWidget: (_, _, _) => const Icon(
+                          Icons.broken_image_outlined,
+                          color: DS.textSecondary,
+                          size: 28,
                         ),
                       ),
-                    ],
+                    ),
                   ],
-                ),
+                ],
               ),
+            ),
 
-              // Selected indicator
-              if (selected) ...[
-                const SizedBox(width: DS.s8),
-                const Icon(Icons.check_circle_rounded, color: DS.primary, size: 18),
-              ],
+            // Selected indicator
+            if (selected) ...[
+              const SizedBox(width: DS.s8),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: DS.primary,
+                size: 18,
+              ),
             ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -2107,6 +2486,7 @@ class _PaletteSheet extends StatelessWidget {
   final List<TestQuestion> questions;
   final Map<String, dynamic> answers;
   final Set<String> marked;
+  final Set<String> visited;
   final int currentIdx;
   final void Function(int) onTap;
 
@@ -2114,6 +2494,7 @@ class _PaletteSheet extends StatelessWidget {
     required this.questions,
     required this.answers,
     required this.marked,
+    required this.visited,
     required this.currentIdx,
     required this.onTap,
   });
@@ -2175,75 +2556,112 @@ class _PaletteSheet extends StatelessWidget {
 
           const SizedBox(height: DS.s20),
 
-          // Grid
+          // Subject-wise grids
           Flexible(
             child: SingleChildScrollView(
-              child: Wrap(
-                spacing: DS.s8,
-                runSpacing: DS.s8,
-                children: List.generate(questions.length, (i) {
-                  final q = questions[i];
-                  final answered = answers[q.id] != null;
-                  final isMarked = marked.contains(q.id);
-                  final isCurrent = i == currentIdx;
-
-                  Color bg, textC;
-                  if (isCurrent) {
-                    bg = DS.primary;
-                    textC = Colors.white;
-                  } else if (isMarked) {
-                    bg = DS.warning;
-                    textC = Colors.white;
-                  } else if (answered) {
-                    bg = DS.success;
-                    textC = Colors.white;
-                  } else {
-                    bg = DS.surfaceVariant;
-                    textC = DS.textSecondary;
-                  }
-
-                  return GestureDetector(
-                    onTap: () => onTap(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(DS.radiusSm),
-                        border: Border.all(
-                          color: isCurrent
-                              ? DS.primaryDark
-                              : isMarked
-                              ? DS.warning.withValues(alpha: 0.50)
-                              : answered
-                              ? DS.success.withValues(alpha: 0.40)
-                              : DS.border,
-                          width: isCurrent ? 2 : 1,
-                        ),
-                        boxShadow: isCurrent
-                            ? [
-                                BoxShadow(
-                                  color: DS.primary.withValues(alpha: 0.30),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : [],
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${i + 1}',
-                          style: TextStyle(
-                            color: textC,
-                            fontWeight: FontWeight.w700,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _subjectGroups.entries.map((group) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: DS.s16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.key,
+                          style: const TextStyle(
+                            color: DS.textPrimary,
                             fontSize: 13,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: DS.s8),
+                        Wrap(
+                          spacing: DS.s8,
+                          runSpacing: DS.s8,
+                          children: group.value.map((i) {
+                            final q = questions[i];
+                            final rawAnswer = answers[q.id];
+                            final answered = q.isMatchType
+                                ? rawAnswer is Map &&
+                                      rawAnswer.isNotEmpty &&
+                                      rawAnswer.values.every((v) => v != null)
+                                : rawAnswer is String
+                                ? rawAnswer.trim().isNotEmpty
+                                : rawAnswer != null;
+                            final isMarked = marked.contains(q.id);
+                            final isCurrent = i == currentIdx;
+                            final wasVisited = visited.contains(q.id);
+
+                            Color bg, textC;
+                            if (isCurrent) {
+                              bg = DS.primary;
+                              textC = Colors.white;
+                            } else if (isMarked) {
+                              bg = DS.warning;
+                              textC = Colors.white;
+                            } else if (answered) {
+                              bg = DS.success;
+                              textC = Colors.white;
+                            } else if (wasVisited) {
+                              bg = DS.errorSurface;
+                              textC = DS.error;
+                            } else {
+                              bg = DS.surfaceVariant;
+                              textC = DS.textSecondary;
+                            }
+
+                            return GestureDetector(
+                              onTap: () => onTap(i),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  borderRadius: BorderRadius.circular(
+                                    DS.radiusSm,
+                                  ),
+                                  border: Border.all(
+                                    color: isCurrent
+                                        ? DS.primaryDark
+                                        : isMarked
+                                        ? DS.warning.withValues(alpha: 0.50)
+                                        : answered
+                                        ? DS.success.withValues(alpha: 0.40)
+                                        : DS.border,
+                                    width: isCurrent ? 2 : 1,
+                                  ),
+                                  boxShadow: isCurrent
+                                      ? [
+                                          BoxShadow(
+                                            color: DS.primary.withValues(
+                                              alpha: 0.30,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : [],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: TextStyle(
+                                      color: textC,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
                   );
-                }),
+                }).toList(),
               ),
             ),
           ),
@@ -2261,6 +2679,11 @@ class _PaletteSheet extends StatelessWidget {
               _PaletteLegend(color: DS.success, label: 'Answered'),
               _PaletteLegend(color: DS.warning, label: 'Marked'),
               _PaletteLegend(
+                color: DS.errorSurface,
+                label: 'Not answered',
+                textColor: DS.error,
+              ),
+              _PaletteLegend(
                 color: DS.surfaceVariant,
                 label: 'Not visited',
                 textColor: DS.textSecondary,
@@ -2270,6 +2693,17 @@ class _PaletteSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Map<String, List<int>> get _subjectGroups {
+    final groups = <String, List<int>>{};
+    for (var i = 0; i < questions.length; i++) {
+      final subject = questions[i].subject.trim().isEmpty
+          ? 'General'
+          : questions[i].subject.trim();
+      groups.putIfAbsent(subject, () => []).add(i);
+    }
+    return groups;
   }
 }
 
@@ -2451,11 +2885,7 @@ class _AutoSubmittedDialog extends StatelessWidget {
                 color: DS.errorSurface,
                 borderRadius: BorderRadius.circular(DS.radiusMd),
               ),
-              child: const Icon(
-                Icons.block_rounded,
-                color: DS.error,
-                size: 30,
-              ),
+              child: const Icon(Icons.block_rounded, color: DS.error, size: 30),
             ),
             const SizedBox(height: DS.s16),
             const Text(

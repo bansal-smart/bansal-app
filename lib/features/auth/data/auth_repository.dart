@@ -14,7 +14,7 @@ class AuthUser {
 }
 
 class AuthRepository {
-  static const _reviewPhone = '+91830260000';
+  static const _reviewPhone = '+918302600000';
   static const _reviewOtp = '123456';
 
   final Prefs _prefs;

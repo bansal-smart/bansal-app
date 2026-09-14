@@ -153,11 +153,15 @@ class TestResultBundle {
   factory TestResultBundle.fromJson(Map<String, dynamic> j) {
     final attempt = (j['attempt'] as Map).cast<String, dynamic>();
     final test = (j['test'] as Map?)?.cast<String, dynamic>();
-    final subjectsMax = (j['subjects_max'] as Map?)?.cast<String, dynamic>() ?? {};
-    final metadata = (attempt['metadata'] as Map?)?.cast<String, dynamic>() ?? {};
+    final subjectsMax =
+        (j['subjects_max'] as Map?)?.cast<String, dynamic>() ?? {};
+    final metadata =
+        (attempt['metadata'] as Map?)?.cast<String, dynamic>() ?? {};
 
-    final metaSubjects = (metadata['subjects'] as Map?)?.cast<String, dynamic>() ?? {};
-    final metaQuestions = (metadata['questions'] as List?)
+    final metaSubjects =
+        (metadata['subjects'] as Map?)?.cast<String, dynamic>() ?? {};
+    final metaQuestions =
+        (metadata['questions'] as List?)
             ?.map((e) => (e as Map).cast<String, dynamic>())
             .toList() ??
         const [];
@@ -182,9 +186,8 @@ class TestResultBundle {
 
     final subjects = subjectNames.map((name) {
       final maxInfo = (subjectsMax[name] as Map?)?.cast<String, dynamic>();
-      final total = (maxInfo?['total'] as num?)?.toInt() ??
-          subjectAttempted[name] ??
-          0;
+      final total =
+          (maxInfo?['total'] as num?)?.toInt() ?? subjectAttempted[name] ?? 0;
       final maxScore = (maxInfo?['max_score'] as num?)?.toDouble() ?? 0;
       final score = (metaSubjects[name] as num?)?.toDouble() ?? 0;
       return SubjectStat(
@@ -195,15 +198,18 @@ class TestResultBundle {
         score: score,
         maxScore: maxScore,
       );
-    }).toList()
-      ..sort((a, b) => a.subject.compareTo(b.subject));
+    }).toList()..sort((a, b) => a.subject.compareTo(b.subject));
 
     return TestResultBundle(
       attemptId: attempt['id'] as String,
       testId: attempt['test_id'] as String,
-      testName: attempt['test_name'] as String? ?? test?['title'] as String? ?? 'Test',
+      testName:
+          attempt['test_name'] as String? ??
+          test?['title'] as String? ??
+          'Test',
       score: (attempt['score'] as num?)?.toDouble() ?? 0,
-      totalMarks: (test?['total_marks'] as num?)?.toDouble() ??
+      totalMarks:
+          (test?['total_marks'] as num?)?.toDouble() ??
           (metadata['total'] as num?)?.toDouble() ??
           0,
       totalQuestions: (attempt['total_questions'] as num?)?.toInt() ?? 0,
@@ -261,9 +267,13 @@ class _TestResultScreenState extends State<TestResultScreen> {
       _error = null;
     });
     try {
-      final data = await SupabaseService.client
-          .rpc('get_test_result_bundle', params: {'_attempt_id': widget.attemptId});
-      final bundle = TestResultBundle.fromJson((data as Map).cast<String, dynamic>());
+      final data = await SupabaseService.client.rpc(
+        'get_test_result_bundle',
+        params: {'_attempt_id': widget.attemptId},
+      );
+      final bundle = TestResultBundle.fromJson(
+        (data as Map).cast<String, dynamic>(),
+      );
 
       await _loadReattemptStatus(bundle.testId);
       _startCountdownIfNeeded(bundle);
@@ -288,16 +298,17 @@ class _TestResultScreenState extends State<TestResultScreen> {
       if (userId == null) return;
       final row = await SupabaseService.client
           .from('test_reattempt_requests')
-          .select('status')
+          .select('status, consumed_at')
           .eq('user_id', userId)
           .eq('test_id', testId)
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
       final status = row?['status'] as String?;
+      final consumed = row?['consumed_at'] != null;
       _reattemptStatus = switch (status) {
         'pending' => ReattemptStatus.pending,
-        'approved' => ReattemptStatus.approved,
+        'approved' when !consumed => ReattemptStatus.approved,
         'rejected' => ReattemptStatus.rejected,
         _ => ReattemptStatus.none,
       };
@@ -342,9 +353,9 @@ class _TestResultScreenState extends State<TestResultScreen> {
       setState(() => _reattemptStatus = ReattemptStatus.pending);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppException.from(e).userMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppException.from(e).userMessage)));
     }
   }
 
@@ -376,8 +387,8 @@ class _TestResultScreenState extends State<TestResultScreen> {
         body: _loading
             ? const TestResultSkeleton()
             : _error != null
-                ? _ErrorState(message: _error!, onRetry: _load)
-                : _buildContent(_bundle!),
+            ? _ErrorState(message: _error!, onRetry: _load)
+            : _buildContent(_bundle!),
       ),
     );
   }
@@ -394,7 +405,10 @@ class _TestResultScreenState extends State<TestResultScreen> {
           if (b.rank.excluded)
             const _ExcludedCard()
           else if (!b.rank.released)
-            _LockedRankCard(remaining: _remaining, releaseAt: b.rank.releaseAt ?? b.endsAt)
+            _LockedRankCard(
+              remaining: _remaining,
+              releaseAt: b.rank.releaseAt ?? b.endsAt,
+            )
           else
             _RankCard(rank: b.rank),
           const SizedBox(height: DS.s16),
@@ -418,7 +432,8 @@ class _TestResultScreenState extends State<TestResultScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => context.push('/test-response-sheet/${b.attemptId}'),
+              onPressed: () =>
+                  context.push('/test-response-sheet/${b.attemptId}'),
               icon: const Icon(Icons.list_alt_rounded, size: 18),
               label: const Text('View detailed response sheet'),
               style: OutlinedButton.styleFrom(
@@ -521,7 +536,10 @@ class _ScoreHero extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: DS.s12, vertical: DS.s6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DS.s12,
+              vertical: DS.s6,
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(999),
@@ -529,7 +547,11 @@ class _ScoreHero extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 14),
+                const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
                 const SizedBox(width: DS.s6),
                 Text(
                   label.toUpperCase(),
@@ -556,7 +578,10 @@ class _ScoreHero extends StatelessWidget {
           const SizedBox(height: DS.s16),
           Text(
             'Your score',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: DS.s4),
           Text(
@@ -570,7 +595,10 @@ class _ScoreHero extends StatelessWidget {
           ),
           Text(
             'out of ${_fmtScore(bundle.totalMarks)}',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: DS.s20),
           Row(
@@ -603,7 +631,10 @@ class _ScoreHero extends StatelessWidget {
           const SizedBox(height: DS.s14),
           Text(
             'Completed in ${_fmtDuration(bundle.timeSpentSeconds)} · ~${perQ}s/Q',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -616,7 +647,11 @@ class _HeroStat extends StatelessWidget {
   final String label;
   final String value;
 
-  const _HeroStat({required this.icon, required this.label, required this.value});
+  const _HeroStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -626,12 +661,19 @@ class _HeroStat extends StatelessWidget {
         const SizedBox(height: DS.s6),
         Text(
           value,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: DS.s2),
         Text(
           label,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 11,
+          ),
         ),
       ],
     );
@@ -686,7 +728,11 @@ class _LockedRankCard extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: DS.border),
             ),
-            child: const Icon(Icons.lock_outline_rounded, color: DS.textSecondary, size: 20),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              color: DS.textSecondary,
+              size: 20,
+            ),
           ),
           const SizedBox(height: DS.s12),
           const Text(
@@ -736,7 +782,11 @@ class _ExcludedCard extends StatelessWidget {
           const Expanded(
             child: Text(
               'This attempt has been excluded from ranking and comparison by an admin.',
-              style: TextStyle(fontSize: 12.5, color: DS.textPrimary, height: 1.4),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: DS.textPrimary,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -758,7 +808,11 @@ class _RankCard extends StatelessWidget {
       ('Your Rank', rank.rank != null ? '#${rank.rank}' : '—', DS.primary),
       ('Total Attempts', '${rank.totalAttempts ?? 0}', DS.indigo),
       ('Topper Score', rank.topperScore?.toStringAsFixed(1) ?? '—', DS.success),
-      ('Average Score', rank.averageScore?.toStringAsFixed(1) ?? '—', DS.warning),
+      (
+        'Average Score',
+        rank.averageScore?.toStringAsFixed(1) ?? '—',
+        DS.warning,
+      ),
     ];
 
     return GridView.builder(
@@ -784,10 +838,19 @@ class _RankCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(value,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
               const SizedBox(height: DS.s2),
-              Text(label, style: const TextStyle(fontSize: 11, color: DS.textSecondary)),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: DS.textSecondary),
+              ),
             ],
           ),
         );
@@ -806,10 +869,34 @@ class _StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (Icons.check_circle_rounded, DS.success, DS.successSurface, '${bundle.correctAnswers}', 'CORRECT'),
-      (Icons.cancel_rounded, DS.error, DS.errorSurface, '${bundle.wrong}', 'WRONG'),
-      (Icons.remove_circle_outline_rounded, DS.muted, DS.surfaceVariant, '${bundle.unattempted}', 'UNATTEMPTED'),
-      (Icons.track_changes_rounded, DS.indigo, DS.indigoLight, '${bundle.totalQuestions}', 'TOTAL'),
+      (
+        Icons.check_circle_rounded,
+        DS.success,
+        DS.successSurface,
+        '${bundle.correctAnswers}',
+        'CORRECT',
+      ),
+      (
+        Icons.cancel_rounded,
+        DS.error,
+        DS.errorSurface,
+        '${bundle.wrong}',
+        'WRONG',
+      ),
+      (
+        Icons.remove_circle_outline_rounded,
+        DS.muted,
+        DS.surfaceVariant,
+        '${bundle.unattempted}',
+        'UNATTEMPTED',
+      ),
+      (
+        Icons.track_changes_rounded,
+        DS.indigo,
+        DS.indigoLight,
+        '${bundle.totalQuestions}',
+        'TOTAL',
+      ),
     ];
 
     return GridView.builder(
@@ -842,12 +929,22 @@ class _StatGrid extends StatelessWidget {
                 child: Icon(icon, color: color, size: 16),
               ),
               const SizedBox(height: DS.s8),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w800, color: DS.textPrimary)),
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 10.5, fontWeight: FontWeight.w700, color: DS.textSecondary)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: DS.textPrimary,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: DS.textSecondary,
+                ),
+              ),
             ],
           ),
         );
@@ -878,7 +975,11 @@ class _ScorecardCardState extends State<_ScorecardCard> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not generate scorecard: ${AppException.from(e).userMessage}')),
+        SnackBar(
+          content: Text(
+            'Could not generate scorecard: ${AppException.from(e).userMessage}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _generating = false);
@@ -897,12 +998,22 @@ class _ScorecardCardState extends State<_ScorecardCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Your Scorecard',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: DS.textPrimary)),
+          const Text(
+            'Your Scorecard',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: DS.textPrimary,
+            ),
+          ),
           const SizedBox(height: DS.s4),
           const Text(
             'Download a printable PDF of your performance.',
-            style: TextStyle(fontSize: 12, color: DS.textSecondary, height: 1.4),
+            style: TextStyle(
+              fontSize: 12,
+              color: DS.textSecondary,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: DS.s14),
           SizedBox(
@@ -913,10 +1024,15 @@ class _ScorecardCardState extends State<_ScorecardCard> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.download_rounded, size: 18),
-              label: Text(_generating ? 'Preparing…' : 'Download Scorecard PDF'),
+              label: Text(
+                _generating ? 'Preparing…' : 'Download Scorecard PDF',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: DS.primary,
                 foregroundColor: Colors.white,
@@ -955,9 +1071,14 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 14.5, fontWeight: FontWeight.w800, color: DS.textPrimary)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: DS.textPrimary,
+            ),
+          ),
           const SizedBox(height: DS.s16),
           child,
         ],
@@ -1052,10 +1173,16 @@ class _LegendDot extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
         ),
         const SizedBox(width: DS.s6),
-        Text(label, style: const TextStyle(fontSize: 12, color: DS.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: DS.textSecondary),
+        ),
       ],
     );
   }
@@ -1091,15 +1218,22 @@ class _SubjectBarChart extends StatelessWidget {
               ),
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 32,
                     getTitlesWidget: (v, _) => Text(
                       v.toInt().toString(),
-                      style: const TextStyle(fontSize: 10, color: DS.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: DS.textSecondary,
+                      ),
                     ),
                   ),
                 ),
@@ -1108,12 +1242,16 @@ class _SubjectBarChart extends StatelessWidget {
                     showTitles: true,
                     getTitlesWidget: (v, _) {
                       final i = v.toInt();
-                      if (i < 0 || i >= subjects.length) return const SizedBox.shrink();
+                      if (i < 0 || i >= subjects.length)
+                        return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: DS.s6),
                         child: Text(
                           subjects[i].subject,
-                          style: const TextStyle(fontSize: 10, color: DS.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: DS.textSecondary,
+                          ),
                         ),
                       );
                     },
@@ -1179,7 +1317,11 @@ class _SubjectBreakdownCard extends StatelessWidget {
         children: [
           const Text(
             'Subject-wise Breakdown',
-            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: DS.textPrimary),
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: DS.textPrimary,
+            ),
           ),
           const SizedBox(height: DS.s14),
           SingleChildScrollView(
@@ -1195,7 +1337,10 @@ class _SubjectBreakdownCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: DS.textSecondary,
               ),
-              dataTextStyle: const TextStyle(fontSize: 12.5, color: DS.textPrimary),
+              dataTextStyle: const TextStyle(
+                fontSize: 12.5,
+                color: DS.textPrimary,
+              ),
               columns: const [
                 DataColumn(label: Text('Subject')),
                 DataColumn(label: Text('Attempted')),
@@ -1207,18 +1352,29 @@ class _SubjectBreakdownCard extends StatelessWidget {
                   .map(
                     (s) => DataRow(
                       cells: [
-                        DataCell(Text(s.subject,
-                            style: const TextStyle(fontWeight: FontWeight.w700))),
+                        DataCell(
+                          Text(
+                            s.subject,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
                         DataCell(Text('${s.attempted}/${s.total}')),
-                        DataCell(Text(
-                          '${s.correct}',
-                          style: const TextStyle(color: DS.success, fontWeight: FontWeight.w700),
-                        )),
+                        DataCell(
+                          Text(
+                            '${s.correct}',
+                            style: const TextStyle(
+                              color: DS.success,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                         DataCell(Text('${s.accuracy.round()}%')),
-                        DataCell(Text(
-                          '${s.score.toStringAsFixed(1)} / ${s.maxScore.toStringAsFixed(0)}',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        )),
+                        DataCell(
+                          Text(
+                            '${s.score.toStringAsFixed(1)} / ${s.maxScore.toStringAsFixed(0)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
                       ],
                     ),
                   )
@@ -1281,14 +1437,22 @@ class _ReattemptCardState extends State<_ReattemptCard> {
         children: [
           const Text(
             'Re-attempt this test',
-            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: DS.textPrimary),
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: DS.textPrimary,
+            ),
           ),
           const SizedBox(height: DS.s6),
           const Text(
             'Want to take this test again? Submit a request — your admin will '
             'review and approve it. Once approved, you can start a fresh '
             'attempt from the test page.',
-            style: TextStyle(fontSize: 12.5, color: DS.textSecondary, height: 1.5),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: DS.textSecondary,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: DS.s14),
           _buildAction(context),
@@ -1310,7 +1474,8 @@ class _ReattemptCardState extends State<_ReattemptCard> {
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () => context.push('/test-instructions/${widget.testId}'),
+            onPressed: () =>
+                context.push('/test-instructions/${widget.testId}'),
             icon: const Icon(Icons.check_circle_rounded, size: 16),
             label: const Text('Approved — Start fresh attempt'),
             style: ElevatedButton.styleFrom(
@@ -1356,7 +1521,9 @@ class _ReattemptCardState extends State<_ReattemptCard> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _submitting ? null : () => setState(() => _showForm = false),
+                      onPressed: _submitting
+                          ? null
+                          : () => setState(() => _showForm = false),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: DS.textPrimary,
                         side: const BorderSide(color: DS.border),
@@ -1451,13 +1618,23 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: DS.s12, vertical: DS.s8),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: DS.s6),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -1488,18 +1665,30 @@ class _ErrorState extends StatelessWidget {
                 color: DS.errorSurface,
                 borderRadius: BorderRadius.circular(DS.radiusLg),
               ),
-              child: const Icon(Icons.assignment_late_outlined, color: DS.error, size: 36),
+              child: const Icon(
+                Icons.assignment_late_outlined,
+                color: DS.error,
+                size: 36,
+              ),
             ),
             const SizedBox(height: DS.s20),
             const Text(
               'No Result Available',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: DS.textPrimary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: DS.textPrimary,
+              ),
             ),
             const SizedBox(height: DS.s8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: DS.textSecondary, fontSize: 14, height: 1.5),
+              style: const TextStyle(
+                color: DS.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: DS.s20),
             ElevatedButton(

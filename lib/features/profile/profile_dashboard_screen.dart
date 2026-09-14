@@ -373,6 +373,8 @@ class _ProfileDashboardScreenState
               const SizedBox(height: DS.s16),
               const _StatsRow(),
               const SizedBox(height: DS.s20),
+              const _TestReportHistory(),
+              const SizedBox(height: DS.s20),
               _SectionHeader(title: 'Account'),
               const SizedBox(height: DS.s12),
               _AccountCard(
@@ -693,9 +695,169 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// PERSONAL INFO CARD
-// ─────────────────────────────────────────────
+class _TestReportHistory extends ConsumerWidget {
+  const _TestReportHistory();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(testReportHistoryProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(title: 'My Progress'),
+        const SizedBox(height: DS.s12),
+        history.when(
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: DS.primary)),
+          error: (_, __) => OutlinedButton.icon(
+            onPressed: () => ref.invalidate(testReportHistoryProvider),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Reload test reports'),
+          ),
+          data: (reports) {
+            if (reports.isEmpty) {
+              return const _EmptyReportsCard();
+            }
+            return Container(
+              decoration: BoxDecoration(
+                color: DS.surface,
+                borderRadius: BorderRadius.circular(DS.radiusLg),
+                border: Border.all(color: DS.border, width: 1.2),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  for (var i = 0; i < reports.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, color: DS.border),
+                    _ReportRow(
+                      report: reports[i],
+                      onTap: () =>
+                          context.push('/test-result/${reports[i].attemptId}'),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ReportRow extends StatelessWidget {
+  final TestReportSummary report;
+  final VoidCallback onTap;
+
+  const _ReportRow({required this.report, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final date = report.submittedAt;
+    final dateLabel = date == null
+        ? ''
+        : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(DS.s14),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: DS.primaryLight,
+                borderRadius: BorderRadius.circular(DS.radiusMd),
+              ),
+              child: const Icon(
+                Icons.analytics_outlined,
+                color: DS.primary,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: DS.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    report.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: DS.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${report.correct} correct · ${report.wrong} wrong · ${report.unattempted} unattempted${dateLabel.isEmpty ? '' : ' · $dateLabel'}',
+                    maxLines: 2,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: DS.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: DS.s8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  report.totalMarks > 0
+                      ? '${report.score.toStringAsFixed(1)}/${report.totalMarks.toStringAsFixed(0)}'
+                      : report.score.toStringAsFixed(1),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: DS.primary,
+                  ),
+                ),
+                Text(
+                  report.released ? 'View report' : 'Report pending',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: report.released ? DS.success : DS.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: DS.s4),
+            const Icon(Icons.chevron_right_rounded, color: DS.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyReportsCard extends StatelessWidget {
+  const _EmptyReportsCard();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(DS.s20),
+    decoration: BoxDecoration(
+      color: DS.surface,
+      borderRadius: BorderRadius.circular(DS.radiusLg),
+      border: Border.all(color: DS.border),
+    ),
+    child: const Text(
+      'Completed test reports will appear here after submission.',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 12.5, color: DS.textSecondary),
+    ),
+  );
+
+  // ─────────────────────────────────────────────
+  // PERSONAL INFO CARD
+  // ─────────────────────────────────────────────
+}
+
 class _PersonalInfoCard extends StatelessWidget {
   final TextEditingController nameCtrl;
   final TextEditingController phoneCtrl;

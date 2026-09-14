@@ -14,7 +14,7 @@ class TestsRepository {
   final SupabaseClient _client;
 
   TestsRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService.client;
+    : _client = client ?? SupabaseService.client;
 
   Future<List<AppTest>> fetchPublished() async {
     try {
@@ -38,7 +38,8 @@ class TestsRepository {
       final data = await _client
           .from('test_attempts')
           .select('id, test_id, status')
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .order('submitted_at', ascending: false, nullsFirst: true);
       return (data as List<dynamic>)
           .map((row) => TestAttempt.fromJson(row as Map<String, dynamic>))
           .toList();
@@ -61,6 +62,29 @@ class TestsRepository {
           .toSet();
     } catch (e) {
       throw AppException.from(e);
+    }
+  }
+
+  /// Matches the web test list: a submitted test becomes startable again only
+  /// when its approved reattempt request has not already been consumed.
+  Future<Set<String>> fetchMyApprovedReattemptTestIds() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return {};
+      final data = await _client
+          .from('test_reattempt_requests')
+          .select('test_id')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .isFilter('consumed_at', null);
+      return (data as List<dynamic>)
+          .map((row) => (row as Map<String, dynamic>)['test_id'] as String)
+          .toSet();
+    } catch (_) {
+      // Reattempt status is supplementary to the test catalogue. If an older
+      // deployment has not exposed this table yet, students must still be
+      // able to see and take their normal tests.
+      return {};
     }
   }
 

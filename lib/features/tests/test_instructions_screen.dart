@@ -21,6 +21,8 @@ abstract class DS {
   static const border = Color(0xFFE5E7EB);
 
   static const error = Color(0xFFEF4444);
+  static const success = Color(0xFF10B981);
+  static const successSurface = Color(0xFFECFDF5);
 
   static const double s4 = 4;
   static const double s6 = 6;
@@ -72,7 +74,9 @@ class _TestDetails {
     description: j['description'] as String? ?? '',
     testType: j['test_type'] as String? ?? '',
     examPattern: j['exam_pattern'] as String? ?? '',
-    subjects: (j['subjects'] as List<dynamic>?)?.map((s) => s.toString()).toList() ?? [],
+    subjects:
+        (j['subjects'] as List<dynamic>?)?.map((s) => s.toString()).toList() ??
+        [],
     durationMinutes: j['duration_minutes'] as int? ?? 0,
     totalQuestions: j['total_questions'] as int? ?? 0,
     totalMarks: _toDouble(j['total_marks']),
@@ -103,6 +107,9 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
   String? _error;
   _TestDetails? _test;
   bool _agreed = false;
+  String? _completedAttemptId;
+  bool _reattemptAllowed = false;
+  bool _hasInProgressAttempt = false;
 
   @override
   void initState() {
@@ -120,6 +127,29 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
           )
           .eq('id', widget.testId)
           .single();
+      final userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId != null) {
+        final attempts = await SupabaseService.client
+            .from('test_attempts')
+            .select('id,status')
+            .eq('user_id', userId)
+            .eq('test_id', widget.testId);
+        for (final raw in attempts as List) {
+          final row = raw as Map<String, dynamic>;
+          final status = row['status'] as String?;
+          if (status == 'in_progress') _hasInProgressAttempt = true;
+          if (status == 'submitted' || status == 'auto_submitted') {
+            _completedAttemptId ??= row['id'] as String?;
+          }
+        }
+        if (_completedAttemptId != null && !_hasInProgressAttempt) {
+          final allowed = await SupabaseService.client.rpc(
+            'can_reattempt_test',
+            params: {'_user_id': userId, '_test_id': widget.testId},
+          );
+          _reattemptAllowed = allowed == true;
+        }
+      }
       setState(() {
         _test = _TestDetails.fromJson(data);
         _loading = false;
@@ -143,10 +173,12 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
         backgroundColor: DS.background,
         body: SafeArea(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: DS.primary))
+              ? const Center(
+                  child: CircularProgressIndicator(color: DS.primary),
+                )
               : _error != null
-                  ? _ErrorState(message: _error!, onRetry: _load)
-                  : _buildContent(_test!),
+              ? _ErrorState(message: _error!, onRetry: _load)
+              : _buildContent(_test!),
         ),
       ),
     );
@@ -162,7 +194,10 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
               IconButton(
                 onPressed: () =>
                     context.canPop() ? context.pop() : context.go('/tests'),
-                icon: const Icon(Icons.arrow_back_rounded, color: DS.textPrimary),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: DS.textPrimary,
+                ),
               ),
               const Text(
                 'All tests',
@@ -183,6 +218,29 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
               const SizedBox(height: DS.s16),
               _InstructionsCard(test: t),
               const SizedBox(height: DS.s20),
+              if (_completedAttemptId != null &&
+                  !_reattemptAllowed &&
+                  !_hasInProgressAttempt) ...[
+                Container(
+                  padding: const EdgeInsets.all(DS.s14),
+                  decoration: BoxDecoration(
+                    color: DS.successSurface,
+                    borderRadius: BorderRadius.circular(DS.radiusMd),
+                    border: Border.all(
+                      color: DS.success.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Text(
+                    'You have already submitted this test. Your first submission is final unless an admin authorises a reattempt.',
+                    style: TextStyle(
+                      color: DS.textPrimary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: DS.s16),
+              ],
               _AgreementRow(
                 value: _agreed,
                 onChanged: (v) => setState(() => _agreed = v ?? false),
@@ -192,7 +250,14 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _agreed
+                  onPressed:
+                      _completedAttemptId != null &&
+                          !_reattemptAllowed &&
+                          !_hasInProgressAttempt
+                      ? () => context.pushReplacement(
+                          '/test-result/$_completedAttemptId',
+                        )
+                      : _agreed
                       ? () {
                           HapticFeedback.selectionClick();
                           context.pushReplacement('/test/${t.id}');
@@ -207,8 +272,16 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Start Test',
+                  child: Text(
+                    _completedAttemptId != null &&
+                            !_reattemptAllowed &&
+                            !_hasInProgressAttempt
+                        ? 'View Result'
+                        : _hasInProgressAttempt
+                        ? 'Resume Test'
+                        : _reattemptAllowed && _completedAttemptId != null
+                        ? 'Start Authorised Reattempt'
+                        : 'Start Test',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -250,10 +323,10 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge = [test.examPattern, test.testType]
-        .where((p) => p.isNotEmpty)
-        .map((p) => p.toUpperCase())
-        .join(' · ');
+    final badge = [
+      test.examPattern,
+      test.testType,
+    ].where((p) => p.isNotEmpty).map((p) => p.toUpperCase()).join(' · ');
 
     return Container(
       padding: const EdgeInsets.all(DS.s20),
@@ -354,7 +427,11 @@ class _StatChip extends StatelessWidget {
   final String label;
   final String value;
 
-  const _StatChip({required this.icon, required this.label, required this.value});
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -506,7 +583,10 @@ class _InstructionsCard extends StatelessWidget {
                   const SizedBox(width: DS.s10),
                   Text(
                     label,
-                    style: const TextStyle(fontSize: 13.5, color: DS.textPrimary),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      color: DS.textPrimary,
+                    ),
                   ),
                 ],
               ),

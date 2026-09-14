@@ -78,13 +78,15 @@ class _TestsListScreenState extends ConsumerState<TestsListScreen> {
     if (_query.trim().isEmpty) return groups;
     final q = _query.trim().toLowerCase();
     return groups
-        .map((g) => TestGroup(
-              key: g.key,
-              label: g.label,
-              tests: g.tests
-                  .where((t) => t.test.title.toLowerCase().contains(q))
-                  .toList(),
-            ))
+        .map(
+          (g) => TestGroup(
+            key: g.key,
+            label: g.label,
+            tests: g.tests
+                .where((t) => t.test.title.toLowerCase().contains(q))
+                .toList(),
+          ),
+        )
         .where((g) => g.tests.isNotEmpty)
         .toList();
   }
@@ -92,10 +94,12 @@ class _TestsListScreenState extends ConsumerState<TestsListScreen> {
   void _openTest(TestWithStatus item) {
     if (item.isCbtAbsent) return;
     HapticFeedback.selectionClick();
-    if (item.isSubmitted) {
-      context.push('/test-result/${item.attempt!.id}');
-    } else if (item.isInProgress) {
+    if (item.isInProgress) {
       context.push('/test/${item.test.id}');
+    } else if (item.canStartApprovedReattempt) {
+      context.push('/test-instructions/${item.test.id}');
+    } else if (item.isSubmitted) {
+      context.push('/test-result/${item.attempt!.id}');
     } else {
       context.push('/test-instructions/${item.test.id}');
     }
@@ -124,8 +128,10 @@ class _TestsListScreenState extends ConsumerState<TestsListScreen> {
               onRetry: () => ref.invalidate(accessibleTestGroupsProvider),
             ),
             data: (groups) {
-              final totalTests =
-                  groups.fold<int>(0, (s, g) => s + g.tests.length);
+              final totalTests = groups.fold<int>(
+                0,
+                (s, g) => s + g.tests.length,
+              );
               final filtered = _filterGroups(groups);
 
               return RefreshIndicator(
@@ -362,8 +368,9 @@ class _GroupCard extends StatelessWidget {
           ),
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 180),
-            crossFadeState:
-                isOpen ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            crossFadeState: isOpen
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
             firstChild: Column(
               children: [
                 const Divider(height: 1, color: DS.border),
@@ -397,10 +404,10 @@ class _TestRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = item.test;
     final disabled = item.isCbtAbsent;
-    final badgeParts = [t.testType, t.examPattern]
-        .where((p) => p.isNotEmpty)
-        .map((p) => p.toUpperCase())
-        .join(' · ');
+    final badgeParts = [
+      t.testType,
+      t.examPattern,
+    ].where((p) => p.isNotEmpty).map((p) => p.toUpperCase()).join(' · ');
     final metaParts = <String>[
       '${t.totalQuestions} Qs',
       '${t.durationMinutes} min',
@@ -490,6 +497,13 @@ class _StatusTrailing extends StatelessWidget {
       );
     }
     if (item.isSubmitted) {
+      if (item.canStartApprovedReattempt) {
+        return const _StatusPill(
+          label: 'Retake approved',
+          fg: DS.primary,
+          bg: DS.primaryLight,
+        );
+      }
       return const _StatusPill(
         label: 'View Result',
         fg: DS.success,
