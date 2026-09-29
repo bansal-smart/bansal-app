@@ -14,16 +14,16 @@ import 'data/courses_providers.dart';
 
 // ── Design tokens — navy, matching the rest of the app ─────────────────────
 abstract class _C {
-  static const primary   = Color(0xFF193F8F);
+  static const primary = Color(0xFF193F8F);
   static const primaryLt = Color(0xFFEAF0FC);
-  static const indigo    = Color(0xFF6366F1);
-  static const success   = Color(0xFF10B981);
-  static const warning   = Color(0xFFF59E0B);
-  static const surface   = Color(0xFFFFFFFF);
-  static const bg        = Color(0xFFF5F6FA);
-  static const border    = Color(0xFFE5E7EB);
-  static const textPri   = Color(0xFF111827);
-  static const textSub   = Color(0xFF6B7280);
+  static const indigo = Color(0xFF6366F1);
+  static const success = Color(0xFF10B981);
+  static const warning = Color(0xFFF59E0B);
+  static const surface = Color(0xFFFFFFFF);
+  static const bg = Color(0xFFF5F6FA);
+  static const border = Color(0xFFE5E7EB);
+  static const textPri = Color(0xFF111827);
+  static const textSub = Color(0xFF6B7280);
 }
 
 /// Per-enrollment progress, recomputed from video-level tracking rather than
@@ -40,22 +40,24 @@ class _EnrollmentProgress {
 /// enrollment's stored `progress_percent` when a course has no videos yet.
 final myLearningProvider =
     FutureProvider.autoDispose<List<_EnrollmentProgress>>((ref) async {
-  final enrollments = await ref.watch(enrollmentsProvider.future);
-  if (enrollments.isEmpty) return [];
+      final enrollments = await ref.watch(enrollmentsProvider.future);
+      if (enrollments.isEmpty) return [];
 
-  final results = <_EnrollmentProgress>[];
-  for (final e in enrollments) {
-    final completed = await ref.watch(videoProgressProvider(e.courseId).future);
-    // videoProgressProvider only returns completed IDs for this course, but
-    // we still need the total video count to compute a percentage.
-    final totalVideos = await _countCourseVideos(e.courseId);
-    final pct = totalVideos > 0
-        ? ((completed.length / totalVideos) * 100).round().clamp(0, 100)
-        : e.progressPercent;
-    results.add(_EnrollmentProgress(e, pct));
-  }
-  return results;
-});
+      final results = <_EnrollmentProgress>[];
+      for (final e in enrollments) {
+        final completed = await ref.watch(
+          videoProgressProvider(e.courseId).future,
+        );
+        // videoProgressProvider only returns completed IDs for this course, but
+        // we still need the total video count to compute a percentage.
+        final totalVideos = await _countCourseVideos(e.courseId);
+        final pct = totalVideos > 0
+            ? ((completed.length / totalVideos) * 100).round().clamp(0, 100)
+            : e.progressPercent;
+        results.add(_EnrollmentProgress(e, pct));
+      }
+      return results;
+    });
 
 Future<int> _countCourseVideos(String courseId) async {
   final data = await SupabaseService.client
@@ -95,21 +97,27 @@ class CoursesListScreen extends ConsumerWidget {
               );
             }
 
-            final inProgress =
-                items.where((it) => it.percent > 0 && it.percent < 100).length;
+            final inProgress = items
+                .where((it) => it.percent > 0 && it.percent < 100)
+                .length;
             final completed = items.where((it) => it.percent >= 100).length;
-            final continueItems =
-                items.where((it) => it.percent < 100).toList()
-                  ..sort((a, b) {
-                    final aT = a.enrollment.lastAccessedAt ?? a.enrollment.createdAt;
-                    final bT = b.enrollment.lastAccessedAt ?? b.enrollment.createdAt;
-                    return bT.compareTo(aT);
-                  });
+            final continueItems = items.where((it) => it.percent < 100).toList()
+              ..sort((a, b) {
+                final aT =
+                    a.enrollment.lastAccessedAt ?? a.enrollment.createdAt;
+                final bT =
+                    b.enrollment.lastAccessedAt ?? b.enrollment.createdAt;
+                return bT.compareTo(aT);
+              });
             final continueSlice = continueItems.take(3).toList();
 
             return RefreshIndicator(
               color: _C.primary,
-              onRefresh: () => ref.refresh(myLearningProvider.future),
+              onRefresh: () async {
+                ref.invalidate(enrollmentsProvider);
+                ref.invalidate(myLearningProvider);
+                await ref.read(myLearningProvider.future);
+              },
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
@@ -133,7 +141,10 @@ class CoursesListScreen extends ConsumerWidget {
                   if (continueSlice.isNotEmpty) ...[
                     const _SectionTitle('Continue Learning'),
                     const SizedBox(height: 10),
-                    _CourseCardGrid(items: continueSlice, showBadgePercent: false),
+                    _CourseCardGrid(
+                      items: continueSlice,
+                      showBadgePercent: false,
+                    ),
                     const SizedBox(height: 20),
                   ],
                   const _SectionTitle('All My Courses'),
@@ -187,22 +198,44 @@ class _StatsStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enrolled = items.length;
-    final inProgress =
-        items.where((it) => it.percent > 0 && it.percent < 100).length;
+    final inProgress = items
+        .where((it) => it.percent > 0 && it.percent < 100)
+        .length;
     final completed = items.where((it) => it.percent >= 100).length;
     final avgProgress = items.isEmpty
         ? 0
         : (items.fold<int>(0, (s, it) => s + it.percent) / items.length)
-            .round();
+              .round();
 
     final stats = [
-      (_C.primary, _C.primaryLt, Icons.menu_book_rounded, '$enrolled', 'Enrolled'),
-      (_C.warning, const Color(0xFFFFF1E6), Icons.play_arrow_rounded,
-          '$inProgress', 'In Progress'),
-      (_C.warning, const Color(0xFFFFF1E6), Icons.emoji_events_rounded,
-          '$completed', 'Completed'),
-      (_C.indigo, const Color(0xFFEEF2FF), Icons.auto_awesome_rounded,
-          '$avgProgress%', 'Avg Progress'),
+      (
+        _C.primary,
+        _C.primaryLt,
+        Icons.menu_book_rounded,
+        '$enrolled',
+        'Enrolled',
+      ),
+      (
+        _C.warning,
+        const Color(0xFFFFF1E6),
+        Icons.play_arrow_rounded,
+        '$inProgress',
+        'In Progress',
+      ),
+      (
+        _C.warning,
+        const Color(0xFFFFF1E6),
+        Icons.emoji_events_rounded,
+        '$completed',
+        'Completed',
+      ),
+      (
+        _C.indigo,
+        const Color(0xFFEEF2FF),
+        Icons.auto_awesome_rounded,
+        '$avgProgress%',
+        'Avg Progress',
+      ),
     ];
 
     return GridView.builder(
@@ -294,10 +327,8 @@ class _CourseCardGrid extends StatelessWidget {
         childAspectRatio: 0.72,
       ),
       itemCount: items.length,
-      itemBuilder: (_, i) => _CourseCard(
-        item: items[i],
-        showBadgePercent: showBadgePercent,
-      ),
+      itemBuilder: (_, i) =>
+          _CourseCard(item: items[i], showBadgePercent: showBadgePercent),
     );
   }
 }
@@ -363,7 +394,9 @@ class _CourseCard extends StatelessWidget {
                       right: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: isDone
                               ? _C.warning
@@ -374,8 +407,11 @@ class _CourseCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (isDone) ...[
-                              const Icon(Icons.emoji_events_rounded,
-                                  size: 10, color: Colors.white),
+                              const Icon(
+                                Icons.emoji_events_rounded,
+                                size: 10,
+                                color: Colors.white,
+                              ),
                               const SizedBox(width: 3),
                             ],
                             Text(
@@ -424,7 +460,9 @@ class _CourseCard extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w800,
-                                      color: Colors.white.withValues(alpha: 0.85),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
                                       letterSpacing: 0.3,
                                     ),
                                   ),
@@ -449,8 +487,11 @@ class _CourseCard extends StatelessWidget {
                               color: Colors.white,
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.play_arrow_rounded,
-                                color: gradient.first, size: 15),
+                            child: Icon(
+                              Icons.play_arrow_rounded,
+                              color: gradient.first,
+                              size: 15,
+                            ),
                           ),
                         ],
                       ),
@@ -548,7 +589,11 @@ class _EmptyState extends StatelessWidget {
               color: _C.primaryLt,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.school_outlined, color: _C.primary, size: 40),
+            child: const Icon(
+              Icons.school_outlined,
+              color: _C.primary,
+              size: 40,
+            ),
           ),
           const SizedBox(height: 20),
           const Text(

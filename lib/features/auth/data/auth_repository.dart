@@ -233,6 +233,8 @@ class AuthRepository {
     required String fullName,
     required String classLevel,
     required String targetExam,
+    required String dob,
+    required String centreId,
   }) async {
     final sb = supabaseOrNull;
     final pending = _pendingRegistration;
@@ -251,6 +253,8 @@ class AuthRepository {
           'full_name': fullName,
           'class_level': classLevel,
           'target_exam': targetExam,
+          'dob': dob,
+          'centre_id': centreId,
         },
       );
       if (res.status != 200 || res.data is! Map) {
@@ -285,6 +289,44 @@ class AuthRepository {
       await _prefs.setUserClass(classLevel);
       await _prefs.setUserExam(targetExam);
       await _prefs.setProfileSetupDone(true);
+    }
+  }
+
+  /// Saves profile setup for a user who already has an authenticated session.
+  /// Centre assignment is intentionally performed by the Edge Function because
+  /// the profiles RLS policy prevents students from changing centre_id directly.
+  Future<void> completeAuthenticatedProfile({
+    required String fullName,
+    required String classLevel,
+    required String targetExam,
+    required String dob,
+    required String centreId,
+    String? phone,
+  }) async {
+    final sb = supabaseOrNull;
+    if (sb == null || sb.auth.currentSession == null) {
+      throw Exception('Your session expired. Please verify your number again.');
+    }
+
+    try {
+      final res = await sb.functions.invoke(
+        'mobile-complete-profile',
+        body: {
+          'full_name': fullName,
+          'class_level': classLevel,
+          'target_exam': targetExam,
+          'dob': dob,
+          'centre_id': centreId,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+        },
+      );
+      if (res.status != 200 || res.data is! Map) {
+        final msg = (res.data is Map) ? res.data['error'] as String? : null;
+        throw Exception(msg ?? 'We could not create your profile.');
+      }
+    } on FunctionException catch (e) {
+      final msg = (e.details is Map) ? e.details['error'] as String? : null;
+      throw Exception(msg ?? 'We could not create your profile.');
     }
   }
 

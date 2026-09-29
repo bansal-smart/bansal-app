@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/providers.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../enrollments/data/repositories/enrollments_repository.dart';
@@ -44,6 +45,23 @@ const _kClasses = [
   'Dropper',
 ];
 
+class _CentreOption {
+  final String id;
+  final String city;
+  final String? area;
+
+  const _CentreOption({required this.id, required this.city, this.area});
+
+  factory _CentreOption.fromJson(Map<String, dynamic> json) => _CentreOption(
+    id: json['id'] as String,
+    city: json['city'] as String? ?? '',
+    area: json['area'] as String?,
+  );
+
+  String get label =>
+      area == null || area!.trim().isEmpty ? city : '$city — ${area!.trim()}';
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -55,10 +73,15 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
 class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _pageCtrl = PageController();
   final _nameCtrl = TextEditingController();
+  final _dobCtrl = TextEditingController();
 
   // steps: 0=name, 1=exam, 2=class
   int _step = 0;
   String _name = '';
+  String _dob = '';
+  String _centreId = '';
+  List<_CentreOption> _centres = const [];
+  bool _loadingCentres = true;
   String _selExam = '';
   String _selClass = '';
   String? _nameError;
@@ -71,7 +94,42 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   void dispose() {
     _pageCtrl.dispose();
     _nameCtrl.dispose();
+    _dobCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCentres();
+  }
+
+  Future<void> _loadCentres() async {
+    final sb = supabaseOrNull;
+    if (sb == null) {
+      if (mounted) setState(() => _loadingCentres = false);
+      return;
+    }
+    try {
+      final rows = await sb
+          .from('centres')
+          .select('id, city, area')
+          .eq('is_published', true)
+          .eq('is_suspended', false)
+          .order('city');
+      if (!mounted) return;
+      setState(() {
+        _centres = (rows as List)
+            .map(
+              (row) => _CentreOption.fromJson(Map<String, dynamic>.from(row)),
+            )
+            .toList();
+        _loadingCentres = false;
+      });
+    } catch (e) {
+      debugPrint('[ProfileSetup] Centre load error: $e');
+      if (mounted) setState(() => _loadingCentres = false);
+    }
   }
 
   void _goToStep(int step) {
@@ -89,12 +147,35 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       setState(() => _nameError = 'Please enter your name');
       return;
     }
+    if (_dob.isEmpty) {
+      setState(() => _nameError = 'Please select your date of birth');
+      return;
+    }
+    if (_centreId.isEmpty) {
+      setState(() => _nameError = 'Please select your preferred centre');
+      return;
+    }
     setState(() {
       _name = name;
       _nameError = null;
     });
     FocusScope.of(context).unfocus();
     _goToStep(1);
+  }
+
+  void _onDobSelected(DateTime date) {
+    setState(() {
+      _dob = DateFormat('yyyy-MM-dd').format(date);
+      _dobCtrl.text = DateFormat('dd / MM / yyyy').format(date);
+      _nameError = null;
+    });
+  }
+
+  void _onCentreSelected(String centreId) {
+    setState(() {
+      _centreId = centreId;
+      _nameError = null;
+    });
   }
 
   void _onExamSelected(String exam) {
@@ -132,6 +213,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           fullName: _name,
           classLevel: _selClass,
           targetExam: _selExam,
+          dob: _dob,
+          centreId: _centreId,
         );
         ref.read(authStateProvider.notifier).refresh();
         await EnrollmentsRepository().autoEnrollFreeCourses(
@@ -147,13 +230,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         final msg = e.toString().replaceFirst('Exception: ', '');
         setState(() {
           _saving = false;
-          _saveError =
-              msg.contains('closed') ||
-                  msg.contains('expired') ||
-                  msg.contains('invalid') ||
-                  msg.contains('suspended')
-              ? msg
-              : 'We could not create your profile. Please try again.';
+          _saveError = msg.isEmpty
+              ? 'We could not create your profile. Please try again.'
+              : msg;
         });
       }
       return;
@@ -175,16 +254,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         : '+91$storedPhone';
 
     try {
-      final payload = {
-        'user_id': uid,
-        'full_name': _name,
-        'class_level': _selClass,
-        'target_exam': _selExam,
-        'phone': phone,
-        'onboarding_completed': true,
-        'updated_at': DateTime.now().toIso8601String(),
-      };
-      await sb.from('profiles').upsert(payload, onConflict: 'user_id');
+      await authRepo.completeAuthenticatedProfile(
+        fullName: _name,
+        classLevel: _selClass,
+        targetExam: _selExam,
+        dob: _dob,
+        centreId: _centreId,
+        phone: phone,
+      );
 
       // Only mark setup complete locally after Supabase accepted the profile.
       // This guarantees the account also appears with complete details in the
@@ -207,7 +284,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _saveError = 'We could not create your profile. Please try again.';
+        final message = e.toString().replaceFirst('Exception: ', '').trim();
+        _saveError = message.isEmpty
+            ? 'We could not create your profile. Please try again.'
+            : message;
       });
     }
   }
@@ -245,8 +325,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     // Step 0 — Name
                     _NameStep(
                       controller: _nameCtrl,
+                      dobController: _dobCtrl,
+                      centres: _centres,
+                      selectedCentreId: _centreId,
+                      loadingCentres: _loadingCentres,
                       error: _nameError,
                       onNext: _onNameNext,
+                      onDobSelected: _onDobSelected,
+                      onCentreSelected: _onCentreSelected,
                     ),
                     // Step 1 — Exam / Goal
                     _ExamStep(
@@ -440,14 +526,38 @@ class _OptionChip extends StatelessWidget {
 // ── Step 0: Name ───────────────────────────────────────────────────────────
 class _NameStep extends StatelessWidget {
   final TextEditingController controller;
+  final TextEditingController dobController;
+  final List<_CentreOption> centres;
+  final String selectedCentreId;
+  final bool loadingCentres;
   final String? error;
   final VoidCallback onNext;
+  final ValueChanged<DateTime> onDobSelected;
+  final ValueChanged<String> onCentreSelected;
 
   const _NameStep({
     required this.controller,
+    required this.dobController,
+    required this.centres,
+    required this.selectedCentreId,
+    required this.loadingCentres,
     required this.error,
     required this.onNext,
+    required this.onDobSelected,
+    required this.onCentreSelected,
   });
+
+  Future<void> _pickDob(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(now.year - 15, now.month, now.day),
+      firstDate: DateTime(1950),
+      lastDate: now,
+      helpText: 'Select date of birth',
+    );
+    if (picked != null) onDobSelected(picked);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -514,6 +624,98 @@ class _NameStep extends StatelessWidget {
               ),
             ),
             onSubmitted: (_) => onNext(),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Date of Birth',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: _C.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: dobController,
+            readOnly: true,
+            onTap: () => _pickDob(context),
+            decoration: InputDecoration(
+              hintText: 'DD / MM / YYYY',
+              hintStyle: const TextStyle(color: _C.textSub),
+              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
+              filled: true,
+              fillColor: _C.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _C.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _C.border, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _C.primary, width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Preferred Centre',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: _C.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: ValueKey(selectedCentreId),
+            initialValue: selectedCentreId.isEmpty ? null : selectedCentreId,
+            isExpanded: true,
+            hint: Text(
+              loadingCentres
+                  ? 'Loading centres...'
+                  : 'Select preferred study centre',
+            ),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: _C.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 15,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _C.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _C.border, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _C.primary, width: 2),
+              ),
+            ),
+            items: centres
+                .map(
+                  (centre) => DropdownMenuItem<String>(
+                    value: centre.id,
+                    child: Text(centre.label, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: loadingCentres
+                ? null
+                : (value) {
+                    if (value != null) onCentreSelected(value);
+                  },
           ),
           if (error != null) ...[
             const SizedBox(height: 6),

@@ -60,12 +60,14 @@ Deno.serve(async (req) => {
     const fullName = cleanText(body.full_name);
     const classLevel = cleanText(body.class_level);
     const targetExam = cleanText(body.target_exam);
+    const dob = cleanText(body.dob);
+    const centreId = cleanText(body.centre_id);
 
     if (!phone || !token || !Number.isFinite(expiresAt)) {
       return json(400, { error: "Invalid input. Required: phone and registration token" });
     }
-    if (fullName.length < 2 || !classLevel || !targetExam) {
-      return json(400, { error: "Please provide your name, class and target exam." });
+    if (fullName.length < 2 || !classLevel || !targetExam || !dob || !centreId) {
+      return json(400, { error: "Please provide your name, date of birth, class, target exam and preferred centre." });
     }
 
     let e164: string;
@@ -173,6 +175,8 @@ Deno.serve(async (req) => {
         full_name: fullName,
         class_level: classLevel,
         target_exam: targetExam,
+        dob,
+        centre_id: centreId,
         phone: bare,
         phone_e164: e164,
         phone_verified: true,
