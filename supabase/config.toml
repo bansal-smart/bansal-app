@@ -7,6 +7,9 @@ project_id = "arambh"
 [functions.mobile-prpsms-verify-otp]
 verify_jwt = false
 
+[functions.mobile-complete-registration]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

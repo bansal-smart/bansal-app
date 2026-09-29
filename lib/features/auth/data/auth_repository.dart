@@ -13,6 +13,19 @@ class AuthUser {
   const AuthUser({required this.id, this.email, this.name, this.avatarUrl});
 }
 
+class _PendingRegistration {
+  final String phone;
+  final String token;
+  final int expiresAt; // epoch milliseconds
+  const _PendingRegistration({
+    required this.phone,
+    required this.token,
+    required this.expiresAt,
+  });
+
+  bool get isExpired => DateTime.now().millisecondsSinceEpoch >= expiresAt;
+}
+
 class AuthRepository {
   static const _reviewPhone = '+918302600000';
   static const _reviewOtp = '123456';
@@ -158,6 +171,26 @@ class AuthRepository {
       throw Exception(msg ?? 'Incorrect or expired OTP.');
     }
 
+    // Unregistered phone: the OTP is valid but the server only creates the
+    // account once the profile-setup details are submitted (see
+    // completePhoneRegistration). No session exists until then.
+    if (result['registration_required'] == true) {
+      final regToken = result['registration_token'] as String?;
+      final regExpiresAt = result['registration_expires_at'] as num?;
+      if (regToken == null || regExpiresAt == null) {
+        debugPrint('[Auth] Registration required but no registration token');
+        throw Exception('Verification failed. Please try again.');
+      }
+      _pendingRegistration = _PendingRegistration(
+        phone: phone,
+        token: regToken,
+        expiresAt: regExpiresAt.toInt(),
+      );
+      await _prefs.setPhoneNumber(phone);
+      debugPrint('[Auth] verifyPhoneOtp → new student, registration required');
+      return false;
+    }
+
     final accessToken = result['access_token'] as String?;
     final refreshToken = result['refresh_token'] as String?;
     if (accessToken == null || refreshToken == null) {
@@ -183,6 +216,76 @@ class AuthRepository {
       '[Auth] verifyPhoneOtp → hasProfile=$hasProfile uid=${sb.auth.currentUser?.id}',
     );
     return hasProfile;
+  }
+
+  /// Set after a new (unregistered) phone passes OTP verification; consumed by
+  /// [completePhoneRegistration] from the profile-setup screen.
+  _PendingRegistration? _pendingRegistration;
+
+  bool get hasPendingRegistration =>
+      _pendingRegistration != null && !_pendingRegistration!.isExpired;
+
+  void clearPendingRegistration() => _pendingRegistration = null;
+
+  /// Creates the account for a newly verified phone with the details from
+  /// profile setup, then establishes the Supabase session.
+  Future<void> completePhoneRegistration({
+    required String fullName,
+    required String classLevel,
+    required String targetExam,
+  }) async {
+    final sb = supabaseOrNull;
+    final pending = _pendingRegistration;
+    if (sb == null || pending == null || pending.isExpired) {
+      throw Exception('Your session expired. Please verify your number again.');
+    }
+
+    Map<String, dynamic> result;
+    try {
+      final res = await sb.functions.invoke(
+        'mobile-complete-registration',
+        body: {
+          'phone': pending.phone,
+          'registration_token': pending.token,
+          'registration_expires_at': pending.expiresAt,
+          'full_name': fullName,
+          'class_level': classLevel,
+          'target_exam': targetExam,
+        },
+      );
+      if (res.status != 200 || res.data is! Map) {
+        final msg = (res.data is Map) ? res.data['error'] as String? : null;
+        throw Exception(msg ?? 'We could not create your profile.');
+      }
+      result = Map<String, dynamic>.from(res.data as Map);
+    } on FunctionException catch (e) {
+      final msg = (e.details is Map) ? e.details['error'] as String? : null;
+      debugPrint(
+        '[Auth] Registration function exception: '
+        'status=${e.status}, error=${msg ?? e.reasonPhrase}',
+      );
+      throw Exception(msg ?? 'We could not create your profile.');
+    }
+
+    final accessToken = result['access_token'] as String?;
+    final refreshToken = result['refresh_token'] as String?;
+    if (accessToken == null || refreshToken == null) {
+      throw Exception('We could not create your profile.');
+    }
+    await sb.auth.setSession(refreshToken, accessToken: accessToken);
+
+    _pendingRegistration = null;
+    await _prefs.setPhoneNumber(pending.phone);
+    await _prefs.setPhoneSignedIn(true);
+    // Loads the saved details (or an existing student's, if the number was
+    // registered elsewhere meanwhile) and marks profile setup done.
+    final hasProfile = await restoreProfileFromDb();
+    if (!hasProfile) {
+      await _prefs.setUserName(fullName);
+      await _prefs.setUserClass(classLevel);
+      await _prefs.setUserExam(targetExam);
+      await _prefs.setProfileSetupDone(true);
+    }
   }
 
   /// After sign-in, load profile from DB and sync to prefs.
@@ -353,6 +456,7 @@ class AuthRepository {
 
   Future<void> signOut() async {
     _mockUser = null;
+    _pendingRegistration = null;
     await _prefs.setPhoneSignedIn(false);
     await _prefs.setPhoneNumber('');
     await _prefs.setProfileSetupDone(false);

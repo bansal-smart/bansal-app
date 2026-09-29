@@ -278,13 +278,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: SlideTransition(
                       position: _brandSlide,
                       child: const Text(
-                        'BANSAL SMART',
+                        'Welcome to Bansal Smart: The Learning App',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 42,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 8,
-                          height: 1.0,
+                          letterSpacing: 0.4,
+                          height: 1.25,
                         ),
                       ),
                     ),
@@ -470,10 +471,12 @@ class _LogoSection extends StatelessWidget {
                   ],
                 ),
                 child: const Center(
-                  child: Icon(
-                    Icons.school_rounded,
-                    size: 52,
-                    color: DS.primary,
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Image(
+                      image: AssetImage('assets/icon/app-icon.png'),
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),

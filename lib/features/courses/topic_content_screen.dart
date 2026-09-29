@@ -10,6 +10,7 @@ import '../../core/error/app_exception.dart';
 import 'youtube_player_screen.dart';
 import 's3_video_player_screen.dart';
 import 'pdf_viewer_screen.dart';
+import 'courses_list_screen.dart' show myLearningProvider;
 
 // ─────────────────────────────────────────────
 // 💡 Move DS to lib/core/theme/design_system.dart
@@ -389,6 +390,10 @@ class _VideoCard extends ConsumerWidget {
       isCompleted: true,
     ).then((_) {
       ref.invalidate(videoProgressProvider(courseId));
+      // The My Learning screen's stat tiles / per-course % also depend on
+      // this course's video progress — invalidate so they refresh on return,
+      // since that screen stays alive underneath this pushed route.
+      ref.invalidate(myLearningProvider);
     });
   }
 

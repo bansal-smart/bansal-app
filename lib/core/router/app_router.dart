@@ -71,7 +71,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (loc == '/phone-otp') return null;
       debugPrint('[Router] loc=$loc signedIn=$signedIn');
       if (loc == '/profile-setup') {
-        if (!signedIn) return '/login';
+        // A newly verified phone has no session until profile setup creates
+        // the account, so allow it through while registration is pending.
+        if (!signedIn) return auth.hasPendingRegistration ? null : '/login';
         return needsProfileSetup ? null : '/home';
       }
       if (!signedIn && !atAuth && !atPasswordReset) return '/login';

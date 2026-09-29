@@ -28,6 +28,22 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
+const REGISTRATION_TOKEN_TTL_MS = 30 * 60_000;
+
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
@@ -110,14 +126,22 @@ Deno.serve(async (req) => {
     const bare = e164.replace(/^\+91/, "");
     const { data: profiles, error: profileQueryError } = await admin
       .from("profiles")
-      .select("user_id")
-      .or(`phone_e164.eq.${e164},phone.eq.${bare},phone.eq.${e164}`)
+      .select("user_id, full_name, roll_number, centre_id, phone, parent_phone")
+      .or(`phone_e164.eq.${e164},phone.eq.${bare},phone.eq.${e164},parent_phone.eq.${bare},parent_phone.eq.${e164},parent_phone_e164.eq.${e164}`)
       .limit(10);
     if (profileQueryError) throw profileQueryError;
 
     let userId: string | undefined;
     let userEmail: string | undefined;
-    for (const profile of profiles ?? []) {
+    // Prefer a real student record over an incomplete account left behind by
+    // the old phone-OTP flow. This also lets a parent use their recorded
+    // number without creating a duplicate, blank profile.
+    const rankedProfiles = [...(profiles ?? [])].sort((a, b) => {
+      const score = (p: typeof a) =>
+        (p.full_name?.trim() ? 4 : 0) + (p.roll_number?.trim() ? 2 : 0) + (p.centre_id ? 1 : 0);
+      return score(b) - score(a);
+    });
+    for (const profile of rankedProfiles) {
       const { data: candidate } = await admin.auth.admin.getUserById(profile.user_id);
       if (candidate.user) {
         userId = candidate.user.id;
@@ -136,39 +160,25 @@ Deno.serve(async (req) => {
         return json(403, { error: "Registrations are currently closed. Please contact support." });
       }
 
-      const placeholderEmail = `phone-${bare}@phone.bansalkota.local`;
-      const { data: created, error: createError } = await admin.auth.admin.createUser({
-        email: placeholderEmail,
-        email_confirm: true,
-        user_metadata: { phone: e164, signup_method: "phone_otp" },
+      // OTP verification is not student creation. The old implementation
+      // created a phone-only Auth/profile pair here, which leaked into the
+      // Students page as “Unnamed”. The registration flow must collect the
+      // required details before it creates an active student.
+      // The phone is now proven, so hand the app a short-lived signed token.
+      // mobile-complete-registration accepts it together with the student's
+      // details and only then creates the account.
+      const expiresAt = Date.now() + REGISTRATION_TOKEN_TTL_MS;
+      return json(200, {
+        ok: true,
+        purpose: "login",
+        phone: e164,
+        registration_required: true,
+        registration_token: await hmacSha256Hex(
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          `mobile-registration:${e164}:${expiresAt}`,
+        ),
+        registration_expires_at: expiresAt,
       });
-      if (createError) {
-        if (!createError.message.toLowerCase().includes("already been registered")) {
-          throw createError;
-        }
-
-        // Recover an Auth user left behind by an earlier login attempt whose
-        // profile was not linked successfully. The Admin API has no direct
-        // get-by-email method, so page through users until the deterministic
-        // phone placeholder address is found.
-        for (let page = 1; page <= 100 && !userId; page++) {
-          const { data: pageData, error: listError } = await admin.auth.admin
-            .listUsers({ page, perPage: 1000 });
-          if (listError) throw listError;
-          const existing = pageData.users.find(
-            (candidate) => candidate.email?.toLowerCase() === placeholderEmail,
-          );
-          if (existing) {
-            userId = existing.id;
-            break;
-          }
-          if (pageData.users.length < 1000) break;
-        }
-        if (!userId) throw createError;
-      } else {
-        userId = created.user!.id;
-      }
-      userEmail = placeholderEmail;
     }
 
     if (!userEmail) {

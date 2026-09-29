@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../enrollments/data/repositories/enrollments_repository.dart';
+import 'data/auth_repository.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 abstract class _C {
@@ -122,6 +123,42 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final prefs = ref.read(prefsProvider);
     final sb = supabaseOrNull;
     final uid = sb?.auth.currentUser?.id;
+    final authRepo = ref.read(authRepositoryProvider);
+
+    // New student: the account is created server-side from these details.
+    if (uid == null && authRepo.hasPendingRegistration) {
+      try {
+        await authRepo.completePhoneRegistration(
+          fullName: _name,
+          classLevel: _selClass,
+          targetExam: _selExam,
+        );
+        ref.read(authStateProvider.notifier).refresh();
+        await EnrollmentsRepository().autoEnrollFreeCourses(
+          exam: prefs.userExam,
+          userClass: prefs.userClass,
+        );
+        if (!mounted) return;
+        ref.read(needsProfileSetupProvider.notifier).state = false;
+        context.go('/home');
+      } catch (e) {
+        debugPrint('[ProfileSetup] Registration error: $e');
+        if (!mounted) return;
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        setState(() {
+          _saving = false;
+          _saveError =
+              msg.contains('closed') ||
+                  msg.contains('expired') ||
+                  msg.contains('invalid') ||
+                  msg.contains('suspended')
+              ? msg
+              : 'We could not create your profile. Please try again.';
+        });
+      }
+      return;
+    }
+
     if (sb == null || uid == null) {
       setState(() {
         _saving = false;
@@ -192,6 +229,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 totalSteps: _totalSteps,
                 onBack: _step == 0
                     ? () async {
+                        ref
+                            .read(authRepositoryProvider)
+                            .clearPendingRegistration();
                         await supabaseOrNull?.auth.signOut();
                         if (context.mounted) context.go('/login');
                       }

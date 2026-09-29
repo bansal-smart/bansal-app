@@ -287,7 +287,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             GestureDetector(
                               onTap: () => launchUrl(
-                                Uri.parse('https://www.arke.pro/terms'),
+                                Uri.parse('https://bansal.ac.in/terms'),
                                 mode: LaunchMode.externalApplication,
                               ),
                               child: const Text(
@@ -307,7 +307,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             GestureDetector(
                               onTap: () => launchUrl(
-                                Uri.parse('https://www.arke.pro/privacy'),
+                                Uri.parse('https://bansal.ac.in/privacy'),
                                 mode: LaunchMode.externalApplication,
                               ),
                               child: const Text(

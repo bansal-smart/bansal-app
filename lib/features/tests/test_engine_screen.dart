@@ -975,13 +975,24 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 
     if (!mounted) return;
 
-    if (auto) {
+    // For an exit, the student already confirmed via _LeaveDialog, so no
+    // second "auto-submitted" popup is shown — just leave the test screen.
+    if (auto && reason != 'exited_test') {
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (_) => const _AutoSubmittedDialog(),
       );
       if (!mounted) return;
+    }
+
+    if (reason == 'exited_test') {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
+      return;
     }
 
     context.pushReplacement('/test-result/$attemptId');
@@ -996,7 +1007,10 @@ class _TestEngineScreenState extends State<TestEngineScreen>
           builder: (_) => _LeaveDialog(),
         ) ??
         false;
-    if (ok && mounted) context.pop();
+    if (!ok || !mounted) return;
+    // Exiting forfeits the attempt: it is auto-submitted with whatever was
+    // answered so far, so the student cannot re-enter it later.
+    await _submit(auto: true, reason: 'exited_test');
   }
 
   void _confirmSubmit() async {
@@ -2972,7 +2986,9 @@ class _LeaveDialog extends StatelessWidget {
             ),
             const SizedBox(height: DS.s8),
             const Text(
-              'Your answers will not be saved and your progress will be lost.',
+              'Your test will be submitted immediately with your current '
+              'answers. You will not be able to re-enter or resume this '
+              'test once you leave.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: DS.textSecondary,
@@ -3014,7 +3030,7 @@ class _LeaveDialog extends StatelessWidget {
                       elevation: 0,
                     ),
                     child: const Text(
-                      'Leave',
+                      'Submit & Leave',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
