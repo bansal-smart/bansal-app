@@ -53,7 +53,8 @@ const _kSlides = [
     examLabel: 'BOARD',
     examColor: Color(0xFF2563EB),
     headline: 'Strong Concepts.\nBright Results.',
-    description: 'Excel in your board exams with\nconcept clarity and practice.',
+    description:
+        'Excel in your board exams with\nconcept clarity and practice.',
     tagline: 'Strong basics. Endless possibilities.',
     accentColor: Color(0xFF2563EB),
     bgColor: Color(0xFFEFF6FF),
@@ -95,7 +96,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     // Use controller's actual page to avoid stale _page state during animation
-    final currentPage = (_pageCtrl.hasClients ? _pageCtrl.page?.round() : null) ?? _page;
+    final currentPage =
+        (_pageCtrl.hasClients ? _pageCtrl.page?.round() : null) ?? _page;
     if (currentPage < _kSlides.length - 1) {
       _pageCtrl.nextPage(
         duration: const Duration(milliseconds: 380),
@@ -140,7 +142,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           onTap: _finish,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
@@ -291,7 +295,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            ((_pageCtrl.hasClients ? _pageCtrl.page?.round() : null) ?? _page) == _kSlides.length - 1
+                            ((_pageCtrl.hasClients
+                                            ? _pageCtrl.page?.round()
+                                            : null) ??
+                                        _page) ==
+                                    _kSlides.length - 1
                                 ? 'Get Started'
                                 : 'Start Learning',
                             style: const TextStyle(

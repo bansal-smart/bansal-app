@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'storage/preferences.dart';
 
-final prefsProvider = Provider<Prefs>((ref) => throw UnimplementedError('override in main'));
+final prefsProvider = Provider<Prefs>(
+  (ref) => throw UnimplementedError('override in main'),
+);
 
 /// Exposes the name/class/exam saved during profile setup (phone-auth flow).
 /// Returns empty strings when not yet set.
@@ -21,9 +23,9 @@ class ProfileSetupInfo {
 final profileSetupInfoProvider = Provider<ProfileSetupInfo>((ref) {
   final prefs = ref.watch(prefsProvider);
   return ProfileSetupInfo(
-    name:      prefs.userName,
+    name: prefs.userName,
     userClass: prefs.userClass,
-    exam:      prefs.userExam,
+    exam: prefs.userExam,
   );
 });
 

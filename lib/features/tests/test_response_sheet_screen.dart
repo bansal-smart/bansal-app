@@ -324,7 +324,7 @@ class _TestResponseSheetScreenState extends State<TestResponseSheetScreen> {
         .length;
 
     return Scaffold(
-      backgroundColor: DS.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: DS.surface,
         elevation: 0,

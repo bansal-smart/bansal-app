@@ -12,7 +12,6 @@ import 'data/auth_repository.dart';
 abstract class _C {
   static const primary = Color(0xFF193F8F);
   static const primaryBg = Color(0xFFE8EDF9); // single chip background
-  static const bg = Color(0xFFFFFFFF);
   static const surface = Color(0xFFF9FAFB);
   static const border = Color(0xFFE5E7EB);
   static const textPrimary = Color(0xFF111827);
@@ -300,7 +299,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: _C.bg,
+        backgroundColor: Colors.white,
         body: SafeArea(
           child: Column(
             children: [

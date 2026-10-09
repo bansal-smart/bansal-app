@@ -6,7 +6,7 @@ class AuthRepository {
   final SupabaseClient _client;
 
   AuthRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService.client;
+    : _client = client ?? SupabaseService.client;
 
   Future<AuthResponse> signUp(String email, String password) async {
     try {
@@ -18,7 +18,10 @@ class AuthRepository {
 
   Future<AuthResponse> signIn(String email, String password) async {
     try {
-      return await _client.auth.signInWithPassword(email: email, password: password);
+      return await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
     } catch (e) {
       throw AppException.from(e);
     }

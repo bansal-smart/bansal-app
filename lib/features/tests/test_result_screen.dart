@@ -367,7 +367,7 @@ class _TestResultScreenState extends State<TestResultScreen> {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: DS.primary,
           elevation: 0,

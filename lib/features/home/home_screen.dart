@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../core/providers.dart';
+import '../../core/theme/colors.dart';
 import '../../skeleton_loading/home_skeleton.dart';
+import '../auth/data/auth_repository.dart';
 import '../profile/data/dashboard_stats_providers.dart';
+import '../profile/data/profile_providers.dart';
 import '../courses/data/courses_providers.dart';
 import '../live/data/live_providers.dart';
 import '../enrollments/data/enrollments_providers.dart';
@@ -11,23 +16,6 @@ import 'data/landing_hero_banners_provider.dart';
 import 'widgets/landing_banner_carousel.dart';
 
 abstract class DS {
-  static const primary = Color(0xFF193F8F);
-  static const primaryLight = Color(0xFFE8EDF9);
-  static const primaryDark = Color(0xFF102A63);
-
-  static const background = Color(0xFFF7F8FA);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceVariant = Color(0xFFF9FAFB);
-
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textHint = Color(0xFFD1D5DB);
-  static const border = Color(0xFFE5E7EB);
-
-  static const error = Color(0xFFEF4444);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-
   static const double s4 = 4;
   static const double s6 = 6;
   static const double s8 = 8;
@@ -40,9 +28,14 @@ abstract class DS {
   static const double s28 = 28;
   static const double s32 = 32;
 
-  static const double radiusSm = 10;
   static const double radiusMd = 14;
   static const double radiusLg = 20;
+  static const double radiusXl = 26;
+
+  /// Soft drop shadow used by every floating card in the Figma design.
+  static const cardShadow = [
+    BoxShadow(color: Color(0x14102A5C), blurRadius: 18, offset: Offset(0, 6)),
+  ];
 }
 
 class HomeScreen extends ConsumerWidget {
@@ -56,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
     final testsCompletedAsync = ref.watch(testsCompletedProvider);
     final streakAsync = ref.watch(streakProvider);
     final accuracyAsync = ref.watch(accuracyProvider);
-    final airPercentileAsync = ref.watch(airPercentileProvider);
+    final weeklyAsync = ref.watch(weeklyStudyMinutesProvider);
     final bannersAsync = ref.watch(landingHeroBannersProvider);
     final showSkeleton =
         liveAsync.isLoading &&
@@ -69,16 +62,17 @@ class HomeScreen extends ConsumerWidget {
     final hasEnrollment = enrollments.isNotEmpty;
     final recentEnrollment = hasEnrollment
         ? ([...enrollments]..sort((a, b) {
-            final aTime = a.lastAccessedAt ?? a.createdAt;
-            final bTime = b.lastAccessedAt ?? b.createdAt;
-            return bTime.compareTo(aTime);
-          })).first
+                final aTime = a.lastAccessedAt ?? a.createdAt;
+                final bTime = b.lastAccessedAt ?? b.createdAt;
+                return bTime.compareTo(aTime);
+              }))
+              .first
         : null;
 
     final testsCompleted = testsCompletedAsync.valueOrNull ?? 0;
     final streak = streakAsync.valueOrNull ?? 0;
     final accuracy = accuracyAsync.valueOrNull;
-    final airPercentile = airPercentileAsync.valueOrNull;
+    final weeklyMinutes = weeklyAsync.valueOrNull ?? List<int>.filled(7, 0);
 
     final todaysLive =
         liveAsync.valueOrNull
@@ -86,107 +80,159 @@ class HomeScreen extends ConsumerWidget {
             .toList() ??
         const [];
 
-    return ColoredBox(
-      color: DS.background,
-      child: RefreshIndicator(
-        color: DS.primary,
-        onRefresh: () async {
-          ref.invalidate(accessibleLiveClassesProvider);
-          ref.invalidate(coursesProvider);
-          ref.invalidate(enrollmentsProvider);
-          ref.invalidate(testsCompletedProvider);
-          ref.invalidate(streakProvider);
-          ref.invalidate(accuracyProvider);
-          ref.invalidate(airPercentileProvider);
-          ref.invalidate(landingHeroBannersProvider);
-          await Future.wait([
-            ref.read(accessibleLiveClassesProvider.future),
-            ref.read(coursesProvider.future),
-            ref.read(enrollmentsProvider.future),
-            ref.read(landingHeroBannersProvider.future),
-          ]);
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            DS.s16,
-            DS.s16,
-            DS.s16,
-            DS.s32,
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        ref.invalidate(accessibleLiveClassesProvider);
+        ref.invalidate(coursesProvider);
+        ref.invalidate(enrollmentsProvider);
+        ref.invalidate(testsCompletedProvider);
+        ref.invalidate(streakProvider);
+        ref.invalidate(accuracyProvider);
+        ref.invalidate(weeklyStudyMinutesProvider);
+        ref.invalidate(landingHeroBannersProvider);
+        await Future.wait([
+          ref.read(accessibleLiveClassesProvider.future),
+          ref.read(coursesProvider.future),
+          ref.read(enrollmentsProvider.future),
+          ref.read(landingHeroBannersProvider.future),
+        ]);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(DS.s20, DS.s4, DS.s20, DS.s32),
+        children: [
+          // ── Greeting ──
+          _Greeting(firstName: _firstName(ref)),
+          const SizedBox(height: DS.s16),
+
+          // Same admin-managed carousel used by the website hero.
+          bannersAsync.when(
+            data: (banners) => LandingBannerCarousel(banners: banners),
+            loading: () => const _BannerLoadingPlaceholder(),
+            error: (_, _) => const SizedBox.shrink(),
           ),
-          children: [
-            // Same admin-managed carousel used by the website hero.
-            bannersAsync.when(
-              data: (banners) => LandingBannerCarousel(banners: banners),
-              loading: () => const _BannerLoadingPlaceholder(),
-              error: (_, _) => const SizedBox.shrink(),
-            ),
 
-            if (bannersAsync.valueOrNull?.isNotEmpty == true ||
-                bannersAsync.isLoading)
-              const SizedBox(height: DS.s16),
+          if (bannersAsync.valueOrNull?.isNotEmpty == true ||
+              bannersAsync.isLoading)
+            const SizedBox(height: DS.s20),
 
-            // ── Quick action grid ──
-            _QuickActionsGrid(
-              onMyCourse: () => context.go('/courses'),
-              onLiveClass: () => context.go('/live'),
-              onLiveTest: () => context.go('/tests'),
-              onMyProgress: () => context.go('/profile'),
-            ),
+          // ── Momentum ──
+          _MomentumCard(
+            streak: streak,
+            testsCompleted: testsCompleted,
+            accuracy: accuracy,
+            onTap: () => context.go('/profile'),
+          ),
 
-            const SizedBox(height: DS.s24),
+          const SizedBox(height: DS.s28),
 
-            // ── My Progress ──
-            _SectionHeader(
-              title: 'My Progress',
-              subtitle: "Snapshot of how you're tracking right now",
-              actionLabel: 'View details',
-              onAction: () => context.go('/profile'),
-            ),
-            const SizedBox(height: DS.s12),
-            _ProgressGrid(
-              testsCompleted: testsCompleted,
-              streak: streak,
-              accuracy: accuracy,
-              airPercentile: airPercentile,
-            ),
+          // ── Quick access ──
+          const _SectionHeader(title: 'Quick Access'),
+          const SizedBox(height: DS.s14),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickAccessTile(
+                  icon: LucideIcons.bookOpen200,
+                  label: 'My courses',
+                  color: AppColors.tileBlue,
+                  onTap: () => context.go('/courses'),
+                ),
+              ),
+              const SizedBox(width: DS.s14),
+              Expanded(
+                child: _QuickAccessTile(
+                  icon: LucideIcons.clipboardList200,
+                  label: 'My Test',
+                  color: AppColors.tileLavender,
+                  onTap: () => context.go('/tests'),
+                ),
+              ),
+            ],
+          ),
 
-            const SizedBox(height: DS.s24),
+          const SizedBox(height: DS.s28),
 
-            // ── Today ──
-            _SectionHeader(
-              title: 'Today',
-              subtitle: 'Live classes & tests',
-              actionLabel: 'All',
-              onAction: () => context.go('/live'),
-            ),
-            const SizedBox(height: DS.s12),
-            _TodayCard(hasClasses: todaysLive.isNotEmpty),
+          // ── Weekly progress ──
+          _SectionHeader(
+            title: 'Weekly Progress',
+            actionLabel: 'Details',
+            onAction: () => context.go('/profile'),
+          ),
+          const SizedBox(height: DS.s14),
+          _WeeklyProgressCard(minutes: weeklyMinutes),
 
-            const SizedBox(height: DS.s24),
+          const SizedBox(height: DS.s28),
 
-            // ── Continue Learning ──
-            _SectionHeader(
-              title: 'Continue Learning',
-              subtitle: 'Jump back into your courses',
-              actionLabel: 'All courses',
-              onAction: () => context.go('/courses'),
-            ),
-            const SizedBox(height: DS.s12),
-            _ContinueLearningCard(
-              enrollment: recentEnrollment,
-              onOpenCourse: () => recentEnrollment != null
-                  ? context.push('/my-courses/${recentEnrollment.courseId}')
-                  : context.go('/courses'),
-            ),
-          ],
-        ),
+          // ── Today ──
+          _SectionHeader(
+            title: 'Today',
+            actionLabel: 'All',
+            onAction: () => context.go('/live'),
+          ),
+          const SizedBox(height: DS.s14),
+          _TodayCard(hasClasses: todaysLive.isNotEmpty),
+
+          const SizedBox(height: DS.s28),
+
+          // ── Continue Learning ──
+          _SectionHeader(
+            title: 'Continue Learning',
+            actionLabel: 'All courses',
+            onAction: () => context.go('/courses'),
+          ),
+          const SizedBox(height: DS.s14),
+          _ContinueLearningCard(
+            enrollment: recentEnrollment,
+            onOpenCourse: () => recentEnrollment != null
+                ? context.push('/my-courses/${recentEnrollment.courseId}')
+                : context.go('/courses'),
+          ),
+        ],
       ),
     );
+  }
+
+  /// Same name resolution as the shell's avatar, reduced to the first name.
+  static String _firstName(WidgetRef ref) {
+    final user = ref.watch(authRepositoryProvider).currentUser();
+    final profile = ref.watch(userProfileProvider).valueOrNull;
+    final setupInfo = ref.watch(profileSetupInfoProvider);
+    final name = profile?.fullName?.trim().isNotEmpty == true
+        ? profile!.fullName!.trim()
+        : setupInfo.name.isNotEmpty
+        ? setupInfo.name
+        : (user?.name?.trim() ?? '');
+    final first = name
+        .split(' ')
+        .firstWhere((p) => p.isNotEmpty, orElse: () => 'Learner');
+    return first;
   }
 
   static bool _isToday(DateTime d) {
     final now = DateTime.now();
     return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+}
+
+class _Greeting extends StatelessWidget {
+  final String firstName;
+  const _Greeting({required this.firstName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Welcome, $firstName 👋',
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 22,
+        height: 1.25,
+        fontWeight: FontWeight.w700,
+        color: AppColors.ink,
+        letterSpacing: -0.3,
+      ),
+    );
   }
 }
 
@@ -199,8 +245,9 @@ class _BannerLoadingPlaceholder extends StatelessWidget {
       aspectRatio: 2,
       child: Container(
         decoration: BoxDecoration(
-          color: DS.primaryLight,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(DS.radiusLg),
+          boxShadow: DS.cardShadow,
         ),
         alignment: Alignment.center,
         child: const SizedBox.square(
@@ -212,126 +259,156 @@ class _BannerLoadingPlaceholder extends StatelessWidget {
   }
 }
 
-// ── Quick actions grid ───────────────────────────────────────────────────────
-class _QuickActionsGrid extends StatelessWidget {
-  final VoidCallback onMyCourse;
-  final VoidCallback onLiveClass;
-  final VoidCallback onLiveTest;
-  final VoidCallback onMyProgress;
-
-  const _QuickActionsGrid({
-    required this.onMyCourse,
-    required this.onLiveClass,
-    required this.onLiveTest,
-    required this.onMyProgress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.menu_book_rounded,
-                title: 'My Course',
-                subtitle: 'Study material',
-                onTap: onMyCourse,
-              ),
-            ),
-            const SizedBox(width: DS.s12),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.videocam_rounded,
-                title: 'Live Class',
-                subtitle: 'Join live sessions',
-                onTap: onLiveClass,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: DS.s12),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.assignment_rounded,
-                title: 'Live Test',
-                subtitle: 'Take a test',
-                onTap: onLiveTest,
-              ),
-            ),
-            const SizedBox(width: DS.s12),
-            Expanded(
-              child: _ActionTile(
-                icon: Icons.bar_chart_rounded,
-                title: 'My Progress',
-                subtitle: 'Detailed analytics',
-                onTap: onMyProgress,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
+// ── Momentum card ────────────────────────────────────────────────────────────
+class _MomentumCard extends StatelessWidget {
+  final int streak;
+  final int testsCompleted;
+  final int? accuracy;
   final VoidCallback onTap;
 
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
+  const _MomentumCard({
+    required this.streak,
+    required this.testsCompleted,
+    required this.accuracy,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final progress = (accuracy ?? 0) / 100;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(DS.s16),
+        padding: const EdgeInsets.fromLTRB(DS.s20, DS.s20, DS.s20, DS.s24),
         decoration: BoxDecoration(
-          color: DS.surface,
-          borderRadius: BorderRadius.circular(DS.radiusLg),
-          border: Border.all(color: DS.border, width: 1.2),
+          color: AppColors.deepNavy,
+          borderRadius: BorderRadius.circular(DS.radiusXl),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x33102A5C),
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
               decoration: BoxDecoration(
-                color: DS.primaryLight,
-                borderRadius: BorderRadius.circular(DS.radiusMd),
+                color: AppColors.orange,
+                borderRadius: BorderRadius.circular(999),
               ),
-              child: Icon(icon, color: DS.primary, size: 20),
+              child: Text(
+                'DAY $streak',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.4,
+                ),
+              ),
             ),
-            const SizedBox(height: DS.s12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14.5,
+            const SizedBox(height: DS.s16),
+            const Text(
+              'Your learning momentum',
+              style: TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: DS.textPrimary,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: DS.s6),
             Text(
-              subtitle,
-              style: const TextStyle(
+              '$testsCompleted ${testsCompleted == 1 ? 'test' : 'tests'} '
+              'completed · overall accuracy',
+              style: TextStyle(
                 fontSize: 11.5,
-                color: DS.textSecondary,
+                color: Colors.white.withValues(alpha: 0.75),
               ),
+            ),
+            const SizedBox(height: DS.s20),
+            Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 8,
+                      backgroundColor: const Color(0xFF3D5C9C),
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppColors.orange,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: DS.s16),
+                Text(
+                  accuracy != null ? '$accuracy%' : '—',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const Spacer(flex: 2),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Quick access tile ────────────────────────────────────────────────────────
+class _QuickAccessTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAccessTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(DS.radiusLg),
+      elevation: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DS.radiusLg),
+        child: Container(
+          height: 96,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(DS.radiusLg),
+            border: Border.all(color: Colors.white, width: 1.5),
+            boxShadow: DS.cardShadow,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 46, color: AppColors.ink),
+              const SizedBox(height: DS.s8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -341,59 +418,38 @@ class _ActionTile extends StatelessWidget {
 // ── Section header (shared) ─────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
 
-  const _SectionHeader({
-    required this.title,
-    this.subtitle,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _SectionHeader({required this.title, this.actionLabel, this.onAction});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: DS.textPrimary,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle!,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: DS.textSecondary,
-                  ),
-                ),
-              ],
-            ],
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
         if (actionLabel != null)
           GestureDetector(
             onTap: onAction,
+            behavior: HitTestBehavior.opaque,
             child: Padding(
-              padding: const EdgeInsets.only(left: DS.s8, top: 2),
+              padding: const EdgeInsets.only(left: DS.s8),
               child: Text(
-                '$actionLabel →',
+                actionLabel!,
                 style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: DS.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -403,122 +459,121 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── My Progress stat grid ────────────────────────────────────────────────────
-class _ProgressGrid extends StatelessWidget {
-  final int testsCompleted;
-  final int streak;
-  final int? accuracy;
-  final double? airPercentile;
+// ── Weekly progress card ─────────────────────────────────────────────────────
+class _WeeklyProgressCard extends StatelessWidget {
+  /// Minutes studied per day, Monday first.
+  final List<int> minutes;
+  const _WeeklyProgressCard({required this.minutes});
 
-  const _ProgressGrid({
-    required this.testsCompleted,
-    required this.streak,
-    required this.accuracy,
-    required this.airPercentile,
-  });
+  static const _days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  static const double _maxBar = 84;
+  static const double _minBar = 10;
+
+  String _formatTotal(int total) {
+    final h = total ~/ 60;
+    final m = total % 60;
+    if (h == 0) return '${m}m';
+    return '${h}h ${m}m';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _StatTile(
-                icon: Icons.local_fire_department_rounded,
-                iconColor: const Color(0xFFF59E0B),
-                value: '$streak ${streak == 1 ? 'day' : 'days'}',
-                label: 'Current Streak',
+    final total = minutes.fold<int>(0, (a, b) => a + b);
+    final peak = minutes.fold<int>(0, (a, b) => a > b ? a : b);
+    final todayIndex = DateTime.now().weekday - 1;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(DS.s20, DS.s20, DS.s16, DS.s16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(DS.radiusXl),
+        boxShadow: DS.cardShadow,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _formatTotal(total),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: DS.s20),
+              const Text(
+                'Study Time',
+                style: TextStyle(fontSize: 10, color: AppColors.textSoft),
+              ),
+            ],
+          ),
+          const SizedBox(width: DS.s16),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: DS.s24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(7, (i) {
+                  final ratio = peak == 0 ? 0.0 : minutes[i] / peak;
+                  final height = _minBar + (_maxBar - _minBar) * ratio;
+                  return Semantics(
+                    label: '${_days[i]}: ${_formatTotal(minutes[i])}',
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutCubic,
+                          width: 15,
+                          height: height,
+                          decoration: BoxDecoration(
+                            color: i == todayIndex
+                                ? AppColors.orange
+                                : AppColors.barIdle,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        const SizedBox(height: DS.s10),
+                        Text(
+                          _days[i],
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSoft,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               ),
             ),
-            const SizedBox(width: DS.s12),
-            Expanded(
-              child: _StatTile(
-                icon: Icons.track_changes_rounded,
-                iconColor: const Color(0xFFFB923C),
-                value: accuracy != null ? '$accuracy%' : '—',
-                label: 'Overall Accuracy',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: DS.s12),
-        Row(
-          children: [
-            Expanded(
-              child: _StatTile(
-                icon: Icons.assignment_turned_in_rounded,
-                iconColor: const Color(0xFFF59E0B),
-                value: '$testsCompleted',
-                label: 'Tests Completed',
-              ),
-            ),
-            const SizedBox(width: DS.s12),
-            Expanded(
-              child: _StatTile(
-                icon: Icons.emoji_events_rounded,
-                iconColor: const Color(0xFFEAB308),
-                value: airPercentile != null ? '$airPercentile%ile' : '—',
-                label: 'AIR Percentile',
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _StatTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  const _StatTile({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
+// ── Shared white card ────────────────────────────────────────────────────────
+class _WhiteCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  const _WhiteCard({required this.child, required this.padding});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(DS.s16),
+      padding: padding,
       decoration: BoxDecoration(
-        color: DS.surface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border, width: 1.2),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(DS.radiusXl),
+        boxShadow: DS.cardShadow,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(DS.radiusSm),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(height: DS.s10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: DS.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11.5, color: DS.textSecondary),
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 }
@@ -530,27 +585,15 @@ class _TodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: DS.s16,
-        vertical: DS.s28,
-      ),
-      decoration: BoxDecoration(
-        color: DS.surface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border, width: 1.2),
-      ),
+    return _WhiteCard(
+      padding: const EdgeInsets.symmetric(horizontal: DS.s16, vertical: DS.s24),
       child: Column(
         children: [
-          const Icon(
-            Icons.calendar_today_outlined,
-            size: 30,
-            color: DS.textHint,
-          ),
+          const Icon(LucideIcons.calendar, size: 28, color: AppColors.barIdle),
           const SizedBox(height: DS.s10),
           const Text(
             'No classes today',
-            style: TextStyle(fontSize: 13.5, color: DS.textSecondary),
+            style: TextStyle(fontSize: 13.5, color: AppColors.textSoft),
           ),
           const SizedBox(height: DS.s4),
           GestureDetector(
@@ -560,7 +603,7 @@ class _TodayCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: DS.primary,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -583,33 +626,32 @@ class _ContinueLearningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (enrollment == null) {
-      return Container(
+      return _WhiteCard(
         padding: const EdgeInsets.symmetric(
           horizontal: DS.s16,
-          vertical: DS.s28,
-        ),
-        decoration: BoxDecoration(
-          color: DS.surface,
-          borderRadius: BorderRadius.circular(DS.radiusLg),
-          border: Border.all(color: DS.border, width: 1.2),
+          vertical: DS.s24,
         ),
         child: Column(
           children: [
-            const Icon(Icons.auto_awesome_rounded, size: 30, color: DS.textHint),
+            const Icon(
+              LucideIcons.sparkles,
+              size: 28,
+              color: AppColors.barIdle,
+            ),
             const SizedBox(height: DS.s10),
             const Text(
               'Nothing in progress yet',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: DS.textPrimary,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(height: DS.s4),
             const Text(
               'Open My Course to start your first lesson.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, color: DS.textSecondary),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSoft),
             ),
             const SizedBox(height: DS.s16),
             SizedBox(
@@ -617,15 +659,15 @@ class _ContinueLearningCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onOpenCourse,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: DS.primary,
+                  backgroundColor: AppColors.deepNavy,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: DS.s20),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(DS.radiusMd),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                icon: const Icon(LucideIcons.arrowRight, size: 16),
                 label: const Text(
                   'Open My Course',
                   style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
@@ -639,23 +681,18 @@ class _ContinueLearningCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onOpenCourse,
-      child: Container(
+      child: _WhiteCard(
         padding: const EdgeInsets.all(DS.s14),
-        decoration: BoxDecoration(
-          color: DS.surface,
-          borderRadius: BorderRadius.circular(DS.radiusLg),
-          border: Border.all(color: DS.border, width: 1.2),
-        ),
         child: Row(
           children: [
             Container(
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: DS.primaryLight,
+                color: AppColors.tileBlue,
                 borderRadius: BorderRadius.circular(DS.radiusMd),
               ),
-              child: const Icon(Icons.menu_book_rounded, color: DS.primary),
+              child: const Icon(LucideIcons.bookOpen, color: AppColors.ink),
             ),
             const SizedBox(width: DS.s14),
             Expanded(
@@ -664,23 +701,28 @@ class _ContinueLearningCard extends StatelessWidget {
                 children: [
                   Text(
                     enrollment!.courseTitle ?? 'Course',
-                    maxLines: 1,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 14,
+                      height: 1.3,
                       fontWeight: FontWeight.w700,
-                      color: DS.textPrimary,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(height: 2),
                   const Text(
                     'Continue where you left off',
-                    style: TextStyle(fontSize: 12, color: DS.textSecondary),
+                    style: TextStyle(fontSize: 12, color: AppColors.textSoft),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: DS.textHint),
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 18,
+              color: AppColors.textSoft,
+            ),
           ],
         ),
       ),

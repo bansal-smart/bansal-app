@@ -60,10 +60,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     );
     _cardSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-        .animate(CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
-    ));
+        .animate(
+          CurvedAnimation(
+            parent: _ctrl,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
     _cardFade = CurvedAnimation(
       parent: _ctrl,
       curve: const Interval(0.3, 0.9, curve: Curves.easeOut),
@@ -84,7 +86,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
       setState(() => _error = 'Enter a valid email address');
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetOtp(email);
       if (!mounted) return;
@@ -142,24 +147,39 @@ class _HeroDecorations extends StatelessWidget {
   const _HeroDecorations();
   @override
   Widget build(BuildContext context) {
-    return Stack(children: [
-      Positioned(top: -70, right: -50, child: _Circle(size: 220, opacity: 0.10)),
-      Positioned(top: 60, left: -40, child: _Circle(size: 140, opacity: 0.07)),
-      Positioned(top: 20, right: 60, child: _Circle(size: 60, opacity: 0.12)),
-      Positioned(
-        top: 140, right: -20,
-        child: Transform.rotate(
-          angle: math.pi / 6,
-          child: Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withValues(alpha:0.12), width: 2),
-              borderRadius: BorderRadius.circular(16),
+    return Stack(
+      children: [
+        Positioned(
+          top: -70,
+          right: -50,
+          child: _Circle(size: 220, opacity: 0.10),
+        ),
+        Positioned(
+          top: 60,
+          left: -40,
+          child: _Circle(size: 140, opacity: 0.07),
+        ),
+        Positioned(top: 20, right: 60, child: _Circle(size: 60, opacity: 0.12)),
+        Positioned(
+          top: 140,
+          right: -20,
+          child: Transform.rotate(
+            angle: math.pi / 6,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -169,10 +189,11 @@ class _Circle extends StatelessWidget {
   const _Circle({required this.size, required this.opacity});
   @override
   Widget build(BuildContext context) => Container(
-    width: size, height: size,
+    width: size,
+    height: size,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      color: Colors.white.withValues(alpha:opacity),
+      color: Colors.white.withValues(alpha: opacity),
     ),
   );
 }
@@ -187,27 +208,42 @@ class _HeroSection extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 76, height: 76,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha:0.18),
+              color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withValues(alpha:0.25), width: 1.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
             ),
-            child: const Icon(Icons.lock_reset_rounded, size: 40, color: Colors.white),
+            child: const Icon(
+              Icons.lock_reset_rounded,
+              size: 40,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: _DS.s20),
           const Text(
             'Forgot Password?',
             style: TextStyle(
-              fontSize: 28, fontWeight: FontWeight.w800,
-              color: Colors.white, letterSpacing: -0.5, height: 1.2,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              height: 1.2,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: _DS.s8),
           Text(
             'Enter your email and we\'ll send\na 6-digit verification code',
-            style: TextStyle(fontSize: 14.5, color: Colors.white.withValues(alpha:0.80), height: 1.5),
+            style: TextStyle(
+              fontSize: 14.5,
+              color: Colors.white.withValues(alpha: 0.80),
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -245,24 +281,40 @@ class _FormCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              Container(
-                width: 4, height: 28,
-                decoration: BoxDecoration(
-                  color: _DS.primary,
-                  borderRadius: BorderRadius.circular(4),
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: _DS.primary,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              ),
-              const SizedBox(width: _DS.s12),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Reset Password',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _DS.textPrimary, letterSpacing: -0.3),
+                const SizedBox(width: _DS.s12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reset Password',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _DS.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      'We\'ll send a code to your email',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: _DS.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                Text('We\'ll send a code to your email',
-                  style: TextStyle(fontSize: 12.5, color: _DS.textSecondary),
-                ),
-              ]),
-            ]),
+              ],
+            ),
 
             const SizedBox(height: _DS.s28),
 
@@ -270,23 +322,49 @@ class _FormCard extends StatelessWidget {
             TextFormField(
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(fontSize: 15, color: _DS.textPrimary, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontSize: 15,
+                color: _DS.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 hintText: 'you@example.com',
-                labelStyle: const TextStyle(color: _DS.textSecondary, fontSize: 14),
+                labelStyle: const TextStyle(
+                  color: _DS.textSecondary,
+                  fontSize: 14,
+                ),
                 hintStyle: const TextStyle(color: _DS.textHint, fontSize: 14),
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(left: _DS.s4),
-                  child: Icon(Icons.mail_outline_rounded, size: 20, color: _DS.textSecondary),
+                  child: Icon(
+                    Icons.mail_outline_rounded,
+                    size: 20,
+                    color: _DS.textSecondary,
+                  ),
                 ),
                 filled: true,
                 fillColor: _DS.surface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: _DS.s16, vertical: _DS.s16),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border, width: 1.2)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.primary, width: 1.8)),
-                errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.error, width: 1.2)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: _DS.s16,
+                  vertical: _DS.s16,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(_DS.radiusMd),
+                  borderSide: const BorderSide(color: _DS.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(_DS.radiusMd),
+                  borderSide: const BorderSide(color: _DS.border, width: 1.2),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(_DS.radiusMd),
+                  borderSide: const BorderSide(color: _DS.primary, width: 1.8),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(_DS.radiusMd),
+                  borderSide: const BorderSide(color: _DS.error, width: 1.2),
+                ),
               ),
             ),
 
@@ -294,17 +372,35 @@ class _FormCard extends StatelessWidget {
 
             if (error != null) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: _DS.s16, vertical: _DS.s12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _DS.s16,
+                  vertical: _DS.s12,
+                ),
                 decoration: BoxDecoration(
                   color: _DS.errorSurface,
                   borderRadius: BorderRadius.circular(_DS.radiusSm),
-                  border: Border.all(color: _DS.error.withValues(alpha:0.3)),
+                  border: Border.all(color: _DS.error.withValues(alpha: 0.3)),
                 ),
-                child: Row(children: [
-                  const Icon(Icons.error_outline_rounded, color: _DS.error, size: 18),
-                  const SizedBox(width: _DS.s8),
-                  Expanded(child: Text(error!, style: const TextStyle(color: _DS.error, fontSize: 13, fontWeight: FontWeight.w500))),
-                ]),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: _DS.error,
+                      size: 18,
+                    ),
+                    const SizedBox(width: _DS.s8),
+                    Expanded(
+                      child: Text(
+                        error!,
+                        style: const TextStyle(
+                          color: _DS.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: _DS.s16),
             ],
@@ -314,15 +410,23 @@ class _FormCard extends StatelessWidget {
               height: 54,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: onSubmit == null ? null : const LinearGradient(
-                    colors: [Color(0xFF2B5BB8), _DS.primary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: onSubmit == null
+                      ? null
+                      : const LinearGradient(
+                          colors: [Color(0xFF2B5BB8), _DS.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                   borderRadius: BorderRadius.circular(_DS.radiusMd),
-                  boxShadow: onSubmit == null ? [] : [
-                    BoxShadow(color: _DS.primary.withValues(alpha:0.35), blurRadius: 16, offset: const Offset(0, 6)),
-                  ],
+                  boxShadow: onSubmit == null
+                      ? []
+                      : [
+                          BoxShadow(
+                            color: _DS.primary.withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                 ),
                 child: ElevatedButton(
                   onPressed: onSubmit,
@@ -331,24 +435,53 @@ class _FormCard extends StatelessWidget {
                     shadowColor: Colors.transparent,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: _DS.border,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_DS.radiusMd)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    ),
                   ),
                   child: loading
-                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                      : const Text('Send Verification Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Send Verification Code',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
                 ),
               ),
             ),
 
             const SizedBox(height: _DS.s24),
 
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text('Remember your password? ', style: TextStyle(color: _DS.textSecondary, fontSize: 14)),
-              GestureDetector(
-                onTap: () => context.go('/login'),
-                child: const Text('Login', style: TextStyle(color: _DS.primary, fontSize: 14, fontWeight: FontWeight.w700)),
-              ),
-            ]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Remember your password? ',
+                  style: TextStyle(color: _DS.textSecondary, fontSize: 14),
+                ),
+                GestureDetector(
+                  onTap: () => context.go('/login'),
+                  child: const Text(
+                    'Login',
+                    style: TextStyle(
+                      color: _DS.primary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

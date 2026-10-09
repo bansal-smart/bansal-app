@@ -37,8 +37,8 @@ class FavouritesNotifier extends StateNotifier<Set<String>> {
 
 final favouritesProvider =
     StateNotifierProvider<FavouritesNotifier, Set<String>>(
-  (_) => FavouritesNotifier(),
-);
+      (_) => FavouritesNotifier(),
+    );
 
 // Provides the full Course objects for all favourited IDs.
 // Falls back to an empty list if any fetch fails.

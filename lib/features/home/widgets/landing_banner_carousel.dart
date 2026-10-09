@@ -17,8 +17,7 @@ class LandingBannerCarousel extends StatefulWidget {
   final Duration autoAdvanceDuration;
 
   @override
-  State<LandingBannerCarousel> createState() =>
-      _LandingBannerCarouselState();
+  State<LandingBannerCarousel> createState() => _LandingBannerCarouselState();
 }
 
 class _LandingBannerCarouselState extends State<LandingBannerCarousel> {
@@ -91,145 +90,105 @@ class _LandingBannerCarouselState extends State<LandingBannerCarousel> {
     final showControls = widget.banners.length > 1;
     return AspectRatio(
       aspectRatio: 2,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: ColoredBox(
-          color: const Color(0xFFE8EDF9),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Semantics(
-                label: 'Promotional banners',
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: widget.banners.length,
-                  onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
-                  },
-                  itemBuilder: (context, index) {
-                    final banner = widget.banners[index];
-                    final hasLink = banner.link?.trim().isNotEmpty == true;
-                    return Semantics(
-                      button: hasLink,
-                      label: banner.alt?.trim().isNotEmpty == true
-                          ? banner.alt!.trim()
-                          : 'Bansal Classes banner ${index + 1}',
-                      child: GestureDetector(
-                        onTap: hasLink ? () => _openLink(banner.link) : null,
-                        child: CachedNetworkImage(
-                          imageUrl: banner.imageUrl,
-                          fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 200),
-                          placeholder: (_, _) => const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          errorWidget: (_, _, _) => const Center(
-                            child: Icon(
-                              Icons.image_not_supported_outlined,
-                              color: Color(0xFF6B7280),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1F102A5C),
+              blurRadius: 18,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: ColoredBox(
+            color: Colors.white,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Semantics(
+                  label: 'Promotional banners',
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: widget.banners.length,
+                    onPageChanged: (index) {
+                      setState(() => _currentIndex = index);
+                    },
+                    itemBuilder: (context, index) {
+                      final banner = widget.banners[index];
+                      final hasLink = banner.link?.trim().isNotEmpty == true;
+                      return Semantics(
+                        button: hasLink,
+                        label: banner.alt?.trim().isNotEmpty == true
+                            ? banner.alt!.trim()
+                            : 'Bansal Classes banner ${index + 1}',
+                        child: GestureDetector(
+                          onTap: hasLink ? () => _openLink(banner.link) : null,
+                          child: CachedNetworkImage(
+                            imageUrl: banner.imageUrl,
+                            fit: BoxFit.cover,
+                            fadeInDuration: const Duration(milliseconds: 200),
+                            placeholder: (_, _) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              if (showControls) ...[
-                _CarouselArrow(
-                  alignment: Alignment.centerLeft,
-                  icon: Icons.chevron_left_rounded,
-                  semanticLabel: 'Previous banner',
-                  onPressed: () => _goToPage(
-                    (_currentIndex - 1 + widget.banners.length) %
-                        widget.banners.length,
-                  ),
-                ),
-                _CarouselArrow(
-                  alignment: Alignment.centerRight,
-                  icon: Icons.chevron_right_rounded,
-                  semanticLabel: 'Next banner',
-                  onPressed: () => _goToPage(
-                    (_currentIndex + 1) % widget.banners.length,
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(widget.banners.length, (index) {
-                        final selected = index == _currentIndex;
-                        return Semantics(
-                          button: true,
-                          label: 'Show banner ${index + 1}',
-                          selected: selected,
-                          child: GestureDetector(
-                            onTap: () => _goToPage(index),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: selected ? 22 : 7,
-                              height: 7,
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? const Color(0xFFFF6500)
-                                    : Colors.white.withValues(alpha: 0.8),
-                                borderRadius: BorderRadius.circular(99),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x33000000),
-                                    blurRadius: 3,
-                                  ),
-                                ],
+                            errorWidget: (_, _, _) => const Center(
+                              child: Icon(
+                                Icons.image_not_supported_outlined,
+                                color: Color(0xFF6B7280),
                               ),
                             ),
                           ),
-                        );
-                      }),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
+                // Dots only: the design keeps the banner itself unobstructed.
+                if (showControls)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(widget.banners.length, (index) {
+                          final selected = index == _currentIndex;
+                          return Semantics(
+                            button: true,
+                            label: 'Show banner ${index + 1}',
+                            selected: selected,
+                            child: GestureDetector(
+                              onTap: () => _goToPage(index),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: selected ? 22 : 7,
+                                height: 7,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? const Color(0xFFF7892B)
+                                      : Colors.white.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(99),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x33000000),
+                                      blurRadius: 3,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
               ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CarouselArrow extends StatelessWidget {
-  const _CarouselArrow({
-    required this.alignment,
-    required this.icon,
-    required this.semanticLabel,
-    required this.onPressed,
-  });
-
-  final Alignment alignment;
-  final IconData icon;
-  final String semanticLabel;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: alignment,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: SizedBox.square(
-          dimension: 34,
-          child: IconButton(
-            tooltip: semanticLabel,
-            onPressed: onPressed,
-            padding: EdgeInsets.zero,
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: 0.9),
-              foregroundColor: const Color(0xFFFF6500),
             ),
-            icon: Icon(icon, size: 23),
           ),
         ),
       ),

@@ -54,9 +54,7 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
       // so the user sees the player shell instantly rather than a blank screen.
       final ctrl = VideoPlayerController.networkUrl(
         Uri.parse(streamUrl),
-        httpHeaders: const {
-          'Accept': 'video/mp4,video/*,*/*',
-        },
+        httpHeaders: const {'Accept': 'video/mp4,video/*,*/*'},
       );
 
       final chewie = ChewieController(
@@ -79,10 +77,8 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
         ],
-        errorBuilder: (ctx, msg) => _ErrorPanel(
-          message: msg,
-          onRetry: _initPlayer,
-        ),
+        errorBuilder: (ctx, msg) =>
+            _ErrorPanel(message: msg, onRetry: _initPlayer),
       );
 
       if (!mounted) {
@@ -100,13 +96,20 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
 
       // Initialize in the background — once done, rebuild so AspectRatio
       // uses the video's real dimensions instead of the 16:9 placeholder.
-      ctrl.initialize().then((_) {
-        if (mounted) setState(() {});
-      }).catchError((e) {
-        if (mounted) setState(() => _error = e.toString());
-      });
+      ctrl
+          .initialize()
+          .then((_) {
+            if (mounted) setState(() {});
+          })
+          .catchError((e) {
+            if (mounted) setState(() => _error = e.toString());
+          });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _signing = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _signing = false;
+        });
     }
   }
 
@@ -129,13 +132,14 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
             // ── AppBar ───────────────────────────────────────────────────
             Container(
               color: Colors.black,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded,
-                        color: Colors.white),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   Expanded(
@@ -156,29 +160,32 @@ class _S3VideoPlayerScreenState extends State<S3VideoPlayerScreen> {
             ),
 
             // ── Player area — constrained to never overflow the screen ────
-            LayoutBuilder(builder: (context, constraints) {
-              final videoReady = _videoCtrl != null &&
-                  _videoCtrl!.value.isInitialized &&
-                  _videoCtrl!.value.size.width > 0;
-              final ratio = videoReady
-                  ? _videoCtrl!.value.aspectRatio
-                  : 16 / 9;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final videoReady =
+                    _videoCtrl != null &&
+                    _videoCtrl!.value.isInitialized &&
+                    _videoCtrl!.value.size.width > 0;
+                final ratio = videoReady
+                    ? _videoCtrl!.value.aspectRatio
+                    : 16 / 9;
 
-              final screenHeight = MediaQuery.of(context).size.height;
-              final maxPlayerHeight = screenHeight * 0.55;
-              final naturalHeight = constraints.maxWidth / ratio;
-              final playerHeight = naturalHeight.clamp(0.0, maxPlayerHeight);
+                final screenHeight = MediaQuery.of(context).size.height;
+                final maxPlayerHeight = screenHeight * 0.55;
+                final naturalHeight = constraints.maxWidth / ratio;
+                final playerHeight = naturalHeight.clamp(0.0, maxPlayerHeight);
 
-              return SizedBox(
-                width: constraints.maxWidth,
-                height: playerHeight,
-                child: _signing
-                    ? _buildSigningLoader()
-                    : _error != null
-                        ? _ErrorPanel(message: _error!, onRetry: _initPlayer)
-                        : Chewie(controller: _chewieCtrl!),
-              );
-            }),
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: playerHeight,
+                  child: _signing
+                      ? _buildSigningLoader()
+                      : _error != null
+                      ? _ErrorPanel(message: _error!, onRetry: _initPlayer)
+                      : Chewie(controller: _chewieCtrl!),
+                );
+              },
+            ),
 
             // ── Info panel ───────────────────────────────────────────────
             Expanded(
@@ -240,8 +247,11 @@ class _ErrorPanel extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Colors.white38, size: 48),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Colors.white38,
+            size: 48,
+          ),
           const SizedBox(height: 12),
           const Text(
             'Could not load video',
@@ -262,7 +272,8 @@ class _ErrorPanel extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF193F8F)),
+              backgroundColor: const Color(0xFF193F8F),
+            ),
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Retry'),

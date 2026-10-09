@@ -130,17 +130,42 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (ctx, state, child) =>
             HomeShell(location: state.matchedLocation, child: child),
         routes: [
-          GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+          // Tabs swap without a transition: they share the shell's background.
+          GoRoute(
+            path: '/home',
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const HomeScreen()),
+          ),
           GoRoute(
             path: '/courses',
-            builder: (_, __) => const CoursesListScreen(),
+            pageBuilder: (_, s) => NoTransitionPage(
+              key: s.pageKey,
+              child: const CoursesListScreen(),
+            ),
           ),
-          GoRoute(path: '/live', builder: (_, __) => const LiveListScreen()),
-          GoRoute(path: '/tests', builder: (_, __) => const TestsListScreen()),
-          GoRoute(path: '/store', builder: (_, __) => const StoreScreen()),
+          GoRoute(
+            path: '/live',
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const LiveListScreen()),
+          ),
+          GoRoute(
+            path: '/tests',
+            pageBuilder: (_, s) => NoTransitionPage(
+              key: s.pageKey,
+              child: const TestsListScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/store',
+            pageBuilder: (_, s) =>
+                NoTransitionPage(key: s.pageKey, child: const StoreScreen()),
+          ),
           GoRoute(
             path: '/profile',
-            builder: (_, __) => const ProfileDashboardScreen(),
+            pageBuilder: (_, s) => NoTransitionPage(
+              key: s.pageKey,
+              child: const ProfileDashboardScreen(),
+            ),
           ),
         ],
       ),

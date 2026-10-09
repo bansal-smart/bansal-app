@@ -279,6 +279,10 @@ class TestQuestion {
     this.isBonus = false,
   });
 
+  /// False when the answer key was not fetched (students cannot read it);
+  /// grading then happens only in the score_test_attempt RPC.
+  bool get hasAnswerKey => correctAnswerText.isNotEmpty;
+
   static Future<TestQuestion> fromJson(Map<String, dynamic> j) async {
     final rawOpts = j['options'];
     List<OptionItem> opts = [];
@@ -591,9 +595,11 @@ class _TestEngineScreenState extends State<TestEngineScreen>
       final qData = await _db
           .from('test_questions')
           .select(
+            // Students have no SELECT on the answer-key columns
+            // (correct_answer, explanation, …); score_test_attempt grades
+            // server-side, so only the question content is fetched.
             'id, question_text, question_image_url, options, option_images, '
-            'correct_answer, subject, explanation, question_type, '
-            'marks_correct, marks_wrong, is_bonus',
+            'subject, question_type, marks_correct, marks_wrong, is_bonus',
           )
           .eq('test_id', widget.testId)
           .order('position', ascending: true);
@@ -841,7 +847,7 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 
   bool _isCorrect(TestQuestion q) {
     final ans = _answers[q.id];
-    if (ans == null) return false;
+    if (ans == null || !q.hasAnswerKey) return false;
     if (q.isMatchType) {
       // We don't auto-grade match questions — mark as answered but not graded
       return false;
@@ -888,7 +894,9 @@ class _TestEngineScreenState extends State<TestEngineScreen>
           ? (ans is Map && ans.values.every((v) => v != null))
           : ans != null;
       final correct = attempted && _isCorrect(q);
-      final marks = !attempted
+      // Without an answer key this is placeholder metadata only; the
+      // submit_test_attempt RPC below writes the real marks.
+      final marks = !attempted || !q.hasAnswerKey
           ? 0.0
           : q.isMatchType
           ? 0.0 // not auto-graded

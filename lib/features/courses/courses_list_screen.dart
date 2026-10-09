@@ -3,27 +3,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/error/app_exception.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/theme/colors.dart';
 import '../../skeleton_loading/courses_skeleton.dart';
 import '../enrollments/data/enrollments_providers.dart';
 import '../enrollments/data/models/enrollment.dart';
+import '../profile/data/dashboard_stats_providers.dart';
 import 'data/courses_providers.dart';
+import 'data/models/course_subject.dart';
 
 // ── Design tokens — navy, matching the rest of the app ─────────────────────
 abstract class _C {
   static const primary = Color(0xFF193F8F);
   static const primaryLt = Color(0xFFEAF0FC);
   static const indigo = Color(0xFF6366F1);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const surface = Color(0xFFFFFFFF);
-  static const bg = Color(0xFFF5F6FA);
-  static const border = Color(0xFFE5E7EB);
-  static const textPri = Color(0xFF111827);
   static const textSub = Color(0xFF6B7280);
+  static const peachTile = Color(0xFFFDEEDC);
+  static const lavenderTile = Color(0xFFEEEFFC);
+  static const cream = Color(0xFFF6EAD8);
+
+  static const cardShadow = [
+    BoxShadow(color: Color(0x14102A5C), blurRadius: 18, offset: Offset(0, 6)),
+  ];
 }
 
 /// Per-enrollment progress, recomputed from video-level tracking rather than
@@ -74,9 +79,12 @@ class CoursesListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myLearningProvider);
+    final weeklyMinutes =
+        ref.watch(weeklyStudyMinutesProvider).valueOrNull ??
+        List<int>.filled(7, 0);
 
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: async.when(
           loading: () => const CoursesSkeleton(),
@@ -97,11 +105,9 @@ class CoursesListScreen extends ConsumerWidget {
               );
             }
 
-            final inProgress = items
-                .where((it) => it.percent > 0 && it.percent < 100)
-                .length;
-            final completed = items.where((it) => it.percent >= 100).length;
-            final continueItems = items.where((it) => it.percent < 100).toList()
+            // Most recently opened course drives the hero, continue card and
+            // subject list.
+            final byRecent = [...items]
               ..sort((a, b) {
                 final aT =
                     a.enrollment.lastAccessedAt ?? a.enrollment.createdAt;
@@ -109,47 +115,55 @@ class CoursesListScreen extends ConsumerWidget {
                     b.enrollment.lastAccessedAt ?? b.enrollment.createdAt;
                 return bT.compareTo(aT);
               });
-            final continueSlice = continueItems.take(3).toList();
+            final featured = byRecent.firstWhere(
+              (it) => it.percent < 100,
+              orElse: () => byRecent.first,
+            );
+            final others = byRecent.where((it) => it != featured).toList();
 
             return RefreshIndicator(
               color: _C.primary,
               onRefresh: () async {
                 ref.invalidate(enrollmentsProvider);
                 ref.invalidate(myLearningProvider);
+                ref.invalidate(weeklyStudyMinutesProvider);
                 await ref.read(myLearningProvider.future);
               },
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
                 children: [
-                  Text(
+                  const Text(
                     'My Learning',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: _C.textPri,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                       letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${items.length} enrolled · $inProgress in progress · $completed completed',
-                    style: const TextStyle(fontSize: 13, color: _C.textSub),
+                  const SizedBox(height: 18),
+                  _OverviewCard(
+                    items: items,
+                    featured: featured,
+                    weeklyMinutes: weeklyMinutes,
                   ),
-                  const SizedBox(height: 16),
-                  _StatsStrip(items: items),
-                  const SizedBox(height: 20),
-                  if (continueSlice.isNotEmpty) ...[
-                    const _SectionTitle('Continue Learning'),
-                    const SizedBox(height: 10),
-                    _CourseCardGrid(
-                      items: continueSlice,
-                      showBadgePercent: false,
-                    ),
-                    const SizedBox(height: 20),
+                  const SizedBox(height: 28),
+                  const _SectionTitle('Continue Learning'),
+                  const SizedBox(height: 14),
+                  _ContinueCard(item: featured),
+                  const SizedBox(height: 28),
+                  const _SectionTitle('Subjects'),
+                  const SizedBox(height: 14),
+                  _SubjectList(courseId: featured.enrollment.courseId),
+                  if (others.isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    const _SectionTitle('My Courses'),
+                    const SizedBox(height: 14),
+                    for (var i = 0; i < others.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 12),
+                      _CourseRow(item: others[i], tint: _rowTint(i)),
+                    ],
                   ],
-                  const _SectionTitle('All My Courses'),
-                  const SizedBox(height: 10),
-                  _CourseCardGrid(items: items, showBadgePercent: true),
                 ],
               ),
             );
@@ -160,139 +174,290 @@ class CoursesListScreen extends ConsumerWidget {
   }
 }
 
+/// Alternating blue / peach list tints from the design.
+Color _rowTint(int i) => i.isEven ? AppColors.tileBlue : _C.peachTile;
+
 // ── Section title ────────────────────────────────────────────────────────
 class _SectionTitle extends StatelessWidget {
   final String label;
   const _SectionTitle(this.label);
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Container(
-        width: 4,
-        height: 18,
-        decoration: BoxDecoration(
-          color: _C.primary,
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ),
-      const SizedBox(width: 8),
-      Text(
-        label,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
-          color: _C.textPri,
-          letterSpacing: -0.2,
-        ),
-      ),
-    ],
+  Widget build(BuildContext context) => Text(
+    label.toUpperCase(),
+    style: const TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: AppColors.ink,
+      letterSpacing: 0.3,
+    ),
   );
 }
 
-// ── Stats strip — icon-left, value/label-right rows in a 2x2 grid ─────────
-class _StatsStrip extends StatelessWidget {
+// ── Overview: featured course, weekly bars and 2x2 stats ─────────────────
+class _OverviewCard extends StatelessWidget {
   final List<_EnrollmentProgress> items;
-  const _StatsStrip({required this.items});
+  final _EnrollmentProgress featured;
+  final List<int> weeklyMinutes;
+
+  const _OverviewCard({
+    required this.items,
+    required this.featured,
+    required this.weeklyMinutes,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final enrolled = items.length;
+    final e = featured.enrollment;
     final inProgress = items
         .where((it) => it.percent > 0 && it.percent < 100)
         .length;
-    final completed = items.where((it) => it.percent >= 100).length;
-    final avgProgress = items.isEmpty
-        ? 0
-        : (items.fold<int>(0, (s, it) => s + it.percent) / items.length)
-              .round();
+    final avgProgress =
+        (items.fold<int>(0, (s, it) => s + it.percent) / items.length).round();
+    final meta = [
+      e.courseSubject,
+      e.courseEducatorName,
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' • ');
 
-    final stats = [
-      (
-        _C.primary,
-        _C.primaryLt,
-        Icons.menu_book_rounded,
-        '$enrolled',
-        'Enrolled',
-      ),
-      (
-        _C.warning,
-        const Color(0xFFFFF1E6),
-        Icons.play_arrow_rounded,
-        '$inProgress',
-        'In Progress',
-      ),
-      (
-        _C.warning,
-        const Color(0xFFFFF1E6),
-        Icons.emoji_events_rounded,
-        '$completed',
-        'Completed',
-      ),
-      (
-        _C.indigo,
-        const Color(0xFFEEF2FF),
-        Icons.auto_awesome_rounded,
-        '$avgProgress%',
-        'Avg Progress',
-      ),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 2.4,
-      ),
-      itemCount: stats.length,
-      itemBuilder: (_, i) {
-        final (color, bg, icon, value, label) = stats[i];
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: _C.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _C.border),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+      decoration: BoxDecoration(
+        color: AppColors.deepNavy,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33102A5C),
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 19),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      value,
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 9,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.orange,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    // Wraps at word boundaries; long course names stay
+                    // readable instead of being cut to "ONLINE - B…".
+                    child: Text(
+                      e.courseTitle ?? 'My Course',
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                        color: _C.textPri,
+                        fontSize: 14,
+                        height: 1.25,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
                     ),
+                  ),
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 6),
                     Text(
-                      label,
-                      style: const TextStyle(fontSize: 11, color: _C.textSub),
+                      meta,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.3,
+                        color: Colors.white.withValues(alpha: 0.75),
+                      ),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  const Spacer(),
+                  _WeekBars(minutes: weeklyMinutes),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 11,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatTile(
+                          icon: LucideIcons.trophy,
+                          iconColor: AppColors.orange,
+                          tint: _C.peachTile,
+                          value: '${featured.percent}%',
+                          label: 'Completed',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _StatTile(
+                          icon: LucideIcons.sparkles,
+                          iconColor: _C.indigo,
+                          tint: _C.lavenderTile,
+                          value: '$avgProgress%',
+                          label: 'Avg Progress',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatTile(
+                          icon: LucideIcons.bookOpenText,
+                          iconColor: _C.primary,
+                          tint: AppColors.tileBlue,
+                          value: '${items.length}',
+                          label: 'Enrolled',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _StatTile(
+                          icon: LucideIcons.play,
+                          iconColor: AppColors.orange,
+                          tint: _C.peachTile,
+                          value: '$inProgress',
+                          label: 'In Progress',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekBars extends StatelessWidget {
+  /// Minutes studied per day, Monday first.
+  final List<int> minutes;
+  const _WeekBars({required this.minutes});
+
+  static const _days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  static const double _maxBar = 56;
+  static const double _minBar = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final peak = minutes.fold<int>(0, (a, b) => a > b ? a : b);
+    final today = DateTime.now().weekday - 1;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: List.generate(7, (i) {
+        final ratio = peak == 0 ? 0.0 : minutes[i] / peak;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              width: 9,
+              height: _minBar + (_maxBar - _minBar) * ratio,
+              decoration: BoxDecoration(
+                color: i == today ? AppColors.orange : _C.cream,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _days[i],
+              style: TextStyle(
+                fontSize: 7,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color tint;
+  final String value;
+  final String label;
+
+  const _StatTile({
+    required this.icon,
+    required this.iconColor,
+    required this.tint,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: iconColor),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.ink,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 6),
+          // Scales down in the narrow 2x2 grid rather than cutting off.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 10, color: _C.primary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -309,261 +474,329 @@ const Map<String, List<Color>> _subjectGradient = {
 List<Color> _gradientFor(String? subject) =>
     _subjectGradient[subject] ?? const [_C.primary, Color(0xFFFF7A00)];
 
-// ── Course card grid — full-bleed thumbnail cards, matching web ───────────
-class _CourseCardGrid extends StatelessWidget {
-  final List<_EnrollmentProgress> items;
-  final bool showBadgePercent;
-  const _CourseCardGrid({required this.items, required this.showBadgePercent});
+/// Course thumbnail with the subject gradient behind it as a fallback.
+class _Thumbnail extends StatelessWidget {
+  final Enrollment enrollment;
+  const _Thumbnail({required this.enrollment});
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.72,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) =>
-          _CourseCard(item: items[i], showBadgePercent: showBadgePercent),
+    final thumb = enrollment.courseThumbnailUrl ?? '';
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: _gradientFor(enrollment.courseSubject),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        if (thumb.isNotEmpty)
+          CachedNetworkImage(
+            imageUrl: thumb,
+            fit: BoxFit.cover,
+            errorWidget: (_, _, _) => const SizedBox.shrink(),
+          )
+        else
+          Icon(
+            LucideIcons.bookOpen,
+            color: Colors.white.withValues(alpha: 0.5),
+            size: 30,
+          ),
+      ],
     );
   }
 }
 
-class _CourseCard extends StatelessWidget {
+void _openCourse(BuildContext context, Enrollment e) {
+  HapticFeedback.selectionClick();
+  context.push('/my-courses/${e.courseId}');
+}
+
+// ── Continue Learning card ───────────────────────────────────────────────
+class _ContinueCard extends StatelessWidget {
   final _EnrollmentProgress item;
-  final bool showBadgePercent;
-  const _CourseCard({required this.item, required this.showBadgePercent});
+  const _ContinueCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
     final e = item.enrollment;
-    final thumb = e.courseThumbnailUrl ?? '';
-    final isDone = item.percent >= 100;
-    final gradient = _gradientFor(e.courseSubject);
-
     return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        context.push('/my-courses/${e.courseId}');
-      },
+      onTap: () => _openCourse(context, e),
       child: Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _C.border),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: _C.cardShadow,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: gradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
-                  if (thumb.isNotEmpty)
-                    CachedNetworkImage(
-                      imageUrl: thumb,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => const SizedBox.shrink(),
-                    )
-                  else
-                    Center(
-                      child: Icon(
-                        Icons.menu_book_rounded,
-                        color: Colors.white.withValues(alpha: 0.40),
-                        size: 34,
-                      ),
-                    ),
-                  if (showBadgePercent)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDone
-                              ? _C.warning
-                              : Colors.black.withValues(alpha: 0.40),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isDone) ...[
-                              const Icon(
-                                Icons.emoji_events_rounded,
-                                size: 10,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 3),
-                            ],
-                            Text(
-                              '${item.percent}%',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (!showBadgePercent)
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.55),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (!showBadgePercent)
-                    Positioned(
-                      left: 8,
-                      right: 8,
-                      bottom: 8,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (e.courseSubject != null)
-                                  Text(
-                                    e.courseSubject!.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.85,
-                                      ),
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                Text(
-                                  e.courseTitle ?? 'Course',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 26,
-                            height: 26,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.play_arrow_rounded,
-                              color: gradient.first,
-                              size: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+            Container(
+              width: 104,
+              height: 74,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: _C.cardShadow,
               ),
+              child: _Thumbnail(enrollment: e),
             ),
-            Padding(
-              padding: const EdgeInsets.all(10),
+            const SizedBox(width: 18),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (showBadgePercent) ...[
-                    if (e.courseSubject != null)
-                      Text(
-                        e.courseSubject!.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: _C.textSub,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    const SizedBox(height: 2),
+                  if (e.courseSubject != null) ...[
                     Text(
-                      e.courseTitle ?? 'Course',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      e.courseSubject!,
                       style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: _C.textPri,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.orange,
                       ),
                     ),
-                    if (e.courseEducatorName != null) ...[
-                      const SizedBox(height: 1),
-                      Text(
-                        e.courseEducatorName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: _C.textSub),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                  ] else ...[
-                    Row(
-                      children: [
-                        Text(
-                          '${item.percent}% complete',
+                    const SizedBox(height: 10),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          e.courseTitle ?? 'Course',
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 13,
+                            height: 1.3,
                             fontWeight: FontWeight.w700,
-                            color: _C.primary,
+                            color: AppColors.ink,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                  ],
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.play_arrow_rounded,
+                        size: 26,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${item.percent}% complete',
+                    style: const TextStyle(fontSize: 10.5, color: _C.textSub),
+                  ),
+                  const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
                       value: item.percent / 100,
-                      minHeight: 5,
-                      backgroundColor: _C.border,
-                      color: isDone ? _C.success : _C.primary,
+                      minHeight: 8,
+                      backgroundColor: const Color(0xFFE5E7EB),
+                      color: AppColors.orange,
                     ),
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Subjects of the featured course ──────────────────────────────────────
+class _SubjectList extends ConsumerWidget {
+  final String courseId;
+  const _SubjectList({required this.courseId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subjects = ref.watch(courseSubjectsProvider(courseId));
+    return subjects.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: SizedBox.square(
+            dimension: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (e, _) => Text(
+        AppException.from(e).userMessage,
+        style: const TextStyle(fontSize: 12, color: _C.textSub),
+      ),
+      data: (list) {
+        if (list.isEmpty) {
+          return const Text(
+            'Subjects will appear here once added to this course.',
+            style: TextStyle(fontSize: 12, color: _C.textSub),
+          );
+        }
+        return Column(
+          children: [
+            for (var i = 0; i < list.length; i++) ...[
+              if (i > 0) const SizedBox(height: 14),
+              _SubjectRow(subject: list[i], tint: _rowTint(i)),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SubjectRow extends ConsumerWidget {
+  final CourseSubject subject;
+  final Color tint;
+  const _SubjectRow({required this.subject, required this.tint});
+
+  static const _short = {
+    'physics': 'PHY',
+    'chemistry': 'CHEM',
+    'mathematics': 'MATH',
+    'maths': 'MATH',
+    'biology': 'BIO',
+    'botany': 'BOT',
+    'zoology': 'ZOO',
+    'english': 'ENG',
+  };
+
+  String get _abbr {
+    final name = subject.name.trim();
+    final known = _short[name.toLowerCase()];
+    if (known != null) return known;
+    if (name.isEmpty) return '—';
+    return name.substring(0, name.length < 3 ? name.length : 3).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topics = ref.watch(courseTopicsProvider(subject.id)).valueOrNull;
+    return _ListRow(
+      tint: tint,
+      leading: Text(
+        _abbr,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: _C.textSub,
+        ),
+      ),
+      title: subject.name,
+      subtitle: topics == null
+          ? ''
+          : '${topics.length} ${topics.length == 1 ? 'topic' : 'topics'}',
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push(
+          '/my-courses/${subject.courseId}/subject/${subject.id}',
+          extra: subject.name,
+        );
+      },
+    );
+  }
+}
+
+/// Another enrolled course, styled like a subject row.
+class _CourseRow extends StatelessWidget {
+  final _EnrollmentProgress item;
+  final Color tint;
+  const _CourseRow({required this.item, required this.tint});
+
+  @override
+  Widget build(BuildContext context) {
+    final e = item.enrollment;
+    return _ListRow(
+      tint: tint,
+      leading: _Thumbnail(enrollment: e),
+      title: e.courseTitle ?? 'Course',
+      subtitle: '${item.percent}% complete',
+      onTap: () => _openCourse(context, e),
+    );
+  }
+}
+
+class _ListRow extends StatelessWidget {
+  final Color tint;
+  final Widget leading;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ListRow({
+    required this.tint,
+    required this.leading,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: tint,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white, width: 1.5),
+            boxShadow: _C.cardShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 64,
+                height: 46,
+                clipBehavior: Clip.antiAlias,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _C.lavenderTile,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white),
+                ),
+                child: leading,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 10.5, color: _C.textSub),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                LucideIcons.chevronRight200,
+                size: 26,
+                color: _C.textSub,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -577,8 +810,14 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
+    child: Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: _C.cardShadow,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -590,9 +829,9 @@ class _EmptyState extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.school_outlined,
+              LucideIcons.graduationCap,
               color: _C.primary,
-              size: 40,
+              size: 38,
             ),
           ),
           const SizedBox(height: 20),
@@ -600,8 +839,8 @@ class _EmptyState extends StatelessWidget {
             'No courses yet',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: _C.textPri,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 8),
@@ -614,15 +853,15 @@ class _EmptyState extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onBrowse,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _C.primary,
+              backgroundColor: AppColors.deepNavy,
               foregroundColor: Colors.white,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
-            icon: const Icon(Icons.storefront_rounded, size: 18),
+            icon: const Icon(LucideIcons.store, size: 18),
             label: const Text(
               'Browse Courses',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),

@@ -17,8 +17,9 @@ Future<String> resolveQuestionImageUrl(String url) async {
   for (final m in markers) {
     final idx = url.indexOf(m);
     if (idx != -1) {
-      final path =
-          Uri.decodeComponent(url.substring(idx + m.length).split('?').first);
+      final path = Uri.decodeComponent(
+        url.substring(idx + m.length).split('?').first,
+      );
       try {
         return await SupabaseService.client.storage
             .from(questionImagesBucket)
@@ -34,7 +35,10 @@ Future<String> resolveQuestionImageUrl(String url) async {
 /// Extracts every `<img src="...">` URL embedded in HTML `text`, mirroring
 /// the extraction logic used when parsing question_text for the test engine.
 List<String> extractImgUrls(String text) {
-  final imgRegex = RegExp('<img[^>]+src=["\']([^"\']+)["\']', caseSensitive: false);
+  final imgRegex = RegExp(
+    '<img[^>]+src=["\']([^"\']+)["\']',
+    caseSensitive: false,
+  );
   return imgRegex.allMatches(text).map((m) => m.group(1)!).toList();
 }
 

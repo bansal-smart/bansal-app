@@ -47,7 +47,8 @@ class AppTest {
     description: json['description'] as String?,
     testType: json['test_type'] as String? ?? '',
     examPattern: json['exam_pattern'] as String? ?? '',
-    subjects: (json['subjects'] as List<dynamic>?)
+    subjects:
+        (json['subjects'] as List<dynamic>?)
             ?.map((s) => s.toString())
             .toList() ??
         [],
@@ -62,7 +63,8 @@ class AppTest {
         ? DateTime.parse(json['ends_at'] as String)
         : null,
     courseId: json['course_id'] as String?,
-    cbtAllowedBatchIds: (json['cbt_allowed_batch_ids'] as List<dynamic>?)
+    cbtAllowedBatchIds:
+        (json['cbt_allowed_batch_ids'] as List<dynamic>?)
             ?.map((s) => s.toString())
             .toList() ??
         const [],

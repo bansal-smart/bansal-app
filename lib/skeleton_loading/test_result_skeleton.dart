@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 abstract class _DS {
   static const primaryDark = Color(0xFF102A63);
   static const surface = Color(0xFFFFFFFF);
-  static const background = Color(0xFFFFFBF8);
   static const border = Color(0xFFE5E7EB);
 }
 
@@ -41,7 +40,7 @@ class _TestResultSkeletonState extends State<TestResultSkeleton>
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: _DS.background,
+      color: Colors.transparent,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
@@ -73,13 +72,33 @@ class _TestResultSkeletonState extends State<TestResultSkeleton>
           const SizedBox(height: 16),
           _SubjectTableSkeleton(controller: _ctrl),
           const SizedBox(height: 16),
-          _ShimmerBox(controller: _ctrl, width: double.infinity, height: 48, radius: 14),
+          _ShimmerBox(
+            controller: _ctrl,
+            width: double.infinity,
+            height: 48,
+            radius: 14,
+          ),
           const SizedBox(height: 16),
-          _ShimmerBox(controller: _ctrl, width: double.infinity, height: 90, radius: 20),
+          _ShimmerBox(
+            controller: _ctrl,
+            width: double.infinity,
+            height: 90,
+            radius: 20,
+          ),
           const SizedBox(height: 16),
-          _ShimmerBox(controller: _ctrl, width: double.infinity, height: 48, radius: 14),
+          _ShimmerBox(
+            controller: _ctrl,
+            width: double.infinity,
+            height: 48,
+            radius: 14,
+          ),
           const SizedBox(height: 10),
-          _ShimmerBox(controller: _ctrl, width: double.infinity, height: 48, radius: 14),
+          _ShimmerBox(
+            controller: _ctrl,
+            width: double.infinity,
+            height: 48,
+            radius: 14,
+          ),
         ],
       ),
     );
@@ -106,15 +125,45 @@ class _ScoreHeroSkeleton extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _ShimmerBox(controller: controller, width: 100, height: 22, radius: 999, dark: true),
+          _ShimmerBox(
+            controller: controller,
+            width: 100,
+            height: 22,
+            radius: 999,
+            dark: true,
+          ),
           const SizedBox(height: 14),
-          _ShimmerBox(controller: controller, width: 160, height: 18, radius: 5, dark: true),
+          _ShimmerBox(
+            controller: controller,
+            width: 160,
+            height: 18,
+            radius: 5,
+            dark: true,
+          ),
           const SizedBox(height: 20),
-          _ShimmerBox(controller: controller, width: 70, height: 11, radius: 4, dark: true),
+          _ShimmerBox(
+            controller: controller,
+            width: 70,
+            height: 11,
+            radius: 4,
+            dark: true,
+          ),
           const SizedBox(height: 8),
-          _ShimmerBox(controller: controller, width: 120, height: 40, radius: 8, dark: true),
+          _ShimmerBox(
+            controller: controller,
+            width: 120,
+            height: 40,
+            radius: 8,
+            dark: true,
+          ),
           const SizedBox(height: 6),
-          _ShimmerBox(controller: controller, width: 90, height: 11, radius: 4, dark: true),
+          _ShimmerBox(
+            controller: controller,
+            width: 90,
+            height: 11,
+            radius: 4,
+            dark: true,
+          ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -125,7 +174,13 @@ class _ScoreHeroSkeleton extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          _ShimmerBox(controller: controller, width: 180, height: 11, radius: 4, dark: true),
+          _ShimmerBox(
+            controller: controller,
+            width: 180,
+            height: 11,
+            radius: 4,
+            dark: true,
+          ),
         ],
       ),
     );
@@ -140,11 +195,29 @@ class _HeroStatSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ShimmerBox(controller: controller, width: 18, height: 18, radius: 999, dark: true),
+        _ShimmerBox(
+          controller: controller,
+          width: 18,
+          height: 18,
+          radius: 999,
+          dark: true,
+        ),
         const SizedBox(height: 6),
-        _ShimmerBox(controller: controller, width: 30, height: 14, radius: 4, dark: true),
+        _ShimmerBox(
+          controller: controller,
+          width: 30,
+          height: 14,
+          radius: 4,
+          dark: true,
+        ),
         const SizedBox(height: 4),
-        _ShimmerBox(controller: controller, width: 44, height: 10, radius: 4, dark: true),
+        _ShimmerBox(
+          controller: controller,
+          width: 44,
+          height: 10,
+          radius: 4,
+          dark: true,
+        ),
       ],
     );
   }
@@ -167,11 +240,26 @@ class _LockedCardSkeleton extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _ShimmerBox(controller: controller, width: 44, height: 44, radius: 999),
+          _ShimmerBox(
+            controller: controller,
+            width: 44,
+            height: 44,
+            radius: 999,
+          ),
           const SizedBox(height: 12),
-          _ShimmerBox(controller: controller, width: 220, height: 13, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 220,
+            height: 13,
+            radius: 4,
+          ),
           const SizedBox(height: 8),
-          _ShimmerBox(controller: controller, width: 180, height: 11, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 180,
+            height: 11,
+            radius: 4,
+          ),
         ],
       ),
     );
@@ -196,7 +284,12 @@ class _StatTileSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _ShimmerBox(controller: controller, width: 30, height: 30, radius: 999),
+          _ShimmerBox(
+            controller: controller,
+            width: 30,
+            height: 30,
+            radius: 999,
+          ),
           const SizedBox(height: 8),
           _ShimmerBox(controller: controller, width: 34, height: 18, radius: 4),
           const SizedBox(height: 4),
@@ -224,11 +317,26 @@ class _ScorecardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ShimmerBox(controller: controller, width: 110, height: 14, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 110,
+            height: 14,
+            radius: 4,
+          ),
           const SizedBox(height: 6),
-          _ShimmerBox(controller: controller, width: 200, height: 11, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 200,
+            height: 11,
+            radius: 4,
+          ),
           const SizedBox(height: 14),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 44, radius: 14),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 44,
+            radius: 14,
+          ),
         ],
       ),
     );
@@ -254,16 +362,36 @@ class _ChartCardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ShimmerBox(controller: controller, width: 150, height: 14, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 150,
+            height: 14,
+            radius: 4,
+          ),
           const SizedBox(height: 16),
-          _ShimmerBox(controller: controller, width: double.infinity, height: height, radius: 12),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: height,
+            radius: 12,
+          ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _ShimmerBox(controller: controller, width: 60, height: 10, radius: 4),
+              _ShimmerBox(
+                controller: controller,
+                width: 60,
+                height: 10,
+                radius: 4,
+              ),
               const SizedBox(width: 16),
-              _ShimmerBox(controller: controller, width: 60, height: 10, radius: 4),
+              _ShimmerBox(
+                controller: controller,
+                width: 60,
+                height: 10,
+                radius: 4,
+              ),
             ],
           ),
         ],
@@ -290,13 +418,33 @@ class _SubjectTableSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ShimmerBox(controller: controller, width: 170, height: 14, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 170,
+            height: 14,
+            radius: 4,
+          ),
           const SizedBox(height: 16),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 20, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 20,
+            radius: 4,
+          ),
           const SizedBox(height: 12),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 16, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 16,
+            radius: 4,
+          ),
           const SizedBox(height: 10),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 16, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 16,
+            radius: 4,
+          ),
         ],
       ),
     );
@@ -322,7 +470,9 @@ class _ShimmerBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final baseColor = dark ? const Color(0xFF2B4A8F) : const Color(0xFFE9ECF1);
-    final highlightColor = dark ? const Color(0xFF3D5FA6) : const Color(0xFFF6F7F9);
+    final highlightColor = dark
+        ? const Color(0xFF3D5FA6)
+        : const Color(0xFFF6F7F9);
 
     return AnimatedBuilder(
       animation: controller,

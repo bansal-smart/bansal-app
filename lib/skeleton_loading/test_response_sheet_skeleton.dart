@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 // ── Design tokens — mirrors lib/features/tests/test_response_sheet_screen.dart's DS class ──
 abstract class _DS {
   static const surface = Color(0xFFFFFFFF);
-  static const background = Color(0xFFFFFBF8);
   static const border = Color(0xFFE5E7EB);
 }
 
@@ -15,7 +14,8 @@ class TestResponseSheetSkeleton extends StatefulWidget {
   const TestResponseSheetSkeleton({super.key});
 
   @override
-  State<TestResponseSheetSkeleton> createState() => _TestResponseSheetSkeletonState();
+  State<TestResponseSheetSkeleton> createState() =>
+      _TestResponseSheetSkeletonState();
 }
 
 class _TestResponseSheetSkeletonState extends State<TestResponseSheetSkeleton>
@@ -40,18 +40,33 @@ class _TestResponseSheetSkeletonState extends State<TestResponseSheetSkeleton>
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: _DS.background,
+      color: Colors.transparent,
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Row(
               children: [
-                _ShimmerBox(controller: _ctrl, width: 64, height: 30, radius: 999),
+                _ShimmerBox(
+                  controller: _ctrl,
+                  width: 64,
+                  height: 30,
+                  radius: 999,
+                ),
                 const SizedBox(width: 8),
-                _ShimmerBox(controller: _ctrl, width: 84, height: 30, radius: 999),
+                _ShimmerBox(
+                  controller: _ctrl,
+                  width: 84,
+                  height: 30,
+                  radius: 999,
+                ),
                 const SizedBox(width: 8),
-                _ShimmerBox(controller: _ctrl, width: 76, height: 30, radius: 999),
+                _ShimmerBox(
+                  controller: _ctrl,
+                  width: 76,
+                  height: 30,
+                  radius: 999,
+                ),
               ],
             ),
           ),
@@ -93,11 +108,26 @@ class _HeaderCardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ShimmerBox(controller: controller, width: 180, height: 16, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 180,
+            height: 16,
+            radius: 4,
+          ),
           const SizedBox(height: 8),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 11, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 11,
+            radius: 4,
+          ),
           const SizedBox(height: 6),
-          _ShimmerBox(controller: controller, width: 220, height: 11, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 220,
+            height: 11,
+            radius: 4,
+          ),
         ],
       ),
     );
@@ -124,24 +154,59 @@ class _QuestionCardSkeleton extends StatelessWidget {
         children: [
           Row(
             children: [
-              _ShimmerBox(controller: controller, width: 34, height: 20, radius: 999),
+              _ShimmerBox(
+                controller: controller,
+                width: 34,
+                height: 20,
+                radius: 999,
+              ),
               const SizedBox(width: 8),
-              _ShimmerBox(controller: controller, width: 50, height: 11, radius: 4),
+              _ShimmerBox(
+                controller: controller,
+                width: 50,
+                height: 11,
+                radius: 4,
+              ),
               const Spacer(),
-              _ShimmerBox(controller: controller, width: 64, height: 20, radius: 999),
+              _ShimmerBox(
+                controller: controller,
+                width: 64,
+                height: 20,
+                radius: 999,
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 13, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 13,
+            radius: 4,
+          ),
           const SizedBox(height: 6),
-          _ShimmerBox(controller: controller, width: 220, height: 13, radius: 4),
+          _ShimmerBox(
+            controller: controller,
+            width: 220,
+            height: 13,
+            radius: 4,
+          ),
           const SizedBox(height: 10),
-          _ShimmerBox(controller: controller, width: double.infinity, height: 120, radius: 12),
+          _ShimmerBox(
+            controller: controller,
+            width: double.infinity,
+            height: 120,
+            radius: 12,
+          ),
           const SizedBox(height: 10),
           for (int i = 0; i < 4; i++)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: _ShimmerBox(controller: controller, width: double.infinity, height: 40, radius: 10),
+              child: _ShimmerBox(
+                controller: controller,
+                width: double.infinity,
+                height: 40,
+                radius: 10,
+              ),
             ),
         ],
       ),

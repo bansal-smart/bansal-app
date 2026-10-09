@@ -154,7 +154,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         floatingActionButton: _BackToTopButton(
           visible: _showTopButton,
           onTap: () {

@@ -6,16 +6,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Dio instance that bypasses SSL cert validation for megas4.com.
 /// Used for downloading S3 files whose CA isn't in the Android system store.
 Dio buildS3Dio() {
-  final dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(minutes: 5),
-    sendTimeout: const Duration(minutes: 5),
-  ));
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(minutes: 5),
+      sendTimeout: const Duration(minutes: 5),
+    ),
+  );
 
   (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
     final client = HttpClient();
-    client.badCertificateCallback =
-        (cert, host, port) => host.endsWith('megas4.com');
+    client.badCertificateCallback = (cert, host, port) =>
+        host.endsWith('megas4.com');
     return client;
   };
 
@@ -37,7 +39,8 @@ Future<String> getS3SignedUrl(String fileUrl) async {
   );
   if (response.status != 200) {
     throw Exception(
-        'get-download-url failed (${response.status}): ${response.data}');
+      'get-download-url failed (${response.status}): ${response.data}',
+    );
   }
   final signedUrl = (response.data as Map<String, dynamic>)['signedUrl'];
   if (signedUrl == null || signedUrl is! String || signedUrl.isEmpty) {

@@ -65,7 +65,7 @@ class TopicListScreen extends ConsumerWidget {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: Column(
           children: [
             _Header(title: subjectName),
@@ -73,17 +73,23 @@ class TopicListScreen extends ConsumerWidget {
               child: topicsAsync.when(
                 loading: () => const Center(
                   child: CircularProgressIndicator(
-                      color: DS.primary, strokeWidth: 2.5),
+                    color: DS.primary,
+                    strokeWidth: 2.5,
+                  ),
                 ),
-                error: (e, _) => _ErrorBody(message: AppException.from(e).userMessage),
+                error: (e, _) =>
+                    _ErrorBody(message: AppException.from(e).userMessage),
                 data: (topics) {
                   if (topics.isEmpty) return const _EmptyTopics();
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(
-                        DS.s16, DS.s20, DS.s16, DS.s32),
+                      DS.s16,
+                      DS.s20,
+                      DS.s16,
+                      DS.s32,
+                    ),
                     itemCount: topics.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: DS.s10),
+                    separatorBuilder: (_, __) => const SizedBox(height: DS.s10),
                     itemBuilder: (_, i) => _TopicTile(
                       topic: topics[i],
                       onTap: () {
@@ -275,8 +281,11 @@ class _TopicTile extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: DS.textSecondary, size: 20),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: DS.textSecondary,
+            size: 20,
+          ),
         ],
       ),
     ),
@@ -307,8 +316,11 @@ class _EmptyTopics extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(Icons.menu_book_outlined,
-                color: Colors.white, size: 32),
+            child: const Icon(
+              Icons.menu_book_outlined,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
           const SizedBox(height: DS.s20),
           const Text(

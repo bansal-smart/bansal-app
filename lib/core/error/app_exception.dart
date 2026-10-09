@@ -16,7 +16,9 @@ sealed class AppException implements Exception {
     final msg = error.toString().toLowerCase();
 
     // Network / socket
-    if (error is SocketException || msg.contains('socket') || msg.contains('network')) {
+    if (error is SocketException ||
+        msg.contains('socket') ||
+        msg.contains('network')) {
       return const NetworkException();
     }
 
@@ -42,7 +44,8 @@ sealed class AppException implements Exception {
     // Supabase postgrest / storage errors
     if (error is PostgrestException) {
       final code = int.tryParse(error.code ?? '') ?? 0;
-      if (code == 0 || msg.contains('connection')) return const NetworkException();
+      if (code == 0 || msg.contains('connection'))
+        return const NetworkException();
       if (code >= 500) return const ServerException();
       if (code == 404) return const NotFoundException();
       return ServerException(error.message);
@@ -52,7 +55,9 @@ sealed class AppException implements Exception {
     if (msg.contains('500') || msg.contains('502') || msg.contains('503')) {
       return const ServerException();
     }
-    if (msg.contains('401') || msg.contains('403') || msg.contains('unauthorized')) {
+    if (msg.contains('401') ||
+        msg.contains('403') ||
+        msg.contains('unauthorized')) {
       return const UnauthorizedException();
     }
     if (msg.contains('404')) return const NotFoundException();
@@ -74,7 +79,8 @@ sealed class AppException implements Exception {
 class NetworkException extends AppException {
   const NetworkException();
   @override
-  String get userMessage => 'No internet connection.\nPlease check your network and try again.';
+  String get userMessage =>
+      'No internet connection.\nPlease check your network and try again.';
   @override
   String get technicalMessage => 'NetworkException: no connectivity';
 }
@@ -82,7 +88,8 @@ class NetworkException extends AppException {
 class TimeoutException extends AppException {
   const TimeoutException();
   @override
-  String get userMessage => 'Request timed out.\nYour connection may be slow — please try again.';
+  String get userMessage =>
+      'Request timed out.\nYour connection may be slow — please try again.';
   @override
   String get technicalMessage => 'TimeoutException: request exceeded limit';
 }
@@ -91,9 +98,11 @@ class ServerException extends AppException {
   final String? detail;
   const ServerException([this.detail]);
   @override
-  String get userMessage => 'Something went wrong on our end.\nPlease try again later.';
+  String get userMessage =>
+      'Something went wrong on our end.\nPlease try again later.';
   @override
-  String get technicalMessage => 'ServerException: ${detail ?? 'unknown server error'}';
+  String get technicalMessage =>
+      'ServerException: ${detail ?? 'unknown server error'}';
 }
 
 class UnauthorizedException extends AppException {
@@ -124,12 +133,15 @@ class AuthAppException extends AppException {
     if (m.contains('email not confirmed')) {
       return 'Please verify your email before logging in.';
     }
-    if (m.contains('user already registered') || m.contains('already been registered')) {
+    if (m.contains('user already registered') ||
+        m.contains('already been registered')) {
       return 'An account with this email already exists.';
     }
-    if (m.contains('password')) return 'Password must be at least 6 characters.';
+    if (m.contains('password'))
+      return 'Password must be at least 6 characters.';
     return 'Authentication failed. Please try again.';
   }
+
   @override
   String get technicalMessage => 'AuthException: $_raw';
 }
@@ -137,7 +149,8 @@ class AuthAppException extends AppException {
 class RateLimitException extends AppException {
   const RateLimitException();
   @override
-  String get userMessage => 'Too many attempts. Please wait a moment and try again.';
+  String get userMessage =>
+      'Too many attempts. Please wait a moment and try again.';
   @override
   String get technicalMessage => 'RateLimitException: 429';
 }

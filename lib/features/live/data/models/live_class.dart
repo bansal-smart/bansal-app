@@ -43,7 +43,9 @@ class LiveClass {
     educatorName: json['educator_name'] as String? ?? '',
     educatorAvatar: json['educator_avatar'] as String?,
     startsAt: DateTime.parse(json['starts_at'] as String),
-    endsAt: json['ends_at'] != null ? DateTime.parse(json['ends_at'] as String) : null,
+    endsAt: json['ends_at'] != null
+        ? DateTime.parse(json['ends_at'] as String)
+        : null,
     meetingUrl: json['meeting_url'] as String?,
     status: json['status'] as String? ?? 'scheduled',
     description: json['description'] as String?,

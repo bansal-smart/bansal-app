@@ -13,7 +13,6 @@ abstract class _C {
   static const primaryLt = Color(0xFFE8EDF9);
   static const free = Color(0xFF10B981);
   static const surface = Color(0xFFFFFFFF);
-  static const bg = Color(0xFFFFFBF8);
   static const border = Color(0xFFE5E7EB);
   static const textPri = Color(0xFF111827);
   static const textSub = Color(0xFF6B7280);
@@ -68,7 +67,7 @@ class _CourseStoreScreenState extends ConsumerState<CourseStoreScreen> {
     });
 
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Colors.transparent,
       body: async.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(color: _C.primary)),
@@ -346,9 +345,10 @@ class _CourseCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        [course.targetExam, course.subject]
-                            .where((s) => s != null && s.isNotEmpty)
-                            .join(' · '),
+                        [
+                          course.targetExam,
+                          course.subject,
+                        ].where((s) => s != null && s.isNotEmpty).join(' · '),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10.5,

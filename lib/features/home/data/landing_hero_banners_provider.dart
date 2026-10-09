@@ -31,11 +31,7 @@ final landingHeroBannersProvider =
           .order('created_at');
 
       return (data as List<dynamic>)
-          .map(
-            (row) => LandingHeroBanner.fromJson(
-              row as Map<String, dynamic>,
-            ),
-          )
+          .map((row) => LandingHeroBanner.fromJson(row as Map<String, dynamic>))
           .where((banner) => banner.imageUrl.trim().isNotEmpty)
           .toList(growable: false);
     });

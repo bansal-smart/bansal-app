@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
 
-// ── Design tokens — mirrors lib/features/courses/courses_list_screen.dart's _C class ──
-abstract class _DS {
-  static const surface = Color(0xFFFFFFFF);
-  static const bg = Color(0xFFF5F6FA);
-  static const border = Color(0xFFE5E7EB);
-}
-
-/// Loading placeholder for [CoursesListScreen] — mirrors its exact section
-/// layout (title, stats strip, continue-learning grid, all-courses grid) so
-/// the page doesn't visibly jump once real data arrives.
+/// Loading placeholder for [CoursesListScreen] — mirrors its section layout
+/// (title, overview card, continue-learning card, subject rows) so the page
+/// doesn't visibly jump once real data arrives.
 class CoursesSkeleton extends StatefulWidget {
   const CoursesSkeleton({super.key});
 
@@ -36,188 +29,46 @@ class _CoursesSkeletonState extends State<CoursesSkeleton>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: _DS.bg,
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          children: [
-            // ── Title + subtitle ──
-            _ShimmerBox(controller: _ctrl, width: 160, height: 22, radius: 6),
-            const SizedBox(height: 8),
-            _ShimmerBox(controller: _ctrl, width: 220, height: 13, radius: 4),
-
-            const SizedBox(height: 16),
-
-            // ── Stats strip (2x2) ──
-            Row(
-              children: [
-                Expanded(child: _StatTileSkeleton(controller: _ctrl)),
-                const SizedBox(width: 12),
-                Expanded(child: _StatTileSkeleton(controller: _ctrl)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: _StatTileSkeleton(controller: _ctrl)),
-                const SizedBox(width: 12),
-                Expanded(child: _StatTileSkeleton(controller: _ctrl)),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Continue Learning ──
-            _SectionTitleSkeleton(controller: _ctrl),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _CourseCardSkeleton(controller: _ctrl)),
-                const SizedBox(width: 12),
-                Expanded(child: _CourseCardSkeleton(controller: _ctrl)),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── All My Courses ──
-            _SectionTitleSkeleton(controller: _ctrl),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _CourseCardSkeleton(controller: _ctrl)),
-                const SizedBox(width: 12),
-                Expanded(child: _CourseCardSkeleton(controller: _ctrl)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: _CourseCardSkeleton(controller: _ctrl)),
-                const SizedBox(width: 12),
-                Expanded(child: _CourseCardSkeleton(controller: _ctrl)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Section title (colored bar + label) ─────────────────────────────────
-class _SectionTitleSkeleton extends StatelessWidget {
-  final AnimationController controller;
-  const _SectionTitleSkeleton({required this.controller});
+  Widget _sectionTitle() => Align(
+    alignment: Alignment.centerLeft,
+    child: _ShimmerBox(controller: _ctrl, width: 140, height: 14, radius: 4),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
       children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            color: _DS.border,
-            borderRadius: BorderRadius.circular(4),
+        // ── Title ──
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _ShimmerBox(
+            controller: _ctrl,
+            width: 140,
+            height: 22,
+            radius: 6,
           ),
         ),
-        const SizedBox(width: 8),
-        _ShimmerBox(controller: controller, width: 130, height: 15, radius: 4),
+        const SizedBox(height: 18),
+
+        // ── Overview card ──
+        _ShimmerBox(controller: _ctrl, height: 190, radius: 26),
+        const SizedBox(height: 28),
+
+        // ── Continue Learning ──
+        _sectionTitle(),
+        const SizedBox(height: 14),
+        _ShimmerBox(controller: _ctrl, height: 114, radius: 26),
+        const SizedBox(height: 28),
+
+        // ── Subjects ──
+        _sectionTitle(),
+        const SizedBox(height: 14),
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          _ShimmerBox(controller: _ctrl, height: 68, radius: 22),
+        ],
       ],
-    );
-  }
-}
-
-// ── Stats strip tile (icon + value + label) ─────────────────────────────
-class _StatTileSkeleton extends StatelessWidget {
-  final AnimationController controller;
-  const _StatTileSkeleton({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _DS.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _DS.border),
-      ),
-      child: Row(
-        children: [
-          _ShimmerBox(controller: controller, width: 40, height: 40, radius: 10),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ShimmerBox(controller: controller, width: 30, height: 16, radius: 4),
-                const SizedBox(height: 6),
-                _ShimmerBox(controller: controller, width: 60, height: 10, radius: 4),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Course card (thumbnail + title/subtitle + progress bar) ─────────────
-class _CourseCardSkeleton extends StatelessWidget {
-  final AnimationController controller;
-  const _CourseCardSkeleton({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _DS.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _DS.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AspectRatio(
-            aspectRatio: 4 / 3,
-            child: _ShimmerBox(
-              controller: controller,
-              width: double.infinity,
-              height: double.infinity,
-              radius: 0,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ShimmerBox(controller: controller, width: 60, height: 9, radius: 3),
-                const SizedBox(height: 6),
-                _ShimmerBox(
-                  controller: controller,
-                  width: double.infinity,
-                  height: 13,
-                  radius: 4,
-                ),
-                const SizedBox(height: 8),
-                _ShimmerBox(
-                  controller: controller,
-                  width: double.infinity,
-                  height: 5,
-                  radius: 999,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

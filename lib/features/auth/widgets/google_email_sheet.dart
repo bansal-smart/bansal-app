@@ -130,8 +130,11 @@ class _GoogleEmailSheetState extends State<_GoogleEmailSheet> {
                 ),
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(left: 4),
-                  child: Icon(Icons.mail_outline_rounded,
-                      size: 20, color: Color(0xFF5F6368)),
+                  child: Icon(
+                    Icons.mail_outline_rounded,
+                    size: 20,
+                    color: Color(0xFF5F6368),
+                  ),
                 ),
                 filled: true,
                 fillColor: const Color(0xFFF8F9FA),
@@ -151,12 +154,13 @@ class _GoogleEmailSheetState extends State<_GoogleEmailSheet> {
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(
-                      color: Color(0xFFDADCE0), width: 1.2),
+                    color: Color(0xFFDADCE0),
+                    width: 1.2,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: _kBlue, width: 2),
+                  borderSide: const BorderSide(color: _kBlue, width: 2),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -180,14 +184,16 @@ class _GoogleEmailSheetState extends State<_GoogleEmailSheet> {
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF5F6368),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: const Text(
                     'Cancel',
-                    style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -198,14 +204,16 @@ class _GoogleEmailSheetState extends State<_GoogleEmailSheet> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

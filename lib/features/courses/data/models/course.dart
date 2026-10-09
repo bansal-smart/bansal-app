@@ -76,45 +76,45 @@ class Course extends Equatable {
   bool get hasDiscount => originalPrice != null && originalPrice! > price;
 
   factory Course.fromJson(Map<String, dynamic> j) => Course(
-        id: j['id'] as String,
-        slug: j['slug'] as String? ?? '',
-        name: j['name'] as String? ?? '',
-        description: j['description'] as String?,
-        subject: j['subject'] as String?,
-        educatorName: j['educator_name'] as String?,
-        level: j['level'] as String?,
-        targetExam: j['target_exam'] as String?,
-        thumbnailUrl: j['thumbnail_url'] as String?,
-        price: _toDouble(j['price']),
-        originalPrice: j['original_price'] != null
-            ? _toDouble(j['original_price'])
-            : null,
-        discountPercent: _toInt(j['discount_percent']) ?? 0,
-        rating: _toDouble(j['rating']),
-        totalEnrolled: _toInt(j['total_enrolled']) ?? 0,
-        totalLessons: _toInt(j['total_lessons']) ?? 0,
-        durationHours: _toInt(j['duration_hours']) ?? 0,
-        tags: _toStringList(j['tags']),
-        badge: j['badge'] as String?,
-        isFeatured: j['is_featured'] as bool? ?? false,
-        isPublished: j['is_published'] as bool? ?? true,
-        whatYoullLearn: _toStringList(j['what_youll_learn']),
-        requirements: _toStringList(j['requirements']),
-        sortOrder: _toInt(j['sort_order']) ?? 0,
-        shortDescription: j['short_description'] as String?,
-        educationLevel: j['education_level'] as String?,
-        durationLabel: j['duration_label'] as String?,
-        mode: j['mode'] as String?,
-        language: j['language'] as String? ?? 'English',
-        subjectsCovered: _toStringList(j['subjects_covered']),
-        descriptionHtml: j['description_html'] as String?,
-        includedServices: _toStringList(j['included_services']),
-        centreId: j['centre_id'] as String?,
-        isGlobal: j['is_global'] as bool? ?? false,
-        endDate: j['end_date'] != null
-            ? DateTime.tryParse(j['end_date'] as String)
-            : null,
-      );
+    id: j['id'] as String,
+    slug: j['slug'] as String? ?? '',
+    name: j['name'] as String? ?? '',
+    description: j['description'] as String?,
+    subject: j['subject'] as String?,
+    educatorName: j['educator_name'] as String?,
+    level: j['level'] as String?,
+    targetExam: j['target_exam'] as String?,
+    thumbnailUrl: j['thumbnail_url'] as String?,
+    price: _toDouble(j['price']),
+    originalPrice: j['original_price'] != null
+        ? _toDouble(j['original_price'])
+        : null,
+    discountPercent: _toInt(j['discount_percent']) ?? 0,
+    rating: _toDouble(j['rating']),
+    totalEnrolled: _toInt(j['total_enrolled']) ?? 0,
+    totalLessons: _toInt(j['total_lessons']) ?? 0,
+    durationHours: _toInt(j['duration_hours']) ?? 0,
+    tags: _toStringList(j['tags']),
+    badge: j['badge'] as String?,
+    isFeatured: j['is_featured'] as bool? ?? false,
+    isPublished: j['is_published'] as bool? ?? true,
+    whatYoullLearn: _toStringList(j['what_youll_learn']),
+    requirements: _toStringList(j['requirements']),
+    sortOrder: _toInt(j['sort_order']) ?? 0,
+    shortDescription: j['short_description'] as String?,
+    educationLevel: j['education_level'] as String?,
+    durationLabel: j['duration_label'] as String?,
+    mode: j['mode'] as String?,
+    language: j['language'] as String? ?? 'English',
+    subjectsCovered: _toStringList(j['subjects_covered']),
+    descriptionHtml: j['description_html'] as String?,
+    includedServices: _toStringList(j['included_services']),
+    centreId: j['centre_id'] as String?,
+    isGlobal: j['is_global'] as bool? ?? false,
+    endDate: j['end_date'] != null
+        ? DateTime.tryParse(j['end_date'] as String)
+        : null,
+  );
 
   static double _toDouble(dynamic v) {
     if (v == null) return 0;

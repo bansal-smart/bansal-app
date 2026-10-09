@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import 'data/courses_providers.dart';
 import 'data/models/chapter.dart';
 import 'data/models/lesson.dart';
+import 'data/models/subtopic_pdf.dart';
 import 'pdf_viewer_screen.dart';
 
 // ─────────────────────────────────────────────
@@ -204,7 +205,7 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: Column(
             children: [
@@ -214,9 +215,8 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
                 videoReady: _videoReady,
                 error: _videoError,
                 lessonTitle: activeLesson?.title ?? courseTitle,
-                onBack: () => context.canPop()
-                    ? context.pop()
-                    : context.go('/home'),
+                onBack: () =>
+                    context.canPop() ? context.pop() : context.go('/home'),
               ),
 
               // ── Tab bar ──
@@ -885,7 +885,7 @@ class _MiniPill extends StatelessWidget {
 // PDFS TAB
 // ─────────────────────────────────────────────
 class _PdfsTab extends ConsumerWidget {
-  final AsyncValue<List<CoursePdf>> pdfsAsync;
+  final AsyncValue<List<SubtopicPdf>> pdfsAsync;
   final String courseId;
   const _PdfsTab({required this.pdfsAsync, required this.courseId});
 
@@ -910,8 +910,7 @@ class _PdfsTab extends ConsumerWidget {
           padding: const EdgeInsets.all(DS.s16),
           itemCount: pdfs.length,
           separatorBuilder: (_, __) => const SizedBox(height: DS.s10),
-          itemBuilder: (_, i) =>
-              _PdfTile(pdf: pdfs[i], isEnrolled: isEnrolled),
+          itemBuilder: (_, i) => _PdfTile(pdf: pdfs[i], isEnrolled: isEnrolled),
         );
       },
     );
@@ -919,29 +918,38 @@ class _PdfsTab extends ConsumerWidget {
 }
 
 class _PdfTile extends StatelessWidget {
-  final CoursePdf pdf;
+  final SubtopicPdf pdf;
   final bool isEnrolled;
   const _PdfTile({required this.pdf, required this.isEnrolled});
 
   @override
   Widget build(BuildContext context) {
-    final sizeLabel = pdf.sizeBytes != null
-        ? '${(pdf.sizeBytes! / 1024 / 1024).toStringAsFixed(1)} MB'
-        : '';
+    final sizeKb = pdf.fileSizeKb;
+    final sizeLabel = sizeKb == null || sizeKb <= 0
+        ? ''
+        : sizeKb >= 1024
+        ? '${(sizeKb / 1024).toStringAsFixed(1)} MB'
+        : '$sizeKb KB';
+    final fileUrl = pdf.fileUrl;
+    final hasFile = fileUrl != null && fileUrl.isNotEmpty;
 
     return GestureDetector(
-      onTap: isEnrolled
-          ? () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      PdfViewerScreen(title: pdf.title, fileUrl: pdf.fileUrl),
-                ),
-              )
-          : () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Enroll in this course to access PDF notes.'),
-                ),
+      onTap: !isEnrolled
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Enroll in this course to access PDF notes.'),
               ),
+            )
+          : !hasFile
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This PDF is not available yet.')),
+            )
+          : () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    PdfViewerScreen(title: pdf.title, fileUrl: fileUrl),
+              ),
+            ),
       child: Container(
         padding: const EdgeInsets.all(DS.s14),
         decoration: BoxDecoration(
@@ -1127,7 +1135,10 @@ class _InfoTab extends StatelessWidget {
             spacing: DS.s8,
             runSpacing: DS.s8,
             children: [
-              _InfoChip(Icons.person_outline_rounded, course.teacherName ?? 'Instructor'),
+              _InfoChip(
+                Icons.person_outline_rounded,
+                course.teacherName ?? 'Instructor',
+              ),
               _InfoChip(Icons.bar_chart_rounded, course.courseClass),
               _InfoChip(Icons.flag_outlined, course.target),
               _InfoChip(

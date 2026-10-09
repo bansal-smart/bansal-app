@@ -7,7 +7,7 @@ class LiveClassesRepository {
   final SupabaseClient _client;
 
   LiveClassesRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService.client;
+    : _client = client ?? SupabaseService.client;
 
   Future<List<LiveClass>> fetchAll() async {
     try {

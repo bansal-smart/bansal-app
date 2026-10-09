@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -75,13 +75,13 @@ class CourseDetailScreen extends ConsumerWidget {
     final courseAsync = ref.watch(courseDetailProvider(courseId));
     return courseAsync.when(
       loading: () => const Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: Center(
           child: CircularProgressIndicator(color: DS.primary, strokeWidth: 2.5),
         ),
       ),
       error: (e, _) => Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: Center(child: _ErrorState(message: 'Failed to load course: $e')),
       ),
       data: (course) => _CourseDetailBody(course: course, courseId: courseId),
@@ -139,7 +139,7 @@ class _CourseDetailBodyState extends ConsumerState<_CourseDetailBody>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: NestedScrollView(
           headerSliverBuilder: (ctx, _) => [
             _CourseHeader(
@@ -1437,8 +1437,10 @@ class _LecturesTab extends ConsumerWidget {
         child: CircularProgressIndicator(color: DS.primary, strokeWidth: 2.5),
       ),
       error: (e, _) => const Center(
-        child: Text('Failed to load lectures',
-            style: TextStyle(color: DS.textSecondary)),
+        child: Text(
+          'Failed to load lectures',
+          style: TextStyle(color: DS.textSecondary),
+        ),
       ),
       data: (items) {
         if (items.isEmpty) {
@@ -1452,7 +1454,9 @@ class _LecturesTab extends ConsumerWidget {
           children: [
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: DS.s14, vertical: DS.s12),
+                horizontal: DS.s14,
+                vertical: DS.s12,
+              ),
               decoration: BoxDecoration(
                 color: DS.successSurface,
                 borderRadius: BorderRadius.circular(DS.radiusMd),
@@ -1467,8 +1471,11 @@ class _LecturesTab extends ConsumerWidget {
                       color: DS.success.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(DS.radiusSm),
                     ),
-                    child: const Icon(Icons.lock_open_rounded,
-                        color: DS.success, size: 17),
+                    child: const Icon(
+                      Icons.lock_open_rounded,
+                      color: DS.success,
+                      size: 17,
+                    ),
                   ),
                   const SizedBox(width: DS.s10),
                   const Expanded(
@@ -1509,19 +1516,24 @@ class _FreePreviewVideoCard extends StatelessWidget {
   }
 
   void _play(BuildContext context) {
-    final url = item.youtubeUrl ??
+    final url =
+        item.youtubeUrl ??
         (item.youtubeVideoId != null
             ? 'https://www.youtube.com/watch?v=${item.youtubeVideoId}'
             : null);
     if (url == null) return;
     if (_isYoutube) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => YoutubePlayerScreen(videoUrl: url, title: item.title),
-      ));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => YoutubePlayerScreen(videoUrl: url, title: item.title),
+        ),
+      );
     } else {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => S3VideoPlayerScreen(videoUrl: url, title: item.title),
-      ));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => S3VideoPlayerScreen(videoUrl: url, title: item.title),
+        ),
+      );
     }
   }
 
@@ -1583,9 +1595,7 @@ class _FreePreviewVideoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: DS.s4),
                   Text(
-                    'Subtopic: ${item.subtopicLabel?.trim().isNotEmpty == true
-                        ? item.subtopicLabel!.trim()
-                        : '—'}',
+                    'Subtopic: ${item.subtopicLabel?.trim().isNotEmpty == true ? item.subtopicLabel!.trim() : '—'}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1598,7 +1608,9 @@ class _FreePreviewVideoCard extends StatelessWidget {
                   const SizedBox(height: DS.s4),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: DS.s8, vertical: DS.s2),
+                      horizontal: DS.s8,
+                      vertical: DS.s2,
+                    ),
                     decoration: BoxDecoration(
                       color: DS.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
@@ -1657,8 +1669,10 @@ class _PdfsTab extends ConsumerWidget {
         child: CircularProgressIndicator(color: DS.primary, strokeWidth: 2.5),
       ),
       error: (e, _) => const Center(
-        child: Text('Failed to load PDFs',
-            style: TextStyle(color: DS.textSecondary)),
+        child: Text(
+          'Failed to load PDFs',
+          style: TextStyle(color: DS.textSecondary),
+        ),
       ),
       data: (pdfs) {
         if (pdfs.isEmpty) {
@@ -1675,12 +1689,13 @@ class _PdfsTab extends ConsumerWidget {
             if (!isEnrolled) ...[
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: DS.s14, vertical: DS.s12),
+                  horizontal: DS.s14,
+                  vertical: DS.s12,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE8EDF9),
                   borderRadius: BorderRadius.circular(DS.radiusMd),
-                  border: Border.all(
-                      color: DS.primary.withValues(alpha: 0.30)),
+                  border: Border.all(color: DS.primary.withValues(alpha: 0.30)),
                 ),
                 child: Row(
                   children: [
@@ -1691,8 +1706,11 @@ class _PdfsTab extends ConsumerWidget {
                         color: DS.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(DS.radiusSm),
                       ),
-                      child: const Icon(Icons.lock_outline_rounded,
-                          color: DS.primary, size: 17),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        color: DS.primary,
+                        size: 17,
+                      ),
                     ),
                     const SizedBox(width: DS.s10),
                     const Expanded(
@@ -1712,10 +1730,7 @@ class _PdfsTab extends ConsumerWidget {
               const SizedBox(height: DS.s16),
             ],
 
-            ...pdfs.map((pdf) => _PdfCard(
-                  item: pdf,
-                  canOpen: isEnrolled,
-                )),
+            ...pdfs.map((pdf) => _PdfCard(item: pdf, canOpen: isEnrolled)),
           ],
         );
       },
@@ -1735,17 +1750,19 @@ class _PdfCard extends StatelessWidget {
           ? () {
               final url = item.fileUrl;
               if (url == null || url.isEmpty) return;
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    PdfViewerScreen(title: item.title, fileUrl: url),
-              ));
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PdfViewerScreen(title: item.title, fileUrl: url),
+                ),
+              );
             }
           : () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Enroll in this course to access PDFs'),
-                  backgroundColor: DS.primary,
-                ),
+              const SnackBar(
+                content: Text('Enroll in this course to access PDFs'),
+                backgroundColor: DS.primary,
               ),
+            ),
       child: Container(
         margin: const EdgeInsets.only(bottom: DS.s10),
         padding: const EdgeInsets.all(DS.s14),
@@ -1798,7 +1815,9 @@ class _PdfCard extends StatelessWidget {
                     const SizedBox(height: DS.s4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: DS.s8, vertical: DS.s2),
+                        horizontal: DS.s8,
+                        vertical: DS.s2,
+                      ),
                       decoration: BoxDecoration(
                         color: DS.textSecondary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(999),
@@ -2209,8 +2228,8 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
     final phone = user?.phone?.isNotEmpty == true
         ? user!.phone
         : prefs.phoneNumber.isNotEmpty
-            ? prefs.phoneNumber
-            : null;
+        ? prefs.phoneNumber
+        : null;
     final name = prefs.userName.isNotEmpty
         ? prefs.userName
         : (user?.userMetadata?['full_name'] as String?);
@@ -2336,177 +2355,177 @@ class _EnrollBarState extends ConsumerState<_EnrollBar> {
       child: isEnrolled
           ? _continueLearningButton()
           : widget.course.price == 0
-              ? _enrollFreeButton()
-              : _paidEnrollRow(),
+          ? _enrollFreeButton()
+          : _paidEnrollRow(),
     );
   }
 
   Widget _continueLearningButton() => SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2B5BB8), DS.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(DS.radiusMd),
-            boxShadow: [
-              BoxShadow(
-                color: DS.primary.withValues(alpha: 0.30),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-            ],
+    width: double.infinity,
+    height: 52,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2B5BB8), DS.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(DS.radiusMd),
+        boxShadow: [
+          BoxShadow(
+            color: DS.primary.withValues(alpha: 0.30),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
-          child: ElevatedButton.icon(
-            onPressed: () => context.push('/my-courses/${widget.courseId}'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(DS.radiusMd),
-              ),
-            ),
-            icon: const Icon(Icons.play_arrow_rounded, size: 22),
-            label: const Text(
-              'Continue Learning',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () => context.push('/my-courses/${widget.courseId}'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DS.radiusMd),
           ),
         ),
-      );
+        icon: const Icon(Icons.play_arrow_rounded, size: 22),
+        label: const Text(
+          'Continue Learning',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+      ),
+    ),
+  );
 
   Widget _enrollFreeButton() => SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF34D399), DS.success],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(DS.radiusMd),
-            boxShadow: [
-              BoxShadow(
-                color: DS.success.withValues(alpha: 0.30),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-            ],
+    width: double.infinity,
+    height: 52,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF34D399), DS.success],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(DS.radiusMd),
+        boxShadow: [
+          BoxShadow(
+            color: DS.success.withValues(alpha: 0.30),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
-          child: ElevatedButton.icon(
-            onPressed: _processing ? null : _startPayment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(DS.radiusMd),
-              ),
-            ),
-            icon: _processing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : const Icon(Icons.school_rounded, size: 22),
-            label: _processing
-                ? const Text(
-                    'Enrolling…',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  )
-                : const Text(
-                    'Enroll Now',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _processing ? null : _startPayment,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DS.radiusMd),
           ),
         ),
-      );
+        icon: _processing
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : const Icon(Icons.school_rounded, size: 22),
+        label: _processing
+            ? const Text(
+                'Enrolling…',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              )
+            : const Text(
+                'Enroll Now',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+      ),
+    ),
+  );
 
   Widget _paidEnrollRow() => Row(
+    children: [
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '₹${widget.course.price.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  color: DS.textPrimary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: DS.s16),
-          Expanded(
-            child: SizedBox(
-              height: 52,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2B5BB8), DS.primary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(DS.radiusMd),
-                  boxShadow: [
-                    BoxShadow(
-                      color: DS.primary.withValues(alpha: 0.28),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: _processing ? null : _startPayment,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(DS.radiusMd),
-                    ),
-                  ),
-                  child: _processing
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.payment_rounded, size: 20),
-                            SizedBox(width: DS.s8),
-                            Text(
-                              'Pay & Enroll',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
+          Text(
+            '₹${widget.course.price.toStringAsFixed(0)}',
+            style: const TextStyle(
+              color: DS.textPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
             ),
           ),
         ],
-      );
+      ),
+      const SizedBox(width: DS.s16),
+      Expanded(
+        child: SizedBox(
+          height: 52,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2B5BB8), DS.primary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(DS.radiusMd),
+              boxShadow: [
+                BoxShadow(
+                  color: DS.primary.withValues(alpha: 0.28),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: _processing ? null : _startPayment,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DS.radiusMd),
+                ),
+              ),
+              child: _processing
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.payment_rounded, size: 20),
+                        SizedBox(width: DS.s8),
+                        Text(
+                          'Pay & Enroll',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 // ─────────────────────────────────────────────

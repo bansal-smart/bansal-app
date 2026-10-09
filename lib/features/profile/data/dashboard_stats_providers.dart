@@ -248,6 +248,49 @@ final airPercentileProvider = FutureProvider.autoDispose<double?>((ref) async {
   return null;
 });
 
+/// Minutes studied on each day of the current week, Monday first (7 entries),
+/// summed from study_sessions. Used by the Home "Weekly Progress" chart.
+final weeklyStudyMinutesProvider = FutureProvider.autoDispose<List<int>>((
+  ref,
+) async {
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser?.id;
+  final minutes = List<int>.filled(7, 0);
+  if (userId == null) return minutes;
+
+  final now = DateTime.now();
+  final monday = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).subtract(Duration(days: now.weekday - 1));
+  String day(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  final data = await client
+      .from('study_sessions')
+      .select('session_date,minutes_studied')
+      .eq('user_id', userId)
+      .gte('session_date', day(monday))
+      .lte('session_date', day(monday.add(const Duration(days: 6))));
+
+  for (final raw in data as List) {
+    final row = raw as Map<String, dynamic>;
+    final date = DateTime.tryParse(row['session_date']?.toString() ?? '');
+    if (date == null) continue;
+    // Rounded hours keep DST-shortened days from collapsing into the day before.
+    final index =
+        (DateTime(date.year, date.month, date.day).difference(monday).inHours /
+                24)
+            .round();
+    if (index < 0 || index > 6) continue;
+    minutes[index] += (row['minutes_studied'] as num?)?.toInt() ?? 0;
+  }
+  return minutes;
+});
+
 /// Pure calculation kept public so date-boundary behaviour can be tested.
 int calculateActivityStreak(Iterable<DateTime> activityDates, DateTime now) {
   final days = activityDates

@@ -114,7 +114,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: Column(
           children: [
             // ── Orange hero header ──
@@ -473,7 +473,6 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-
 // ─────────────────────────────────────────────
 // SETTINGS DIVIDER
 // ─────────────────────────────────────────────
@@ -695,4 +694,3 @@ class _LogoutDialog extends StatelessWidget {
     );
   }
 }
-

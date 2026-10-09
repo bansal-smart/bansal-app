@@ -84,7 +84,7 @@ class TopicContentScreen extends ConsumerWidget {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: Column(
           children: [
             _Header(title: topicName),
@@ -92,15 +92,21 @@ class TopicContentScreen extends ConsumerWidget {
               child: videosAsync.when(
                 loading: () => const Center(
                   child: CircularProgressIndicator(
-                      color: DS.primary, strokeWidth: 2.5),
+                    color: DS.primary,
+                    strokeWidth: 2.5,
+                  ),
                 ),
-                error: (e, _) => _ErrorBody(message: AppException.from(e).userMessage),
+                error: (e, _) =>
+                    _ErrorBody(message: AppException.from(e).userMessage),
                 data: (videos) => pdfsAsync.when(
                   loading: () => const Center(
                     child: CircularProgressIndicator(
-                        color: DS.primary, strokeWidth: 2.5),
+                      color: DS.primary,
+                      strokeWidth: 2.5,
+                    ),
                   ),
-                  error: (e, _) => _ErrorBody(message: AppException.from(e).userMessage),
+                  error: (e, _) =>
+                      _ErrorBody(message: AppException.from(e).userMessage),
                   data: (pdfs) {
                     if (videos.isEmpty && pdfs.isEmpty) {
                       return const _EmptyContent();
@@ -108,7 +114,11 @@ class TopicContentScreen extends ConsumerWidget {
                     final completed = progressAsync.valueOrNull ?? <String>{};
                     return ListView(
                       padding: const EdgeInsets.fromLTRB(
-                          DS.s16, DS.s20, DS.s16, DS.s32),
+                        DS.s16,
+                        DS.s20,
+                        DS.s16,
+                        DS.s32,
+                      ),
                       children: [
                         if (videos.isNotEmpty) ...[
                           _SectionLabel(
@@ -119,20 +129,19 @@ class TopicContentScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: DS.s12),
                           ...videos.asMap().entries.map(
-                                (e) => Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: e.key < videos.length - 1
-                                        ? DS.s10
-                                        : DS.s20,
-                                  ),
-                                  child: _VideoCard(
-                                    video: e.value,
-                                    courseId: courseId,
-                                    isCompleted:
-                                        completed.contains(e.value.id),
-                                  ),
-                                ),
+                            (e) => Padding(
+                              padding: EdgeInsets.only(
+                                bottom: e.key < videos.length - 1
+                                    ? DS.s10
+                                    : DS.s20,
                               ),
+                              child: _VideoCard(
+                                video: e.value,
+                                courseId: courseId,
+                                isCompleted: completed.contains(e.value.id),
+                              ),
+                            ),
+                          ),
                         ],
                         if (pdfs.isNotEmpty) ...[
                           _SectionLabel(
@@ -143,14 +152,13 @@ class TopicContentScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: DS.s12),
                           ...pdfs.asMap().entries.map(
-                                (e) => Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom:
-                                        e.key < pdfs.length - 1 ? DS.s10 : 0,
-                                  ),
-                                  child: _PdfCard(pdf: e.value),
-                                ),
+                            (e) => Padding(
+                              padding: EdgeInsets.only(
+                                bottom: e.key < pdfs.length - 1 ? DS.s10 : 0,
                               ),
+                              child: _PdfCard(pdf: e.value),
+                            ),
+                          ),
                         ],
                       ],
                     );
@@ -451,9 +459,7 @@ class _VideoCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: DS.s4),
                   Text(
-                    'Subtopic: ${video.subtopicLabel?.trim().isNotEmpty == true
-                        ? video.subtopicLabel!.trim()
-                        : '—'}',
+                    'Subtopic: ${video.subtopicLabel?.trim().isNotEmpty == true ? video.subtopicLabel!.trim() : '—'}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

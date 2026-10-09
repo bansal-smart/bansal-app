@@ -1,16 +1,7 @@
 import 'package:flutter/material.dart';
 
-// ── Design tokens — mirrors lib/features/tests/tests_list_screen.dart's DS class ──
-abstract class _DS {
-  static const primary = Color(0xFF193F8F);
-  static const surface = Color(0xFFFFFFFF);
-  static const background = Color(0xFFFFFBF8);
-  static const border = Color(0xFFE5E7EB);
-}
-
-/// Loading placeholder for [TestsListScreen] — mirrors its exact section
-/// layout (navy header, search bar, collapsible group cards with test rows)
-/// so the page doesn't visibly jump once real data arrives.
+/// Loading placeholder for [TestsListScreen] — mirrors its layout (title,
+/// navy hero with three stats, numbered test-type cards).
 class TestsSkeleton extends StatefulWidget {
   const TestsSkeleton({super.key});
 
@@ -39,146 +30,36 @@ class _TestsSkeletonState extends State<TestsSkeleton>
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: _DS.background,
-      child: Column(
-        children: [
-          _HeaderSkeleton(controller: _ctrl),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              children: [
-                _GroupCardSkeleton(controller: _ctrl, rowCount: 2),
-                const SizedBox(height: 14),
-                _GroupCardSkeleton(controller: _ctrl, rowCount: 3),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Header (title + count + search bar) on solid navy ──────────────────
-class _HeaderSkeleton extends StatelessWidget {
-  final AnimationController controller;
-  const _HeaderSkeleton({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _DS.primary,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ShimmerBox(controller: controller, width: 150, height: 22, radius: 6, dark: true),
-              const SizedBox(height: 8),
-              _ShimmerBox(controller: controller, width: 120, height: 13, radius: 4, dark: true),
-              const SizedBox(height: 16),
-              _ShimmerBox(
-                controller: controller,
-                width: double.infinity,
-                height: 46,
-                radius: 999,
-                dark: true,
-              ),
-            ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _ShimmerBox(
+            controller: _ctrl,
+            width: 110,
+            height: 22,
+            radius: 6,
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ── Collapsible group card (icon tile + label, then N test rows) ───────
-class _GroupCardSkeleton extends StatelessWidget {
-  final AnimationController controller;
-  final int rowCount;
-  const _GroupCardSkeleton({required this.controller, required this.rowCount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _DS.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _DS.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                _ShimmerBox(controller: controller, width: 40, height: 40, radius: 14),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _ShimmerBox(controller: controller, width: 130, height: 14, radius: 4),
-                      const SizedBox(height: 6),
-                      _ShimmerBox(controller: controller, width: 60, height: 11, radius: 4),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        const SizedBox(height: 18),
+        _ShimmerBox(controller: _ctrl, height: 176, radius: 24, dark: true),
+        const SizedBox(height: 28),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _ShimmerBox(
+            controller: _ctrl,
+            width: 90,
+            height: 14,
+            radius: 4,
           ),
-          const Divider(height: 1, color: _DS.border),
-          for (int i = 0; i < rowCount; i++) ...[
-            if (i > 0) const Divider(height: 1, color: _DS.border),
-            _TestRowSkeleton(controller: controller),
-          ],
+        ),
+        const SizedBox(height: 14),
+        for (var i = 0; i < 4; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          _ShimmerBox(controller: _ctrl, height: 62, radius: 18),
         ],
-      ),
-    );
-  }
-}
-
-// ── Test row (icon tile + badge/title/meta, trailing status/chevron) ───
-class _TestRowSkeleton extends StatelessWidget {
-  final AnimationController controller;
-  const _TestRowSkeleton({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ShimmerBox(controller: controller, width: 40, height: 40, radius: 14),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ShimmerBox(controller: controller, width: 80, height: 9, radius: 3),
-                const SizedBox(height: 6),
-                _ShimmerBox(controller: controller, width: double.infinity, height: 13, radius: 4),
-                const SizedBox(height: 6),
-                _ShimmerBox(controller: controller, width: 150, height: 11, radius: 4),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          _ShimmerBox(controller: controller, width: 60, height: 22, radius: 999),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -202,7 +83,9 @@ class _ShimmerBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final baseColor = dark ? const Color(0xFF2B4A8F) : const Color(0xFFE9ECF1);
-    final highlightColor = dark ? const Color(0xFF3D5FA6) : const Color(0xFFF6F7F9);
+    final highlightColor = dark
+        ? const Color(0xFF3D5FA6)
+        : const Color(0xFFF6F7F9);
 
     return AnimatedBuilder(
       animation: controller,

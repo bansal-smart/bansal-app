@@ -40,8 +40,8 @@ class Enrollment {
     final course = raw is Map<String, dynamic>
         ? raw
         : (raw is List && raw.isNotEmpty)
-            ? raw.first as Map<String, dynamic>?
-            : null;
+        ? raw.first as Map<String, dynamic>?
+        : null;
     return Enrollment(
       id: json['id'] as String,
       userId: json['user_id'] as String,

@@ -7,7 +7,7 @@ class CoursesRepository {
   final SupabaseClient _client;
 
   CoursesRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService.client;
+    : _client = client ?? SupabaseService.client;
 
   static const _courseColumns =
       'id, slug, name, description, subject, educator_name, level, target_exam, '

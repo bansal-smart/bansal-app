@@ -60,10 +60,12 @@ class _EmailSentScreenState extends ConsumerState<EmailSentScreen>
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     );
     _cardSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-        .animate(CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
-    ));
+        .animate(
+          CurvedAnimation(
+            parent: _ctrl,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
     _cardFade = CurvedAnimation(
       parent: _ctrl,
       curve: const Interval(0.3, 0.9, curve: Curves.easeOut),
@@ -78,7 +80,11 @@ class _EmailSentScreenState extends ConsumerState<EmailSentScreen>
   }
 
   Future<void> _resend() async {
-    setState(() { _resending = true; _resendMsg = null; _resendError = null; });
+    setState(() {
+      _resending = true;
+      _resendMsg = null;
+      _resendError = null;
+    });
     try {
       await ref.read(authRepositoryProvider).resendOtp(email: widget.email);
       if (!mounted) return;
@@ -139,25 +145,39 @@ class _HeroDecorations extends StatelessWidget {
   const _HeroDecorations();
   @override
   Widget build(BuildContext context) {
-    return Stack(children: [
-      Positioned(top: -70, right: -50, child: _Circle(size: 220, opacity: 0.10)),
-      Positioned(top: 60, left: -40, child: _Circle(size: 140, opacity: 0.07)),
-      Positioned(top: 20, right: 60, child: _Circle(size: 60, opacity: 0.12)),
-      Positioned(
-        top: 140, right: -20,
-        child: Transform.rotate(
-          angle: math.pi / 6,
-          child: Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.12), width: 2),
-              borderRadius: BorderRadius.circular(16),
+    return Stack(
+      children: [
+        Positioned(
+          top: -70,
+          right: -50,
+          child: _Circle(size: 220, opacity: 0.10),
+        ),
+        Positioned(
+          top: 60,
+          left: -40,
+          child: _Circle(size: 140, opacity: 0.07),
+        ),
+        Positioned(top: 20, right: 60, child: _Circle(size: 60, opacity: 0.12)),
+        Positioned(
+          top: 140,
+          right: -20,
+          child: Transform.rotate(
+            angle: math.pi / 6,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -167,12 +187,13 @@ class _Circle extends StatelessWidget {
   const _Circle({required this.size, required this.opacity});
   @override
   Widget build(BuildContext context) => Container(
-        width: size, height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: opacity),
-        ),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Colors.white.withValues(alpha: opacity),
+    ),
+  );
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
@@ -186,22 +207,31 @@ class _HeroSection extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 76, height: 76,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.25), width: 1.5),
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
             ),
-            child: const Icon(Icons.mark_email_read_rounded,
-                size: 40, color: Colors.white),
+            child: const Icon(
+              Icons.mark_email_read_rounded,
+              size: 40,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: _DS.s20),
           const Text(
             'Check Your Email',
             style: TextStyle(
-              fontSize: 28, fontWeight: FontWeight.w800,
-              color: Colors.white, letterSpacing: -0.5, height: 1.2,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              height: 1.2,
             ),
             textAlign: TextAlign.center,
           ),
@@ -209,9 +239,10 @@ class _HeroSection extends StatelessWidget {
           Text(
             'We sent a sign-in link to your inbox',
             style: TextStyle(
-                fontSize: 14.5,
-                color: Colors.white.withValues(alpha: 0.80),
-                height: 1.5),
+              fontSize: 14.5,
+              color: Colors.white.withValues(alpha: 0.80),
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -255,61 +286,84 @@ class _Card extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Header ──
-            Row(children: [
-              Container(
-                width: 4, height: 28,
-                decoration: BoxDecoration(
-                  color: _DS.primary,
-                  borderRadius: BorderRadius.circular(4),
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: _DS.primary,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              ),
-              const SizedBox(width: _DS.s12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Email on its way!',
+                const SizedBox(width: _DS.s12),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Email on its way!',
                       style: TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.w800,
-                          color: _DS.textPrimary, letterSpacing: -0.3)),
-                  Text('Follow the link inside to sign in',
-                      style: TextStyle(fontSize: 12.5, color: _DS.textSecondary)),
-                ],
-              ),
-            ]),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _DS.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      'Follow the link inside to sign in',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: _DS.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
             const SizedBox(height: _DS.s24),
 
             // ── Email address pill ──
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: _DS.s16, vertical: _DS.s12),
+                horizontal: _DS.s16,
+                vertical: _DS.s12,
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFFE8EDF9),
                 borderRadius: BorderRadius.circular(_DS.radiusMd),
                 border: Border.all(
-                    color: _DS.primary.withValues(alpha: 0.25), width: 1.2),
-              ),
-              child: Row(children: [
-                const Icon(Icons.mail_outline_rounded,
-                    color: _DS.primary, size: 18),
-                const SizedBox(width: _DS.s8),
-                Expanded(
-                  child: Text(email,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600,
-                          color: _DS.primary),
-                      overflow: TextOverflow.ellipsis),
+                  color: _DS.primary.withValues(alpha: 0.25),
+                  width: 1.2,
                 ),
-              ]),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.mail_outline_rounded,
+                    color: _DS.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: _DS.s8),
+                  Expanded(
+                    child: Text(
+                      email,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _DS.primary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: _DS.s20),
 
             // ── Instructions ──
-            _Instruction(
-              number: '1',
-              text: 'Open your Gmail app or inbox',
-            ),
+            _Instruction(number: '1', text: 'Open your Gmail app or inbox'),
             const SizedBox(height: _DS.s12),
             _Instruction(
               number: '2',
@@ -340,17 +394,26 @@ class _Card extends StatelessWidget {
                 foregroundColor: _DS.primary,
                 side: const BorderSide(color: _DS.primary, width: 1.5),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(_DS.radiusMd)),
+                  borderRadius: BorderRadius.circular(_DS.radiusMd),
+                ),
                 minimumSize: const Size.fromHeight(50),
               ),
               child: resending
                   ? const SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: _DS.primary))
-                  : const Text('Resend Email',
+                        strokeWidth: 2.5,
+                        color: _DS.primary,
+                      ),
+                    )
+                  : const Text(
+                      'Resend Email',
                       style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700)),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
 
             const SizedBox(height: _DS.s16),
@@ -362,8 +425,10 @@ class _Card extends StatelessWidget {
                 foregroundColor: _DS.textSecondary,
                 minimumSize: const Size.fromHeight(44),
               ),
-              child: const Text('Back to Login',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              child: const Text(
+                'Back to Login',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -379,27 +444,42 @@ class _Instruction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(
-        width: 26, height: 26,
-        decoration: const BoxDecoration(
-            color: Color(0xFFE8EDF9), shape: BoxShape.circle),
-        alignment: Alignment.center,
-        child: Text(number,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE8EDF9),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
             style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w800,
-                color: _DS.primary)),
-      ),
-      const SizedBox(width: _DS.s12),
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Text(text,
-              style: const TextStyle(
-                  fontSize: 14, color: _DS.textPrimary, height: 1.4)),
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: _DS.primary,
+            ),
+          ),
         ),
-      ),
-    ]);
+        const SizedBox(width: _DS.s12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: _DS.textPrimary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -412,29 +492,38 @@ class _Banner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: _DS.s16, vertical: _DS.s12),
+        horizontal: _DS.s16,
+        vertical: _DS.s12,
+      ),
       decoration: BoxDecoration(
         color: isError ? _DS.errorSurface : _DS.successSurface,
         borderRadius: BorderRadius.circular(_DS.radiusSm),
         border: Border.all(
-            color: (isError ? _DS.error : _DS.success).withValues(alpha: 0.3)),
+          color: (isError ? _DS.error : _DS.success).withValues(alpha: 0.3),
+        ),
       ),
-      child: Row(children: [
-        Icon(
-          isError
-              ? Icons.error_outline_rounded
-              : Icons.check_circle_outline_rounded,
-          color: isError ? _DS.error : _DS.success,
-          size: 18,
-        ),
-        const SizedBox(width: _DS.s8),
-        Expanded(
-          child: Text(message,
+      child: Row(
+        children: [
+          Icon(
+            isError
+                ? Icons.error_outline_rounded
+                : Icons.check_circle_outline_rounded,
+            color: isError ? _DS.error : _DS.success,
+            size: 18,
+          ),
+          const SizedBox(width: _DS.s8),
+          Expanded(
+            child: Text(
+              message,
               style: TextStyle(
-                  color: isError ? _DS.error : _DS.success,
-                  fontSize: 13, fontWeight: FontWeight.w500)),
-        ),
-      ]),
+                color: isError ? _DS.error : _DS.success,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

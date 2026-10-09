@@ -12,9 +12,8 @@ class OfflineBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(connectivityStatusProvider);
-    final isOffline = statusAsync.whenOrNull(
-          data: (s) => s == ConnectivityStatus.offline,
-        ) ??
+    final isOffline =
+        statusAsync.whenOrNull(data: (s) => s == ConnectivityStatus.offline) ??
         false;
 
     return Column(

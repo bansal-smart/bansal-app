@@ -39,7 +39,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({super.key, this.source = 'forgot'});
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen>
@@ -61,11 +62,25 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _heroFade = CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _heroFade = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    );
     _cardSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic)));
-    _cardFade = CurvedAnimation(parent: _ctrl, curve: const Interval(0.3, 0.9, curve: Curves.easeOut));
+        .animate(
+          CurvedAnimation(
+            parent: _ctrl,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
+    _cardFade = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.3, 0.9, curve: Curves.easeOut),
+    );
     _ctrl.forward();
     // Pre-fill password from signup form so student doesn't retype it
     if (widget.source == 'signup') {
@@ -89,7 +104,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen>
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await ref.read(authRepositoryProvider).updatePassword(_passwordCtrl.text);
       ref.read(authRepositoryProvider).pendingPassword = null;
@@ -151,8 +169,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen>
                       obscurePassword: _obscurePassword,
                       obscureConfirm: _obscureConfirm,
                       isSignup: widget.source == 'signup',
-                      onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-                      onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                      onTogglePassword: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      onToggleConfirm: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
                       onSubmit: _loading ? null : _submit,
                     ),
                   ),
@@ -170,24 +190,39 @@ class _HeroDecorations extends StatelessWidget {
   const _HeroDecorations();
   @override
   Widget build(BuildContext context) {
-    return Stack(children: [
-      Positioned(top: -70, right: -50, child: _Circle(size: 220, opacity: 0.10)),
-      Positioned(top: 60, left: -40, child: _Circle(size: 140, opacity: 0.07)),
-      Positioned(top: 20, right: 60, child: _Circle(size: 60, opacity: 0.12)),
-      Positioned(
-        top: 140, right: -20,
-        child: Transform.rotate(
-          angle: math.pi / 6,
-          child: Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 2),
-              borderRadius: BorderRadius.circular(16),
+    return Stack(
+      children: [
+        Positioned(
+          top: -70,
+          right: -50,
+          child: _Circle(size: 220, opacity: 0.10),
+        ),
+        Positioned(
+          top: 60,
+          left: -40,
+          child: _Circle(size: 140, opacity: 0.07),
+        ),
+        Positioned(top: 20, right: 60, child: _Circle(size: 60, opacity: 0.12)),
+        Positioned(
+          top: 140,
+          right: -20,
+          child: Transform.rotate(
+            angle: math.pi / 6,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -197,7 +232,8 @@ class _Circle extends StatelessWidget {
   const _Circle({required this.size, required this.opacity});
   @override
   Widget build(BuildContext context) => Container(
-    width: size, height: size,
+    width: size,
+    height: size,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: Colors.white.withValues(alpha: opacity),
@@ -216,18 +252,32 @@ class _HeroSection extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 76, height: 76,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
             ),
-            child: const Icon(Icons.lock_open_rounded, size: 40, color: Colors.white),
+            child: const Icon(
+              Icons.lock_open_rounded,
+              size: 40,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: _DS.s20),
           Text(
             isSignup ? 'Create Password' : 'Reset Password',
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5, height: 1.2),
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              height: 1.2,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: _DS.s8),
@@ -235,7 +285,11 @@ class _HeroSection extends StatelessWidget {
             isSignup
                 ? 'Set a password to secure\nyour Bansal account.'
                 : 'Your identity is verified.\nSet a strong new password.',
-            style: TextStyle(fontSize: 14.5, color: Colors.white.withValues(alpha: 0.80), height: 1.5),
+            style: TextStyle(
+              fontSize: 14.5,
+              color: Colors.white.withValues(alpha: 0.80),
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -289,20 +343,40 @@ class _FormCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(children: [
-                Container(width: 4, height: 28,
-                  decoration: BoxDecoration(color: _DS.primary, borderRadius: BorderRadius.circular(4)),
-                ),
-                const SizedBox(width: _DS.s12),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(isSignup ? 'Create Password' : 'New Password',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _DS.textPrimary, letterSpacing: -0.3),
+              Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: _DS.primary,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
-                  Text('Must be at least 8 characters',
-                    style: TextStyle(fontSize: 12.5, color: _DS.textSecondary),
+                  const SizedBox(width: _DS.s12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isSignup ? 'Create Password' : 'New Password',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: _DS.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      Text(
+                        'Must be at least 8 characters',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: _DS.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                ]),
-              ]),
+                ],
+              ),
 
               const SizedBox(height: _DS.s28),
 
@@ -314,34 +388,69 @@ class _FormCard extends StatelessWidget {
                   if (v == null || v.length < 8) return 'Minimum 8 characters';
                   return null;
                 },
-                style: const TextStyle(fontSize: 15, color: _DS.textPrimary, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: _DS.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
                 decoration: InputDecoration(
                   labelText: 'New Password',
                   hintText: '••••••••',
-                  labelStyle: const TextStyle(color: _DS.textSecondary, fontSize: 14),
+                  labelStyle: const TextStyle(
+                    color: _DS.textSecondary,
+                    fontSize: 14,
+                  ),
                   hintStyle: const TextStyle(color: _DS.textHint, fontSize: 14),
                   prefixIcon: const Padding(
                     padding: EdgeInsets.only(left: _DS.s4),
-                    child: Icon(Icons.lock_outline_rounded, size: 20, color: _DS.textSecondary),
+                    child: Icon(
+                      Icons.lock_outline_rounded,
+                      size: 20,
+                      color: _DS.textSecondary,
+                    ),
                   ),
                   suffixIcon: GestureDetector(
                     onTap: onTogglePassword,
                     child: Padding(
                       padding: const EdgeInsets.all(_DS.s12),
                       child: Icon(
-                        obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        size: 20, color: _DS.textSecondary,
+                        obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                        color: _DS.textSecondary,
                       ),
                     ),
                   ),
                   filled: true,
                   fillColor: _DS.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: _DS.s16, vertical: _DS.s16),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border, width: 1.2)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.primary, width: 1.8)),
-                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.error, width: 1.2)),
-                  focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.error, width: 1.8)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: _DS.s16,
+                    vertical: _DS.s16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.border, width: 1.2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(
+                      color: _DS.primary,
+                      width: 1.8,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.error, width: 1.2),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.error, width: 1.8),
+                  ),
                   errorStyle: const TextStyle(color: _DS.error, fontSize: 12),
                 ),
               ),
@@ -353,38 +462,74 @@ class _FormCard extends StatelessWidget {
                 controller: confirmCtrl,
                 obscureText: obscureConfirm,
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Please confirm your password';
+                  if (v == null || v.isEmpty)
+                    return 'Please confirm your password';
                   if (v != passwordCtrl.text) return 'Passwords do not match';
                   return null;
                 },
-                style: const TextStyle(fontSize: 15, color: _DS.textPrimary, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: _DS.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Confirm Password',
                   hintText: '••••••••',
-                  labelStyle: const TextStyle(color: _DS.textSecondary, fontSize: 14),
+                  labelStyle: const TextStyle(
+                    color: _DS.textSecondary,
+                    fontSize: 14,
+                  ),
                   hintStyle: const TextStyle(color: _DS.textHint, fontSize: 14),
                   prefixIcon: const Padding(
                     padding: EdgeInsets.only(left: _DS.s4),
-                    child: Icon(Icons.lock_outline_rounded, size: 20, color: _DS.textSecondary),
+                    child: Icon(
+                      Icons.lock_outline_rounded,
+                      size: 20,
+                      color: _DS.textSecondary,
+                    ),
                   ),
                   suffixIcon: GestureDetector(
                     onTap: onToggleConfirm,
                     child: Padding(
                       padding: const EdgeInsets.all(_DS.s12),
                       child: Icon(
-                        obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        size: 20, color: _DS.textSecondary,
+                        obscureConfirm
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                        color: _DS.textSecondary,
                       ),
                     ),
                   ),
                   filled: true,
                   fillColor: _DS.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: _DS.s16, vertical: _DS.s16),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.border, width: 1.2)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.primary, width: 1.8)),
-                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.error, width: 1.2)),
-                  focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(_DS.radiusMd), borderSide: const BorderSide(color: _DS.error, width: 1.8)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: _DS.s16,
+                    vertical: _DS.s16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.border, width: 1.2),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(
+                      color: _DS.primary,
+                      width: 1.8,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.error, width: 1.2),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(_DS.radiusMd),
+                    borderSide: const BorderSide(color: _DS.error, width: 1.8),
+                  ),
                   errorStyle: const TextStyle(color: _DS.error, fontSize: 12),
                 ),
               ),
@@ -402,14 +547,32 @@ class _FormCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      const Icon(Icons.info_outline_rounded, size: 14, color: _DS.success),
-                      const SizedBox(width: _DS.s8),
-                      Text('Password tips', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _DS.success)),
-                    ]),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 14,
+                          color: _DS.success,
+                        ),
+                        const SizedBox(width: _DS.s8),
+                        Text(
+                          'Password tips',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _DS.success,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: _DS.s4),
-                    Text('• At least 8 characters\n• Mix of letters and numbers recommended',
-                      style: TextStyle(fontSize: 11.5, color: _DS.success, height: 1.6),
+                    Text(
+                      '• At least 8 characters\n• Mix of letters and numbers recommended',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: _DS.success,
+                        height: 1.6,
+                      ),
                     ),
                   ],
                 ),
@@ -419,17 +582,35 @@ class _FormCard extends StatelessWidget {
 
               if (error != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: _DS.s16, vertical: _DS.s12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _DS.s16,
+                    vertical: _DS.s12,
+                  ),
                   decoration: BoxDecoration(
                     color: _DS.errorSurface,
                     borderRadius: BorderRadius.circular(_DS.radiusSm),
                     border: Border.all(color: _DS.error.withValues(alpha: 0.3)),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.error_outline_rounded, color: _DS.error, size: 18),
-                    const SizedBox(width: _DS.s8),
-                    Expanded(child: Text(error!, style: const TextStyle(color: _DS.error, fontSize: 13, fontWeight: FontWeight.w500))),
-                  ]),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: _DS.error,
+                        size: 18,
+                      ),
+                      const SizedBox(width: _DS.s8),
+                      Expanded(
+                        child: Text(
+                          error!,
+                          style: const TextStyle(
+                            color: _DS.error,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: _DS.s16),
               ],
@@ -439,15 +620,23 @@ class _FormCard extends StatelessWidget {
                 height: 54,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: onSubmit == null ? null : const LinearGradient(
-                      colors: [Color(0xFF2B5BB8), _DS.primary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    gradient: onSubmit == null
+                        ? null
+                        : const LinearGradient(
+                            colors: [Color(0xFF2B5BB8), _DS.primary],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                     borderRadius: BorderRadius.circular(_DS.radiusMd),
-                    boxShadow: onSubmit == null ? [] : [
-                      BoxShadow(color: _DS.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6)),
-                    ],
+                    boxShadow: onSubmit == null
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: _DS.primary.withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                   ),
                   child: ElevatedButton(
                     onPressed: onSubmit,
@@ -456,11 +645,27 @@ class _FormCard extends StatelessWidget {
                       shadowColor: Colors.transparent,
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: _DS.border,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_DS.radiusMd)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(_DS.radiusMd),
+                      ),
                     ),
                     child: loading
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                        : Text(isSignup ? 'Create Password' : 'Update Password', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            isSignup ? 'Create Password' : 'Update Password',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
                   ),
                 ),
               ),

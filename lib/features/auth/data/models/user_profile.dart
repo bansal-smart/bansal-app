@@ -2,8 +2,8 @@ import 'package:equatable/equatable.dart';
 
 class UserProfile extends Equatable {
   // Representation of the profiles table.
-  final String id;       // profiles.id (PK)
-  final String userId;   // profiles.user_id (auth UID)
+  final String id; // profiles.id (PK)
+  final String userId; // profiles.user_id (auth UID)
   final String? fullName;
   final String? email;
   final String? phone;
@@ -97,8 +97,12 @@ class UserProfile extends Equatable {
     goal: goal ?? this.goal,
     avatarUrl: avatarUrl ?? this.avatarUrl,
     schoolId: schoolId == _sentinel ? this.schoolId : schoolId as String?,
-    classLevel: classLevel == _sentinel ? this.classLevel : classLevel as String?,
-    targetExam: targetExam == _sentinel ? this.targetExam : targetExam as String?,
+    classLevel: classLevel == _sentinel
+        ? this.classLevel
+        : classLevel as String?,
+    targetExam: targetExam == _sentinel
+        ? this.targetExam
+        : targetExam as String?,
     fatherName: fatherName ?? this.fatherName,
     parentPhone: parentPhone ?? this.parentPhone,
     rollNumber: rollNumber,

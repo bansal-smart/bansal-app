@@ -1,4 +1,7 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../widgets/app_background.dart';
 import 'colors.dart';
 import 'typography.dart';
 
@@ -14,14 +17,33 @@ ThemeData buildLightTheme() {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: AppColors.background,
+    // Transparent: every page route paints AppBackground underneath.
+    scaffoldBackgroundColor: Colors.transparent,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: BackgroundPageTransitionsBuilder(
+          PredictiveBackPageTransitionsBuilder(),
+        ),
+        TargetPlatform.iOS: BackgroundPageTransitionsBuilder(
+          CupertinoPageTransitionsBuilder(),
+        ),
+      },
+    ),
+    fontFamily: GoogleFonts.inter().fontFamily,
     textTheme: AppTypography.build(),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
-      foregroundColor: AppColors.navy,
-      elevation: 2,
-      scrolledUnderElevation: 2,
+    // Transparent so the AppBackground circles show behind app bars.
+    appBarTheme: AppBarTheme(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      foregroundColor: AppColors.ink,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
+      titleTextStyle: GoogleFonts.inter(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: AppColors.ink,
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -63,7 +85,10 @@ ThemeData buildLightTheme() {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: AppColors.primaryLight,
-      labelStyle: const TextStyle(color: AppColors.navy, fontWeight: FontWeight.w600),
+      labelStyle: const TextStyle(
+        color: AppColors.navy,
+        fontWeight: FontWeight.w600,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       side: BorderSide.none,
     ),
@@ -75,7 +100,11 @@ ThemeData buildLightTheme() {
         side: const BorderSide(color: AppColors.border),
       ),
     ),
-    dividerTheme: const DividerThemeData(color: AppColors.border, space: 1, thickness: 1),
+    dividerTheme: const DividerThemeData(
+      color: AppColors.border,
+      space: 1,
+      thickness: 1,
+    ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
       selectedItemColor: AppColors.primary,

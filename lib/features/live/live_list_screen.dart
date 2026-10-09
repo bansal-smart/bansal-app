@@ -79,7 +79,7 @@ class LiveListScreen extends ConsumerWidget {
           statusBarIconBrightness: Brightness.dark,
         ),
         child: Scaffold(
-          backgroundColor: DS.background,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: async.when(
               loading: () => const _LoadingState(),
@@ -114,7 +114,10 @@ class LiveListScreen extends ConsumerWidget {
                       DS.s32,
                     ),
                     children: [
-                      _LiveHero(liveCount: live.length, upcomingCount: upcoming.length),
+                      _LiveHero(
+                        liveCount: live.length,
+                        upcomingCount: upcoming.length,
+                      ),
 
                       if (live.isNotEmpty) ...[
                         const SizedBox(height: DS.s24),
@@ -341,7 +344,11 @@ class _LiveNowCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Positioned(top: DS.s10, left: DS.s10, child: _LiveBadge()),
+                  const Positioned(
+                    top: DS.s10,
+                    left: DS.s10,
+                    child: _LiveBadge(),
+                  ),
                 ],
               ),
             ),
@@ -401,7 +408,10 @@ class _LiveNowCard extends StatelessWidget {
                       icon: const Icon(Icons.play_arrow_rounded, size: 14),
                       label: const Text(
                         'Join Now',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -422,7 +432,8 @@ class _LiveBadge extends StatefulWidget {
   State<_LiveBadge> createState() => _LiveBadgeState();
 }
 
-class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMixin {
+class _LiveBadgeState extends State<_LiveBadge>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _blink;
 
@@ -433,8 +444,10 @@ class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMi
       vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _blink = Tween<double>(begin: 0.4, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _blink = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -459,7 +472,10 @@ class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMi
             child: Container(
               width: 5,
               height: 5,
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
           const SizedBox(width: DS.s4),
@@ -525,7 +541,11 @@ class _UpcomingRow extends StatelessWidget {
                 gradient: LinearGradient(colors: colors),
                 borderRadius: BorderRadius.circular(DS.radiusMd),
               ),
-              child: const Icon(Icons.videocam_rounded, color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.videocam_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             const SizedBox(width: DS.s12),
             Expanded(
@@ -547,13 +567,20 @@ class _UpcomingRow extends StatelessWidget {
                     '${lc.educatorName} · ${lc.subject}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: DS.textSecondary, fontSize: 12),
+                    style: const TextStyle(
+                      color: DS.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: DS.s4),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.calendar_today_rounded, size: 11, color: DS.textHint),
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        size: 11,
+                        color: DS.textHint,
+                      ),
                       const SizedBox(width: DS.s4),
                       Text(
                         _formatDate(lc.startsAt),
@@ -585,8 +612,18 @@ class _UpcomingRow extends StatelessWidget {
     if (diffDays == 0) return 'Today, $h:$m';
     if (diffDays == 1) return 'Tomorrow, $h:$m';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[local.month - 1]} ${local.day}, $h:$m';
   }

@@ -268,13 +268,12 @@ class _NotificationsInboxScreenState
     final visible = switch (_filter) {
       _Filter.all => all,
       _Filter.unread => all.where((n) => !n.isRead).toList(),
-      _Filter.classes || _Filter.courses => all
-          .where(
-            (n) => n.type.toLowerCase().contains(
-              _kFilterTypeMatch[_filter]!,
-            ),
-          )
-          .toList(),
+      _Filter.classes || _Filter.courses =>
+        all
+            .where(
+              (n) => n.type.toLowerCase().contains(_kFilterTypeMatch[_filter]!),
+            )
+            .toList(),
     };
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -283,13 +282,14 @@ class _NotificationsInboxScreenState
         statusBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: Column(
             children: [
-              _TopBar(onBack: () => context.canPop()
-                  ? context.pop()
-                  : context.go('/home')),
+              _TopBar(
+                onBack: () =>
+                    context.canPop() ? context.pop() : context.go('/home'),
+              ),
               _Header(
                 unreadCount: unreadCount,
                 onMarkAll: unreadCount > 0
@@ -309,10 +309,7 @@ class _NotificationsInboxScreenState
                 child: async.when(
                   loading: () => const NotificationSkeleton(),
                   error: (e, _) => _ErrorState(onRetry: notifier.refresh),
-                  data: (_) => _NotifList(
-                    items: visible,
-                    notifier: notifier,
-                  ),
+                  data: (_) => _NotifList(items: visible, notifier: notifier),
                 ),
               ),
             ],
@@ -337,10 +334,7 @@ class _TopBar extends StatelessWidget {
         color: DS.surface,
         border: Border(bottom: BorderSide(color: DS.border, width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: DS.s16,
-        vertical: DS.s10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: DS.s16, vertical: DS.s10),
       child: Row(
         children: [
           Expanded(
@@ -405,10 +399,7 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   unreadCount > 0 ? '$unreadCount unread' : 'All caught up',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: DS.textSecondary,
-                  ),
+                  style: const TextStyle(fontSize: 13, color: DS.textSecondary),
                 ),
               ],
             ),
@@ -531,8 +522,18 @@ class _NotifList extends StatelessWidget {
 
   static String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${d.day} ${months[d.month - 1]}';
   }
@@ -712,10 +713,7 @@ class _NotifCard extends StatelessWidget {
                     const SizedBox(height: DS.s6),
                     Text(
                       _timeOfDay(notification.createdAt),
-                      style: const TextStyle(
-                        color: DS.textHint,
-                        fontSize: 11,
-                      ),
+                      style: const TextStyle(color: DS.textHint, fontSize: 11),
                     ),
                   ],
                 ),

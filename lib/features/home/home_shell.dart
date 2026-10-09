@@ -2,42 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../auth/data/auth_repository.dart';
 import '../profile/data/profile_providers.dart';
 import '../../core/providers.dart';
-
-// ─────────────────────────────────────────────
-// 💡 Move DS to lib/core/theme/design_system.dart
-// ─────────────────────────────────────────────
-abstract class DS {
-  static const primary = Color(0xFF193F8F);
-  static const primaryLight = Color(0xFFE8EDF9);
-  static const primaryDark = Color(0xFF102A63);
-
-  static const background = Color(0xFFFFFBF8);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceVariant = Color(0xFFF9FAFB);
-
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textHint = Color(0xFFD1D5DB);
-  static const border = Color(0xFFE5E7EB);
-
-  static const double s4 = 4;
-  static const double s6 = 6;
-  static const double s8 = 8;
-  static const double s10 = 10;
-  static const double s12 = 12;
-  static const double s14 = 14;
-  static const double s16 = 16;
-  static const double s20 = 20;
-  static const double s24 = 24;
-
-  static const double radiusSm = 10;
-  static const double radiusMd = 14;
-  static const double radiusLg = 20;
-  static const double radiusXl = 28;
-}
+import '../../core/theme/colors.dart';
+import '../../core/widgets/app_background.dart';
 
 // ─────────────────────────────────────────────
 // HOME SHELL
@@ -56,36 +26,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static const _tabs = [
-    (
-      route: '/home',
-      iconOff: Icons.home_outlined,
-      iconOn: Icons.home_rounded,
-      label: 'Home',
-    ),
-    (
-      route: '/courses',
-      iconOff: Icons.menu_book_outlined,
-      iconOn: Icons.menu_book_rounded,
-      label: 'Course',
-    ),
-    (
-      route: '/store',
-      iconOff: Icons.storefront_outlined,
-      iconOn: Icons.storefront_rounded,
-      label: 'Store',
-    ),
-    (
-      route: '/tests',
-      iconOff: Icons.assignment_outlined,
-      iconOn: Icons.assignment_rounded,
-      label: 'Tests',
-    ),
-    (
-      route: '/profile',
-      iconOff: Icons.person_outline,
-      iconOn: Icons.person_rounded,
-      label: 'Profile',
-    ),
+    (route: '/home', icon: LucideIcons.house, label: 'Home'),
+    (route: '/courses', icon: LucideIcons.bookOpen, label: 'Learn'),
+    (route: '/tests', icon: LucideIcons.clipboardList, label: 'Tests'),
+    (route: '/store', icon: LucideIcons.archive, label: 'Store'),
+    (route: '/profile', icon: LucideIcons.user, label: 'Profile'),
   ];
 
   int get _index => _tabs
@@ -127,30 +72,32 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             context.go('/home');
           }
         },
-        child: Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: DS.background,
+        child: AppBackground(
+          child: Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: Colors.transparent,
 
-          // ── Top App Bar ──
-          appBar: _AppBar(
-            initials: initials,
-            avatarUrl: avatarUrl,
-            onNotifications: () => context.push('/notifications'),
-            onOpenDrawer: () {
-              if (widget.location != '/profile') context.go('/profile');
-            },
-          ),
+            // ── Top App Bar ──
+            appBar: _AppBar(
+              initials: initials,
+              avatarUrl: avatarUrl,
+              onNotifications: () => context.push('/notifications'),
+              onOpenDrawer: () {
+                if (widget.location != '/profile') context.go('/profile');
+              },
+            ),
 
-          body: widget.child,
+            body: widget.child,
 
-          // ── Bottom Navigation ──
-          bottomNavigationBar: _BottomNav(
-            currentIndex: currentIdx,
-            onTap: (i) {
-              HapticFeedback.selectionClick();
-              context.go(_tabs[i].route);
-            },
-            tabs: _tabs,
+            // ── Bottom Navigation ──
+            bottomNavigationBar: _BottomNav(
+              currentIndex: currentIdx,
+              onTap: (i) {
+                HapticFeedback.selectionClick();
+                context.go(_tabs[i].route);
+              },
+              tabs: _tabs,
+            ),
           ),
         ),
       ),
@@ -159,7 +106,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 }
 
 // ─────────────────────────────────────────────
-// CUSTOM APP BAR
+// CUSTOM APP BAR (sits directly on the background)
 // ─────────────────────────────────────────────
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final String initials;
@@ -175,51 +122,35 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => const Size.fromHeight(68);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: DS.surface,
-        border: Border(bottom: BorderSide(color: DS.border, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DS.s16,
-            vertical: DS.s10,
-          ),
-          child: Row(
-            children: [
-              // ── Logo ──
-              Expanded(
-                child: Image.asset(
-                  'assets/images/bansal-logo.webp',
-                  height: 34,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerLeft,
-                ),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+        child: Row(
+          children: [
+            // ── Logo ──
+            Expanded(
+              child: Image.asset(
+                'assets/images/bansal-logo.webp',
+                height: 30,
+                fit: BoxFit.contain,
+                alignment: Alignment.centerLeft,
               ),
+            ),
 
-              // ── Action buttons ──
-              _NotificationButton(onTap: onNotifications),
-              const SizedBox(width: DS.s8),
-              _AvatarButton(
-                initials: initials,
-                avatarUrl: avatarUrl,
-                onTap: onOpenDrawer,
-              ),
-            ],
-          ),
+            // ── Action buttons ──
+            _NotificationButton(onTap: onNotifications),
+            const SizedBox(width: 14),
+            _AvatarButton(
+              initials: initials,
+              avatarUrl: avatarUrl,
+              onTap: onOpenDrawer,
+            ),
+          ],
         ),
       ),
     );
@@ -227,7 +158,7 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 // ─────────────────────────────────────────────
-// AVATAR BUTTON (opens dashboard drawer)
+// AVATAR BUTTON (opens dashboard)
 // ─────────────────────────────────────────────
 class _AvatarButton extends StatelessWidget {
   final String initials;
@@ -239,6 +170,8 @@ class _AvatarButton extends StatelessWidget {
     required this.onTap,
   });
 
+  static const double _size = 46;
+
   @override
   Widget build(BuildContext context) {
     final hasImage = avatarUrl != null && avatarUrl!.isNotEmpty;
@@ -247,19 +180,19 @@ class _AvatarButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 38,
-          height: 38,
+          width: _size,
+          height: _size,
           clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(
-            color: DS.primary,
+            color: AppColors.primary,
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
           child: hasImage
               ? Image.network(
                   avatarUrl!,
-                  width: 38,
-                  height: 38,
+                  width: _size,
+                  height: _size,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => _InitialsText(initials),
                   loadingBuilder: (context, child, progress) {
@@ -284,15 +217,15 @@ class _InitialsText extends StatelessWidget {
       initials,
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 13,
-        fontWeight: FontWeight.w800,
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────
-// NOTIFICATION BUTTON (with badge)
+// NOTIFICATION BUTTON
 // ─────────────────────────────────────────────
 class _NotificationButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -300,44 +233,10 @@ class _NotificationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Notifications',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: DS.surfaceVariant,
-                borderRadius: BorderRadius.circular(DS.radiusSm),
-                border: Border.all(color: DS.border, width: 1),
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                size: 18,
-                color: DS.textSecondary,
-              ),
-            ),
-            // Unread dot badge
-            Positioned(
-              top: -2,
-              right: -2,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: DS.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: DS.surface, width: 1.5),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return IconButton(
+      tooltip: 'Notifications',
+      onPressed: onTap,
+      icon: const Icon(LucideIcons.bell, size: 26, color: AppColors.ink),
     );
   }
 }
@@ -348,8 +247,7 @@ class _NotificationButton extends StatelessWidget {
 class _BottomNav extends StatelessWidget {
   final int currentIndex;
   final void Function(int) onTap;
-  final List<({String route, IconData iconOff, IconData iconOn, String label})>
-  tabs;
+  final List<({String route, IconData icon, String label})> tabs;
 
   const _BottomNav({
     required this.currentIndex,
@@ -361,110 +259,33 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: DS.surface,
-        border: Border(top: BorderSide(color: DS.border, width: 1)),
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 60,
+          height: 72,
           child: Row(
             children: List.generate(tabs.length, (i) {
               final tab = tabs[i];
-              final isActive = i == currentIndex;
               return Expanded(
-                child: i == 2
-                    ? _RaisedStoreNavItem(
-                        icon: isActive ? tab.iconOn : tab.iconOff,
-                        label: tab.label,
-                        isActive: isActive,
-                        onTap: () => onTap(i),
-                      )
-                    : _NavItem(
-                        icon: isActive ? tab.iconOn : tab.iconOff,
-                        label: tab.label,
-                        isActive: isActive,
-                        isLive: false,
-                        onTap: () => onTap(i),
-                      ),
+                child: _NavItem(
+                  icon: tab.icon,
+                  label: tab.label,
+                  isActive: i == currentIndex,
+                  onTap: () => onTap(i),
+                ),
               );
             }),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RaisedStoreNavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _RaisedStoreNavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Positioned(
-            top: -18,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: isActive ? DS.primary : DS.surface,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isActive ? DS.primaryLight : DS.border,
-                  width: 4,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: DS.primary.withValues(alpha: isActive ? 0.28 : 0.12),
-                    blurRadius: 14,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Icon(
-                icon,
-                size: 25,
-                color: isActive ? Colors.white : DS.primary,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 3,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                color: isActive ? DS.primary : DS.textSecondary,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -477,79 +298,53 @@ class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
-  final bool isLive;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
     required this.label,
     required this.isActive,
-    required this.isLive,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon with active pill indicator
-          Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              // Active pill background
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                width: isActive ? 44 : 38,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isActive ? DS.primaryLight : Colors.transparent,
-                  borderRadius: BorderRadius.circular(DS.radiusSm),
-                ),
+    final color = isActive ? AppColors.ink : AppColors.textSoft;
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: 54,
+              height: 38,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.navActive : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
               ),
-
-              // Icon
-              Icon(
-                icon,
-                size: 22,
-                color: isActive ? DS.primary : DS.textSecondary,
-              ),
-
-              // Live pulsing dot
-              if (isLive && !isActive)
-                Positioned(
-                  top: 0,
-                  right: 6,
-                  child: Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          const SizedBox(height: DS.s4),
-
-          // Label
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? DS.primary : DS.textSecondary,
+              child: Icon(icon, size: 22, color: color),
             ),
-            child: Text(label),
-          ),
-        ],
+            const SizedBox(height: 4),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontFamily: DefaultTextStyle.of(context).style.fontFamily,
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
       ),
     );
   }

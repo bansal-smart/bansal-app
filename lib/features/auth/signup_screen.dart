@@ -122,7 +122,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final region = ref.read(regionProvider);
       final repo = ref.read(authRepositoryProvider);
@@ -136,7 +139,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         region: region,
       );
       if (!mounted) return;
-      context.push('/verify-otp?email=${Uri.encodeComponent(_emailCtrl.text.trim())}');
+      context.push(
+        '/verify-otp?email=${Uri.encodeComponent(_emailCtrl.text.trim())}',
+      );
     } catch (e) {
       setState(() => _error = AppException.from(e).userMessage);
     } finally {
@@ -498,7 +503,10 @@ class _FormCard extends StatelessWidget {
                       dropdownColor: DS.surface,
                       decoration: InputDecoration(
                         hintText: 'Code',
-                        hintStyle: const TextStyle(color: DS.textHint, fontSize: 13),
+                        hintStyle: const TextStyle(
+                          color: DS.textHint,
+                          fontSize: 13,
+                        ),
                         filled: true,
                         fillColor: DS.surface,
                         contentPadding: const EdgeInsets.symmetric(
@@ -511,16 +519,34 @@ class _FormCard extends StatelessWidget {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(DS.radiusMd),
-                          borderSide: const BorderSide(color: DS.border, width: 1.2),
+                          borderSide: const BorderSide(
+                            color: DS.border,
+                            width: 1.2,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(DS.radiusMd),
-                          borderSide: const BorderSide(color: DS.primary, width: 1.8),
+                          borderSide: const BorderSide(
+                            color: DS.primary,
+                            width: 1.8,
+                          ),
                         ),
                       ),
                       items: const [
-                        DropdownMenuItem(value: '+91',  child: Text('🇮🇳 +91',  style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem(value: '+971', child: Text('🇦🇪 +971', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(
+                          value: '+91',
+                          child: Text(
+                            '🇮🇳 +91',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: '+971',
+                          child: Text(
+                            '🇦🇪 +971',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
                       ],
                       onChanged: onCountryCodeChanged,
                     ),
@@ -571,9 +597,8 @@ class _FormCard extends StatelessWidget {
                 hint: '••••••••',
                 icon: Icons.lock_outline_rounded,
                 obscure: obscurePassword,
-                validator: (v) => (v == null || v.length < 8)
-                    ? 'Minimum 8 characters'
-                    : null,
+                validator: (v) =>
+                    (v == null || v.length < 8) ? 'Minimum 8 characters' : null,
                 suffix: GestureDetector(
                   onTap: onTogglePassword,
                   child: Padding(

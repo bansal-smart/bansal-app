@@ -15,7 +15,8 @@ class BansalApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       routerConfig: router,
-      builder: (context, child) => OfflineBanner(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          OfflineBanner(child: child ?? const SizedBox.shrink()),
     );
   }
 }

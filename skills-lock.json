@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "shadcn-flutter": {
+      "source": "sunarya-thito/shadcn_flutter",
+      "sourceType": "github",
+      "skillPath": "packages/shadcn_flutter/skills/shadcn-flutter/SKILL.md",
+      "computedHash": "5fb7deca0fd0a6e4476116528f10692829e98c40755382a65c975cd2c3a0b37b"
+    }
+  }
+}

@@ -16,11 +16,11 @@ class CourseSubject {
   });
 
   factory CourseSubject.fromJson(Map<String, dynamic> j) => CourseSubject(
-        id: j['id'] as String,
-        courseId: j['course_id'] as String,
-        name: j['name'] as String? ?? '',
-        icon: j['icon'] as String?,
-        color: j['color'] as String?,
-        position: (j['position'] as num?)?.toInt() ?? 0,
-      );
+    id: j['id'] as String,
+    courseId: j['course_id'] as String,
+    name: j['name'] as String? ?? '',
+    icon: j['icon'] as String?,
+    color: j['color'] as String?,
+    position: (j['position'] as num?)?.toInt() ?? 0,
+  );
 }

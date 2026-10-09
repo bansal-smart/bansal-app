@@ -6,7 +6,9 @@ final enrollmentsRepositoryProvider = Provider<EnrollmentsRepository>((ref) {
   return EnrollmentsRepository();
 });
 
-final enrollmentsProvider = FutureProvider.autoDispose<List<Enrollment>>((ref) async {
+final enrollmentsProvider = FutureProvider.autoDispose<List<Enrollment>>((
+  ref,
+) async {
   final repo = ref.watch(enrollmentsRepositoryProvider);
   return repo.fetchMyEnrollments();
 });

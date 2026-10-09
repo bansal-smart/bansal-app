@@ -42,6 +42,8 @@ final profileStatsProvider = FutureProvider.autoDispose<ProfileStats>((ref) {
   return ref.watch(profileStatsRepositoryProvider).fetchStats();
 });
 
-final recentActivityProvider = FutureProvider.autoDispose<List<ActivityItem>>((ref) {
+final recentActivityProvider = FutureProvider.autoDispose<List<ActivityItem>>((
+  ref,
+) {
   return ref.watch(profileStatsRepositoryProvider).fetchRecentActivity();
 });

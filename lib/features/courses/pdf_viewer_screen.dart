@@ -10,7 +10,11 @@ class PdfViewerScreen extends StatefulWidget {
   final String title;
   final String fileUrl;
 
-  const PdfViewerScreen({super.key, required this.title, required this.fileUrl});
+  const PdfViewerScreen({
+    super.key,
+    required this.title,
+    required this.fileUrl,
+  });
 
   @override
   State<PdfViewerScreen> createState() => _PdfViewerScreenState();
@@ -57,7 +61,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       final idx = url.indexOf(m);
       if (idx != -1) {
         final path = Uri.decodeComponent(
-            url.substring(idx + m.length).split('?').first);
+          url.substring(idx + m.length).split('?').first,
+        );
         return await Supabase.instance.client.storage
             .from(bucket)
             .createSignedUrl(path, 3600);
@@ -76,7 +81,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   }
 
   Future<void> _prepare() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final resolvedUrl = await _resolveUrl();
       _resolvedUrl = resolvedUrl;
@@ -95,9 +103,17 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         ),
       );
 
-      if (mounted) setState(() { _localPath = filePath; _loading = false; });
+      if (mounted)
+        setState(() {
+          _localPath = filePath;
+          _loading = false;
+        });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
     }
   }
 
@@ -105,11 +121,15 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     if (_resolvedUrl == null) return;
     setState(() => _downloading = true);
     try {
-      final dir = await getExternalStorageDirectory() ?? await getTemporaryDirectory();
+      final dir =
+          await getExternalStorageDirectory() ?? await getTemporaryDirectory();
       final safeName = widget.title.replaceAll(RegExp(r'[^a-zA-Z0-9 ]'), '');
       final filePath = '${dir.path}/$safeName.pdf';
-      await buildS3Dio().download(_resolvedUrl!, filePath,
-        options: Options(responseType: ResponseType.bytes));
+      await buildS3Dio().download(
+        _resolvedUrl!,
+        filePath,
+        options: Options(responseType: ResponseType.bytes),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -120,9 +140,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _downloading = false);
@@ -141,7 +161,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         title: Text(
           widget.title,
           style: const TextStyle(
-              fontWeight: FontWeight.w700, color: AppColors.navy, fontSize: 16),
+            fontWeight: FontWeight.w700,
+            color: AppColors.navy,
+            fontSize: 16,
+          ),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
@@ -159,14 +182,23 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
               ? const Padding(
                   padding: EdgeInsets.all(14),
                   child: SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
                   ),
                 )
               : IconButton(
-                  icon: const Icon(Icons.download_rounded, color: AppColors.primary),
+                  icon: const Icon(
+                    Icons.download_rounded,
+                    color: AppColors.primary,
+                  ),
                   tooltip: 'Save PDF',
-                  onPressed: (_loading || _error != null) ? null : _saveToDownloads,
+                  onPressed: (_loading || _error != null)
+                      ? null
+                      : _saveToDownloads,
                 ),
         ],
       ),
@@ -177,48 +209,69 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                 children: [
                   const CircularProgressIndicator(color: AppColors.primary),
                   const SizedBox(height: 16),
-                  Text('Loading PDF...', style: const TextStyle(color: AppColors.muted)),
+                  Text(
+                    'Loading PDF...',
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
                 ],
               ),
             )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.muted),
-                        const SizedBox(height: 12),
-                        const Text('Could not load PDF',
-                            style: TextStyle(color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 16)),
-                        const SizedBox(height: 8),
-                        Text(_error!,
-                            style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                            textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(onPressed: _prepare, child: const Text('Retry')),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.muted,
                     ),
-                  ),
-                )
-              : PDFView(
-                  filePath: _localPath!,
-                  enableSwipe: true,
-                  swipeHorizontal: false,
-                  autoSpacing: true,
-                  pageFling: true,
-                  fitPolicy: FitPolicy.BOTH,
-                  onRender: (pages) {
-                    if (mounted) setState(() => _totalPages = pages ?? 0);
-                  },
-                  onPageChanged: (page, _) {
-                    if (mounted) setState(() => _currentPage = page ?? 0);
-                  },
-                  onError: (e) {
-                    if (mounted) setState(() => _error = e.toString());
-                  },
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Could not load PDF',
+                      style: TextStyle(
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _prepare,
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
+              ),
+            )
+          : PDFView(
+              filePath: _localPath!,
+              enableSwipe: true,
+              swipeHorizontal: false,
+              autoSpacing: true,
+              pageFling: true,
+              fitPolicy: FitPolicy.BOTH,
+              onRender: (pages) {
+                if (mounted) setState(() => _totalPages = pages ?? 0);
+              },
+              onPageChanged: (page, _) {
+                if (mounted) setState(() => _currentPage = page ?? 0);
+              },
+              onError: (e) {
+                if (mounted) setState(() => _error = e.toString());
+              },
+            ),
     );
   }
 }

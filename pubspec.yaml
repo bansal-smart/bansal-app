@@ -1,7 +1,7 @@
 name: bansal
 description: "Bansal EdTech — Android app (Flutter)."
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.10.4
@@ -15,7 +15,7 @@ dependencies:
   supabase_flutter: ^2.5.6
   flutter_dotenv: ^5.1.0
   equatable: ^2.0.5
-  google_fonts: ^6.2.1
+  google_fonts: ^8.2.1
   material_symbols_icons: ^4.2719.3
   cached_network_image: ^3.3.1
   video_player: ^2.9.1
@@ -44,6 +44,9 @@ dependencies:
   fl_chart: ^0.69.0
   pdf: ^3.11.1
   file_saver: ^0.2.14
+  shadcn_flutter: ^0.0.55
+  lucide_icons_flutter: ^3.1.22
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:

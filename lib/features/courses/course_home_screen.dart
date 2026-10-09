@@ -10,20 +10,19 @@ import 'data/models/course_subject.dart';
 import '../enrollments/data/repositories/enrollments_repository.dart';
 import '../../core/error/app_exception.dart';
 
-const _kPrimary      = Color(0xFF193F8F);
+const _kPrimary = Color(0xFF193F8F);
 const _kPrimaryLight = Color(0xFFE8EDF9);
-const _kBg           = Color(0xFFF5F6FA);
-const _kSurface      = Color(0xFFFFFFFF);
-const _kBorder       = Color(0xFFE8EAF0);
-const _kText         = Color(0xFF111827);
-const _kSub          = Color(0xFF6B7280);
-const _kIndigo       = Color(0xFF6366F1);
-const _kIndigoLight  = Color(0xFFEEF2FF);
-const _kGreen        = Color(0xFF10B981);
-const _kGreenLight   = Color(0xFFECFDF5);
-const _kAmber        = Color(0xFFF59E0B);
-const _kAmberLight   = Color(0xFFFFFBEB);
-const _kRed          = Color(0xFFEF4444);
+const _kSurface = Color(0xFFFFFFFF);
+const _kBorder = Color(0xFFE8EAF0);
+const _kText = Color(0xFF111827);
+const _kSub = Color(0xFF6B7280);
+const _kIndigo = Color(0xFF6366F1);
+const _kIndigoLight = Color(0xFFEEF2FF);
+const _kGreen = Color(0xFF10B981);
+const _kGreenLight = Color(0xFFECFDF5);
+const _kAmber = Color(0xFFF59E0B);
+const _kAmberLight = Color(0xFFFFFBEB);
+const _kRed = Color(0xFFEF4444);
 
 // ─────────────────────────────────────────────
 // COURSE HOME SCREEN
@@ -45,7 +44,7 @@ class _CourseHomeScreenState extends ConsumerState<CourseHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final courseAsync   = ref.watch(courseDetailProvider(widget.courseId));
+    final courseAsync = ref.watch(courseDetailProvider(widget.courseId));
     final subjectsAsync = ref.watch(courseSubjectsProvider(widget.courseId));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -54,7 +53,7 @@ class _CourseHomeScreenState extends ConsumerState<CourseHomeScreen> {
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: _kBg,
+        backgroundColor: Colors.transparent,
         body: subjectsAsync.when(
           loading: () => _LoadingState(
             courseName: courseAsync.valueOrNull?.name ?? 'Course',
@@ -182,7 +181,6 @@ class _CourseBody extends StatelessWidget {
                     padding: EdgeInsets.all(32),
                     child: _EmptySubjects(),
                   ),
-
               ],
             ),
           ),
@@ -246,8 +244,7 @@ class _CourseHeader extends StatelessWidget {
               ),
             ),
 
-          if (!hasThumbnail)
-            Positioned.fill(child: _DotPattern()),
+          if (!hasThumbnail) Positioned.fill(child: _DotPattern()),
 
           Padding(
             padding: EdgeInsets.fromLTRB(16, topPad + 8, 16, 20),
@@ -360,7 +357,8 @@ class _DotGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0x0AFFFFFF) // white 4%
+      ..color =
+          const Color(0x0AFFFFFF) // white 4%
       ..style = PaintingStyle.fill;
     const spacing = 24.0;
     for (double x = 0; x < size.width; x += spacing) {
@@ -435,7 +433,12 @@ class _MiniAvatar extends StatelessWidget {
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: Color.fromRGBO(color.r.toInt(), color.g.toInt(), color.b.toInt(), 0.20),
+        color: Color.fromRGBO(
+          color.r.toInt(),
+          color.g.toInt(),
+          color.b.toInt(),
+          0.20,
+        ),
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 1.5),
       ),
@@ -457,10 +460,10 @@ class _ModuleGrid extends StatelessWidget {
   const _ModuleGrid({required this.subjects, required this.courseId});
 
   static const _moduleConfigs = [
-    _ModuleConfig(_kRed,    Color(0xFFFEF2F2)),
+    _ModuleConfig(_kRed, Color(0xFFFEF2F2)),
     _ModuleConfig(_kIndigo, _kIndigoLight),
-    _ModuleConfig(_kAmber,  _kAmberLight),
-    _ModuleConfig(_kGreen,  _kGreenLight),
+    _ModuleConfig(_kAmber, _kAmberLight),
+    _ModuleConfig(_kGreen, _kGreenLight),
   ];
 
   @override
@@ -564,10 +567,7 @@ class _SubjectListTile extends StatelessWidget {
   final CourseSubject subject;
   final VoidCallback onTap;
 
-  const _SubjectListTile({
-    required this.subject,
-    required this.onTap,
-  });
+  const _SubjectListTile({required this.subject, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -631,7 +631,12 @@ class _ExpiryBanner extends StatelessWidget {
         color: isUrgent ? const Color(0xFFFEF2F2) : _kAmberLight,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Color.fromRGBO(accent.r.toInt(), accent.g.toInt(), accent.b.toInt(), 0.30),
+          color: Color.fromRGBO(
+            accent.r.toInt(),
+            accent.g.toInt(),
+            accent.b.toInt(),
+            0.30,
+          ),
           width: 1.2,
         ),
       ),
@@ -641,7 +646,12 @@ class _ExpiryBanner extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Color.fromRGBO(accent.r.toInt(), accent.g.toInt(), accent.b.toInt(), 0.12),
+              color: Color.fromRGBO(
+                accent.r.toInt(),
+                accent.g.toInt(),
+                accent.b.toInt(),
+                0.12,
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -670,7 +680,11 @@ class _ExpiryBanner extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     color: Color.fromRGBO(
-                      accent.r.toInt(), accent.g.toInt(), accent.b.toInt(), 0.80),
+                      accent.r.toInt(),
+                      accent.g.toInt(),
+                      accent.b.toInt(),
+                      0.80,
+                    ),
                     height: 1.4,
                   ),
                 ),
@@ -712,7 +726,11 @@ class _EmptySubjects extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(Icons.folder_open_rounded, color: Colors.white, size: 32),
+          child: const Icon(
+            Icons.folder_open_rounded,
+            color: Colors.white,
+            size: 32,
+          ),
         ),
         const SizedBox(height: 20),
         const Text(
@@ -779,7 +797,10 @@ class _LoadingState extends StatelessWidget {
         ),
         const Expanded(
           child: Center(
-            child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 2.5),
+            child: CircularProgressIndicator(
+              color: _kPrimary,
+              strokeWidth: 2.5,
+            ),
           ),
         ),
       ],

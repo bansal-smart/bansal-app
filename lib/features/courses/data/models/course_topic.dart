@@ -14,10 +14,10 @@ class CourseTopic {
   });
 
   factory CourseTopic.fromJson(Map<String, dynamic> j) => CourseTopic(
-        id: j['id'] as String,
-        courseId: j['course_id'] as String,
-        subjectId: j['subject_id'] as String,
-        name: j['name'] as String? ?? '',
-        position: (j['position'] as num?)?.toInt() ?? 0,
-      );
+    id: j['id'] as String,
+    courseId: j['course_id'] as String,
+    subjectId: j['subject_id'] as String,
+    name: j['name'] as String? ?? '',
+    position: (j['position'] as num?)?.toInt() ?? 0,
+  );
 }

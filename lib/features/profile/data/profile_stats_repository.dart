@@ -20,8 +20,8 @@ class ActivityItem {
   final String timeAgo;
   final String type; // 'lesson' | 'test' | 'live'
   final DateTime createdAt;
-  final String? targetId;       // lessonId, testId, or liveClassId
-  final String? secondaryId;    // courseId for lessons
+  final String? targetId; // lessonId, testId, or liveClassId
+  final String? secondaryId; // courseId for lessons
 
   const ActivityItem({
     required this.title,
@@ -37,11 +37,17 @@ class ProfileStatsRepository {
   final SupabaseClient _client;
 
   ProfileStatsRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService.client;
+    : _client = client ?? SupabaseService.client;
 
   Future<ProfileStats> fetchStats() async {
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) return const ProfileStats(hoursStudied: 0, testsAttempted: 0, enrolledCourses: 0, dayStreak: 0);
+    if (userId == null)
+      return const ProfileStats(
+        hoursStudied: 0,
+        testsAttempted: 0,
+        enrolledCourses: 0,
+        dayStreak: 0,
+      );
 
     final results = await Future.wait([
       _fetchMinutesStudied(userId),
@@ -79,7 +85,10 @@ class ProfileStatsRepository {
         .select('minutes_studied')
         .eq('user_id', userId);
     final list = data as List<dynamic>;
-    return list.fold<int>(0, (sum, r) => sum + ((r['minutes_studied'] as int?) ?? 0));
+    return list.fold<int>(
+      0,
+      (sum, r) => sum + ((r['minutes_studied'] as int?) ?? 0),
+    );
   }
 
   Future<int> _fetchTestsAttempted(String userId) async {
@@ -136,7 +145,9 @@ class ProfileStatsRepository {
         .order('last_watched_at', ascending: false)
         .limit(3);
     return (data as List<dynamic>).map((r) {
-      final at = DateTime.tryParse(r['last_watched_at']?.toString() ?? '') ?? DateTime.now();
+      final at =
+          DateTime.tryParse(r['last_watched_at']?.toString() ?? '') ??
+          DateTime.now();
       return ActivityItem(
         title: 'Watched "${r['lesson_title'] ?? 'a lesson'}"',
         timeAgo: _timeAgo(at),
@@ -156,7 +167,11 @@ class ProfileStatsRepository {
         .order('created_at', ascending: false)
         .limit(2);
     return (data as List<dynamic>).map((r) {
-      final at = DateTime.tryParse(r['attempted_at']?.toString() ?? r['created_at']?.toString() ?? '') ?? DateTime.now();
+      final at =
+          DateTime.tryParse(
+            r['attempted_at']?.toString() ?? r['created_at']?.toString() ?? '',
+          ) ??
+          DateTime.now();
       return ActivityItem(
         title: 'Attempted "${r['test_name'] ?? 'a test'}"',
         timeAgo: _timeAgo(at),
@@ -176,7 +191,8 @@ class ProfileStatsRepository {
         .order('joined_at', ascending: false)
         .limit(2);
     return (data as List<dynamic>).map((r) {
-      final at = DateTime.tryParse(r['joined_at']?.toString() ?? '') ?? DateTime.now();
+      final at =
+          DateTime.tryParse(r['joined_at']?.toString() ?? '') ?? DateTime.now();
       final liveClass = r['live_classes'] as Map<String, dynamic>?;
       final title = liveClass?['title'] ?? 'a live class';
       final liveId = (r['live_class_id'] ?? liveClass?['id'])?.toString();

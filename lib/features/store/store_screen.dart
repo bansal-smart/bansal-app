@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/supabase/supabase_client.dart';
-
-const _navy = Color(0xFF102A63);
-const _blue = Color(0xFF193F8F);
-const _orange = Color(0xFFF47B20);
-const _background = Color(0xFFFFFBF8);
+import '../../core/theme/colors.dart';
+import '../../skeleton_loading/store_skeleton.dart';
 
 enum _ProductKind { book, pack }
 
@@ -108,6 +106,18 @@ final _storeCatalogProvider = FutureProvider.autoDispose<_StoreCatalog>((
   );
 });
 
+// ── Design tokens (Figma) ─────────────────────────────────────────────────
+const _ink = AppColors.ink;
+const _soft = Color(0xFF6B7280);
+const _peachBand = Color(0xFFFCE6D2);
+const _peachChip = Color(0xFFFDEEDC);
+const _blueChip = Color(0xFFE6EDF8);
+const _cardInfo = Color(0xFFE9F0FB);
+const _heroTagline = Color(0xFFF7C948);
+const _shadow = [
+  BoxShadow(color: Color(0x1F102A5C), blurRadius: 14, offset: Offset(0, 5)),
+];
+
 class StoreScreen extends ConsumerStatefulWidget {
   const StoreScreen({super.key});
 
@@ -118,6 +128,9 @@ class StoreScreen extends ConsumerStatefulWidget {
 class _StoreScreenState extends ConsumerState<StoreScreen> {
   _ProductKind _selectedKind = _ProductKind.book;
   String _search = '';
+
+  /// Selected `target_exam` (upper-cased); null means "All".
+  String? _category;
 
   Future<void> _openProduct(_StoreProduct product) async {
     final opened = await launchUrl(
@@ -131,161 +144,268 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     }
   }
 
+  static String? _examKey(_StoreProduct p) {
+    final exam = p.targetExam?.trim();
+    return exam == null || exam.isEmpty ? null : exam.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(_storeCatalogProvider);
 
-    return ColoredBox(
-      color: _background,
-      child: catalog.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) =>
-            _StoreError(onRetry: () => ref.invalidate(_storeCatalogProvider)),
-        data: (data) {
-          final source = _selectedKind == _ProductKind.book
-              ? data.books
-              : data.packs;
-          final query = _search.trim().toLowerCase();
-          final products = query.isEmpty
-              ? source
-              : source
-                    .where(
-                      (product) =>
-                          product.title.toLowerCase().contains(query) ||
-                          (product.subtitle?.toLowerCase().contains(query) ??
-                              false),
-                    )
-                    .toList();
+    return catalog.when(
+      loading: () => const StoreSkeleton(),
+      error: (error, stackTrace) =>
+          _StoreError(onRetry: () => ref.invalidate(_storeCatalogProvider)),
+      data: (data) {
+        final source = _selectedKind == _ProductKind.book
+            ? data.books
+            : data.packs;
 
-          return RefreshIndicator(
-            onRefresh: () async => ref.refresh(_storeCatalogProvider.future),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                const SliverToBoxAdapter(child: _StoreHero()),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
-                    child: Column(
-                      children: [
-                        _StoreTabs(
-                          selected: _selectedKind,
-                          onChanged: (kind) =>
-                              setState(() => _selectedKind = kind),
+        // Categories come from the products' own exam tags, in first-seen order.
+        final categories = <String>[];
+        for (final p in source) {
+          final key = _examKey(p);
+          if (key != null && !categories.contains(key)) categories.add(key);
+        }
+        final category = categories.contains(_category) ? _category : null;
+
+        final query = _search.trim().toLowerCase();
+        final products = source.where((product) {
+          if (category != null && _examKey(product) != category) return false;
+          if (query.isEmpty) return true;
+          return product.title.toLowerCase().contains(query) ||
+              (product.subtitle?.toLowerCase().contains(query) ?? false);
+        }).toList();
+
+        return RefreshIndicator(
+          onRefresh: () async => ref.refresh(_storeCatalogProvider.future),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Books & Modules',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                          letterSpacing: -0.3,
                         ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          onChanged: (value) => setState(() => _search = value),
-                          decoration: InputDecoration(
-                            hintText: _selectedKind == _ProductKind.book
-                                ? 'Search books or authors'
-                                : 'Search module packs',
-                            prefixIcon: const Icon(Icons.search_rounded),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE5E7EB),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE5E7EB),
-                              ),
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 18),
+                      const _StoreHero(),
+                      const SizedBox(height: 22),
+                      _SearchBar(
+                        hint: _selectedKind == _ProductKind.book
+                            ? 'Search books or authors'
+                            : 'Search module packs',
+                        onChanged: (value) => setState(() => _search = value),
+                      ),
+                      const SizedBox(height: 26),
+                      const _SectionTitle('Categories'),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _CategoryBand(
+                  categories: categories,
+                  selected: category,
+                  onSelected: (value) => setState(() => _category = value),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _StoreTabs(
+                        selected: _selectedKind,
+                        onChanged: (kind) => setState(() {
+                          _selectedKind = kind;
+                          _category = null;
+                        }),
+                      ),
+                      const SizedBox(height: 30),
+                      const _SectionTitle('Recommended for you'),
+                      const SizedBox(height: 14),
+                    ],
+                  ),
+                ),
+              ),
+              if (products.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _EmptyStore(),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  sliver: SliverGrid.builder(
+                    itemCount: products.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.56,
                         ),
-                      ],
+                    itemBuilder: (context, index) => _ProductCard(
+                      product: products[index],
+                      onTap: () => _openProduct(products[index]),
                     ),
                   ),
                 ),
-                if (products.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _EmptyStore(),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-                    sliver: SliverGrid.builder(
-                      itemCount: products.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: 0.61,
-                          ),
-                      itemBuilder: (context, index) => _ProductCard(
-                        product: products[index],
-                        onTap: () => _openProduct(products[index]),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
+class _SectionTitle extends StatelessWidget {
+  final String label;
+  const _SectionTitle(this.label);
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label.toUpperCase(),
+    style: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: _ink,
+      letterSpacing: 0.2,
+    ),
+  );
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────
 class _StoreHero extends StatelessWidget {
   const _StoreHero();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 26),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_navy, _blue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+      padding: const EdgeInsets.fromLTRB(20, 22, 24, 26),
+      decoration: BoxDecoration(
+        color: AppColors.deepNavy,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33102A5C),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StoreBadge(),
-                SizedBox(height: 12),
-                Text(
-                  'Books & Module Packs',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    height: 1.1,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'BANSAL E-STORE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
                   ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'Study material created by Bansal Classes faculty.',
-                  style: TextStyle(color: Color(0xFFDCE6FF), fontSize: 13),
+                const SizedBox(height: 14),
+                const Text(
+                  'Study smarter with trusted material',
+                  style: TextStyle(
+                    color: _heroTagline,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          const Icon(LucideIcons.archive200, color: Colors.white, size: 40),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Search ────────────────────────────────────────────────────────────────
+class _SearchBar extends StatelessWidget {
+  final String hint;
+  final ValueChanged<String> onChanged;
+  const _SearchBar({required this.hint, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: _shadow,
+      ),
+      child: Row(
+        children: [
           Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.local_mall_rounded,
+            width: 38,
+            height: 38,
+            decoration: const BoxDecoration(
               color: Colors.white,
-              size: 32,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x29000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(LucideIcons.search, size: 18, color: _soft),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              style: const TextStyle(fontSize: 13, color: _ink),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF9CA3AF),
+                ),
+                filled: false,
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
         ],
@@ -294,34 +414,114 @@ class _StoreHero extends StatelessWidget {
   }
 }
 
-class _StoreBadge extends StatelessWidget {
-  const _StoreBadge();
+// ── Category chips on a full-width peach band ─────────────────────────────
+class _CategoryBand extends StatelessWidget {
+  final List<String> categories;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  const _CategoryBand({
+    required this.categories,
+    required this.selected,
+    required this.onSelected,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.storefront_rounded, size: 14, color: Colors.white),
-        SizedBox(width: 6),
-        Text(
-          'Bansal E-Store',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
+  Widget build(BuildContext context) {
+    return Container(
+      color: _peachBand.withValues(alpha: 0.7),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            _CategoryChip(
+              label: 'All',
+              selected: selected == null,
+              style: _ChipStyle.blue,
+              onTap: () => onSelected(null),
+            ),
+            for (var i = 0; i < categories.length; i++) ...[
+              const SizedBox(width: 18),
+              _CategoryChip(
+                label: categories[i],
+                selected: selected == categories[i],
+                // Alternate blue / peach like the design.
+                style: i % 3 == 1 ? _ChipStyle.peach : _ChipStyle.blue,
+                onTap: () => onSelected(categories[i]),
+              ),
+            ],
+          ],
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
+enum _ChipStyle { blue, peach }
+
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final _ChipStyle style;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.style,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final peach = style == _ChipStyle.peach;
+    final bg = selected ? AppColors.primary : (peach ? _peachChip : _blueChip);
+    final fg = selected
+        ? Colors.white
+        : (peach ? AppColors.orange : AppColors.primary);
+    final border = selected
+        ? AppColors.primary
+        : (peach ? AppColors.orange.withValues(alpha: 0.5) : Colors.white);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          constraints: const BoxConstraints(minWidth: 54),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A102A5C),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: fg,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Books / Module Packs toggle ───────────────────────────────────────────
 class _StoreTabs extends StatelessWidget {
   final _ProductKind selected;
   final ValueChanged<_ProductKind> onChanged;
@@ -333,20 +533,21 @@ class _StoreTabs extends StatelessWidget {
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFE5E7EB)),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: const Color(0xFFD1D5DB)),
+      boxShadow: _shadow,
     ),
     child: Row(
       children: [
         _TabButton(
           label: 'Books',
-          icon: Icons.menu_book_rounded,
+          icon: LucideIcons.bookOpen,
           selected: selected == _ProductKind.book,
           onTap: () => onChanged(_ProductKind.book),
         ),
         _TabButton(
           label: 'Module Packs',
-          icon: Icons.inventory_2_rounded,
+          icon: LucideIcons.archive,
           selected: selected == _ProductKind.pack,
           onTap: () => onChanged(_ProductKind.pack),
         ),
@@ -369,41 +570,55 @@ class _TabButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? _orange : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 17,
-              color: selected ? Colors.white : const Color(0xFF6B7280),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : const Color(0xFF6B7280),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.white : _soft;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Align(
+            // Selected segment hugs its content, like the design.
+            alignment: Alignment.center,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? AppColors.orange : Colors.transparent,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              // Shrinks slightly on narrow phones so "Module Packs" is never
+              // cut off.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 17, color: color),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
+// ── Product card ──────────────────────────────────────────────────────────
 class _ProductCard extends StatelessWidget {
   final _StoreProduct product;
   final VoidCallback onTap;
@@ -418,23 +633,29 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasDiscount =
         product.originalPrice != null && product.originalPrice! > product.price;
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-            borderRadius: BorderRadius.circular(16),
-          ),
+    final tag = product.targetExam?.trim().isNotEmpty == true
+        ? product.targetExam!.trim().toUpperCase()
+        : (product.kind == _ProductKind.pack ? 'MODULE PACK' : null);
+    final author = product.subtitle?.isNotEmpty == true
+        ? product.subtitle!
+        : (product.classLevel ?? 'Bansal Classes');
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: _shadow,
+      ),
+      child: Material(
+        color: _cardInfo,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: Container(
-                  width: double.infinity,
+                child: ColoredBox(
                   color: const Color(0xFFFFF4EB),
                   child: product.coverUrl?.isNotEmpty == true
                       ? Image.network(
@@ -447,94 +668,94 @@ class _ProductCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(11),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (product.targetExam?.isNotEmpty == true ||
-                        product.kind == _ProductKind.pack)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFEEE1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          product.targetExam?.isNotEmpty == true
-                              ? product.targetExam!
-                              : 'Module Pack',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _orange,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 7),
-                    Text(
-                      product.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 13,
-                        height: 1.2,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    SizedBox(height: 13, child: tag != null ? _Tag(tag) : null),
                     const SizedBox(height: 4),
+                    // Always three lines tall so long titles show in full
+                    // and neighbouring cards keep equal cover heights.
                     Text(
-                      product.subtitle?.isNotEmpty == true
-                          ? product.subtitle!
-                          : (product.classLevel ?? 'Bansal Classes'),
-                      maxLines: 1,
+                      '${product.title}\n\n',
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 10,
+                        color: Colors.black,
+                        fontSize: 12.5,
+                        height: 1.2,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 2),
+                    // One line that scales down instead of cutting the name.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        author,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           '₹${_price(product.price)}',
                           style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
+                            color: _ink,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         if (hasDiscount) ...[
                           const SizedBox(width: 5),
-                          Text(
-                            '₹${_price(product.originalPrice!)}',
-                            style: const TextStyle(
-                              color: Color(0xFF9CA3AF),
-                              fontSize: 10,
-                              decoration: TextDecoration.lineThrough,
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 1),
+                            child: Text(
+                              '₹${_price(product.originalPrice!)}',
+                              style: const TextStyle(
+                                color: Color(0xFF9CA3AF),
+                                fontSize: 9.5,
+                                decoration: TextDecoration.lineThrough,
+                              ),
                             ),
                           ),
                         ],
+                        const Spacer(),
+                        Tooltip(
+                          message: 'Buy on website',
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: AppColors.orange,
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: const Icon(
+                              LucideIcons.shoppingCart,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'View on website',
-                          style: TextStyle(
-                            color: _blue,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: TextStyle(color: _ink, fontSize: 11.5),
                         ),
-                        SizedBox(width: 3),
-                        Icon(Icons.open_in_new_rounded, color: _blue, size: 12),
+                        SizedBox(width: 6),
+                        Icon(LucideIcons.arrowUpRight, color: _ink, size: 12),
                       ],
                     ),
                   ],
@@ -548,6 +769,34 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
+class _Tag extends StatelessWidget {
+  final String label;
+  const _Tag(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    // Advanced-level tags are highlighted in orange, the rest stay neutral.
+    final accent = label.contains('ADV');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: accent ? const Color(0xFFFCD9B8) : const Color(0xFFD9DEE7),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: accent ? AppColors.orange : _soft,
+          fontSize: 7,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _ProductPlaceholder extends StatelessWidget {
   final _ProductKind kind;
   const _ProductPlaceholder({required this.kind});
@@ -555,11 +804,9 @@ class _ProductPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Icon(
-      kind == _ProductKind.book
-          ? Icons.menu_book_rounded
-          : Icons.inventory_2_rounded,
-      size: 48,
-      color: _orange,
+      kind == _ProductKind.book ? LucideIcons.bookOpen : LucideIcons.archive,
+      size: 44,
+      color: AppColors.orange,
     ),
   );
 }
@@ -568,20 +815,18 @@ class _EmptyStore extends StatelessWidget {
   const _EmptyStore();
 
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.inventory_2_outlined, size: 44, color: Color(0xFF9CA3AF)),
-          SizedBox(height: 10),
-          Text(
-            'No products found',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.fromLTRB(20, 0, 20, 32),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(LucideIcons.packageOpen, size: 40, color: _soft),
+        SizedBox(height: 10),
+        Text(
+          'No products found',
+          style: TextStyle(fontWeight: FontWeight.w700, color: _ink),
+        ),
+      ],
     ),
   );
 }
@@ -592,23 +837,34 @@ class _StoreError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
+    child: Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: _shadow,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.storefront_outlined,
-            size: 48,
-            color: Color(0xFF9CA3AF),
-          ),
+          const Icon(LucideIcons.archive, size: 44, color: _soft),
           const SizedBox(height: 12),
           const Text(
             'Could not load the store.',
-            style: TextStyle(fontWeight: FontWeight.w700),
+            style: TextStyle(fontWeight: FontWeight.w700, color: _ink),
           ),
-          const SizedBox(height: 10),
-          OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+          const SizedBox(height: 14),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(140, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            child: const Text('Try again'),
+          ),
         ],
       ),
     ),

@@ -170,7 +170,7 @@ class _TestInstructionsScreenState extends State<TestInstructionsScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: DS.background,
+        backgroundColor: Colors.transparent,
         body: SafeArea(
           child: _loading
               ? const Center(

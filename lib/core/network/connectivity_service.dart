@@ -31,8 +31,9 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 });
 
 /// StreamProvider — auto-updates on every network change.
-final connectivityStatusProvider =
-    StreamProvider<ConnectivityStatus>((ref) async* {
+final connectivityStatusProvider = StreamProvider<ConnectivityStatus>((
+  ref,
+) async* {
   final service = ref.read(connectivityServiceProvider);
   // Emit current status immediately before streaming changes
   yield await service.currentStatus;
