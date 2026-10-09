@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/providers.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/colors.dart';
+import '../../core/widgets/motion.dart';
 import '../auth/data/auth_repository.dart';
 import '../auth/data/models/user_profile.dart';
 import '../auth/data/repositories/user_repository.dart';
@@ -434,6 +436,7 @@ class _ProfileDashboardScreenState
               ),
             ),
             const SizedBox(height: 18),
+            // 1. Header card slides down into place.
             _HeroCard(
               name: name,
               initials: initials,
@@ -444,41 +447,89 @@ class _ProfileDashboardScreenState
               examTag: examTag,
               classTag: classTag,
               loginId: loginId,
+            ).withMotion(
+              context,
+              (a) => a
+                  .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+                  .slideY(begin: -0.2, end: 0, curve: Curves.easeOutCubic),
             ),
             const SizedBox(height: 24),
             const _Label('My Stats'),
             const SizedBox(height: 12),
+            // 2. Stat cards pop in left to right (see _StatsRow).
             const _StatsRow(),
             const SizedBox(height: 26),
             const _Label('Performance'),
             const SizedBox(height: 12),
-            const _PerformanceCard(),
+            // 3. Performance card settles in; its trend line then draws
+            //    itself left to right (see _ScoreChart).
+            const _PerformanceCard().withMotion(
+              context,
+              (a) => a
+                  .fadeIn(
+                    delay: _Motion.performance,
+                    duration: 600.ms,
+                    curve: Curves.easeOut,
+                  )
+                  .slideY(begin: 0.15, end: 0, curve: Curves.easeOutCubic),
+            ),
             const SizedBox(height: 26),
             const _Label('Account'),
             const SizedBox(height: 12),
-            _AccountRow(
-              icon: LucideIcons.settings,
-              label: 'Settings',
-              onTap: () => context.push('/settings'),
-            ),
-            const SizedBox(height: 10),
-            _AccountRow(
-              icon: LucideIcons.bell,
-              label: 'Notifications',
-              onTap: () => context.push('/notifications'),
-            ),
-            const SizedBox(height: 10),
-            _AccountRow(
-              icon: LucideIcons.logOut,
-              label: 'Logout',
-              destructive: true,
-              onTap: _logout,
-            ),
+            // 4. Menu options cascade in, Logout last.
+            ..._menuCascade(context, [
+              _AccountRow(
+                icon: LucideIcons.settings,
+                label: 'Settings',
+                onTap: () => context.push('/settings'),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: _AccountRow(
+                  icon: LucideIcons.bell,
+                  label: 'Notifications',
+                  onTap: () => context.push('/notifications'),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: _AccountRow(
+                  icon: LucideIcons.logOut,
+                  label: 'Logout',
+                  destructive: true,
+                  onTap: _logout,
+                ),
+              ),
+            ]),
           ],
         ),
       ),
     );
   }
+
+  static List<Widget> _menuCascade(BuildContext context, List<Widget> rows) =>
+      Motion.off(context)
+      ? rows
+      : rows
+            .animate(delay: _Motion.menuStart, interval: 80.ms)
+            .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+            .slideX(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
+}
+
+// ─────────────────────────────────────────────
+// MOTION — order taken from the Profile segment of the Figma prototype video
+// (00:40–00:47): header card first, then the three stat cards pop in and
+// fill left to right, the Performance card settles and its trend line draws
+// itself, and finally the Account options cascade in with Logout last. The
+// video stretches this over ~4.5s; here it completes in about 1.5s.
+// (Shared helpers — withMotion, Pressable — live in core/widgets/motion.dart.)
+// ─────────────────────────────────────────────
+abstract class _Motion {
+  static const statsStart = Duration(milliseconds: 150);
+  static const statsInterval = Duration(milliseconds: 90);
+  static const performance = Duration(milliseconds: 200);
+  static const chartDraw = Duration(milliseconds: 700);
+  static const menuStart = Duration(milliseconds: 550);
 }
 
 class _SheetHandle extends StatelessWidget {
@@ -620,22 +671,28 @@ class _HeroCard extends StatelessWidget {
                   right: -2,
                   child: Tooltip(
                     message: 'Change photo',
-                    child: GestureDetector(
-                      onTap: onPickAvatar,
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Color(0x33000000), blurRadius: 4),
-                          ],
-                        ),
-                        child: const Icon(
-                          LucideIcons.camera,
-                          size: 14,
-                          color: AppColors.deepNavy,
+                    child: Pressable(
+                      pressedScale: 0.85,
+                      child: GestureDetector(
+                        onTap: onPickAvatar,
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x33000000),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            LucideIcons.camera,
+                            size: 14,
+                            color: AppColors.deepNavy,
+                          ),
                         ),
                       ),
                     ),
@@ -645,20 +702,23 @@ class _HeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          GestureDetector(
-            onTap: onEditProfile,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF3C6DC4),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Edit Profile',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
+          Pressable(
+            pressedScale: 0.9,
+            child: GestureDetector(
+              onTap: onEditProfile,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3C6DC4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Edit Profile',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -720,37 +780,52 @@ class _StatsRow extends ConsumerWidget {
     final tests = ref.watch(testsCompletedProvider);
     final accuracy = ref.watch(accuracyProvider);
 
+    final tiles = <Widget>[
+      _StatTile(
+        icon: LucideIcons.flame,
+        color: AppColors.orange,
+        tint: const Color(0xFFFDEBD9),
+        label: 'Day streak',
+        value: _v(streak, (v) => '$v'),
+      ),
+      _StatTile(
+        icon: LucideIcons.clipboardList,
+        color: const Color(0xFF6366F1),
+        tint: const Color(0xFFECEBFC),
+        label: 'Tests',
+        value: _v(tests, (v) => '$v'),
+      ),
+      _StatTile(
+        icon: LucideIcons.target,
+        color: DS.success,
+        tint: const Color(0xFFDDF5EC),
+        label: 'Accuracy',
+        value: _v(accuracy, (v) => v == null ? '—' : '$v%'),
+      ),
+    ].map((tile) => Pressable(child: tile)).toList();
+
+    // Cards pop in left to right. The cascade wraps each tile, and the
+    // Expanded goes outside it so the Row still sizes them equally.
+    final List<Widget> animated = Motion.off(context)
+        ? tiles
+        : tiles
+              .animate(
+                delay: _Motion.statsStart,
+                interval: _Motion.statsInterval,
+              )
+              .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+              .scale(
+                begin: const Offset(0.9, 0.9),
+                end: const Offset(1, 1),
+                curve: Curves.easeOutBack,
+              );
+
     return Row(
       children: [
-        Expanded(
-          child: _StatTile(
-            icon: LucideIcons.flame,
-            color: AppColors.orange,
-            tint: const Color(0xFFFDEBD9),
-            label: 'Day streak',
-            value: _v(streak, (v) => '$v'),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _StatTile(
-            icon: LucideIcons.clipboardList,
-            color: const Color(0xFF6366F1),
-            tint: const Color(0xFFECEBFC),
-            label: 'Tests',
-            value: _v(tests, (v) => '$v'),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _StatTile(
-            icon: LucideIcons.target,
-            color: DS.success,
-            tint: const Color(0xFFDDF5EC),
-            label: 'Accuracy',
-            value: _v(accuracy, (v) => v == null ? '—' : '$v%'),
-          ),
-        ),
+        for (var i = 0; i < animated.length; i++) ...[
+          if (i > 0) const SizedBox(width: 14),
+          Expanded(child: animated[i]),
+        ],
       ],
     );
   }
@@ -923,29 +998,34 @@ class _PerformanceCard extends ConsumerWidget {
                   ),
                 )
               else
-                GestureDetector(
-                  onTap: reports.isEmpty
-                      ? null
-                      : () => _showReports(context, reports),
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      Text(
-                        'Full Details',
-                        style: TextStyle(
-                          fontSize: 10,
+                Pressable(
+                  pressedScale: reports.isEmpty ? 1 : 0.92,
+                  child: GestureDetector(
+                    onTap: reports.isEmpty
+                        ? null
+                        : () => _showReports(context, reports),
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      children: [
+                        Text(
+                          'Full Details',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: reports.isEmpty
+                                ? DS.textHint
+                                : DS.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          LucideIcons.chevronRight,
+                          size: 16,
                           color: reports.isEmpty
                               ? DS.textHint
                               : DS.textSecondary,
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      Icon(
-                        LucideIcons.chevronRight,
-                        size: 16,
-                        color: reports.isEmpty ? DS.textHint : DS.textSecondary,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -1000,40 +1080,70 @@ class _ScoreChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const line = Color(0xFF3B5BA9);
+    // The trend line draws itself left to right, as in the reference video:
+    // a clip that widens over the chart, so the chart itself never relayouts.
     return Semantics(
       label: 'Mock-test score trend',
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: (values.length - 1).toDouble(),
-          minY: 0,
-          maxY: 100,
-          gridData: const FlGridData(show: false),
-          titlesData: const FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineTouchData: const LineTouchData(enabled: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: [
-                for (var i = 0; i < values.length; i++)
-                  FlSpot(i.toDouble(), values[i]),
-              ],
-              isCurved: true,
-              curveSmoothness: 0.35,
-              preventCurveOverShooting: true,
-              color: line,
-              barWidth: 1.4,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                color: const Color(0xFFE6EEFB),
-              ),
-            ),
-          ],
+      child: _chart(line).withMotion(
+        context,
+        (a) => a.custom(
+          delay: _Motion.chartDraw,
+          duration: 900.ms,
+          curve: Curves.easeInOutCubic,
+          builder: (_, t, child) =>
+              ClipRect(clipper: _RevealClipper(t), child: child),
         ),
       ),
     );
   }
+
+  Widget _chart(Color line) {
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: (values.length - 1).toDouble(),
+        minY: 0,
+        maxY: 100,
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: const LineTouchData(enabled: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: [
+              for (var i = 0; i < values.length; i++)
+                FlSpot(i.toDouble(), values[i]),
+            ],
+            isCurved: true,
+            curveSmoothness: 0.35,
+            preventCurveOverShooting: true,
+            color: line,
+            barWidth: 1.4,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: const Color(0xFFE6EEFB),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Clips to the left [fraction] of the child's width (0 → 1 reveals it
+/// left to right).
+class _RevealClipper extends CustomClipper<Rect> {
+  final double fraction;
+  const _RevealClipper(this.fraction);
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width * fraction.clamp(0.0, 1.0), size.height);
+
+  @override
+  bool shouldReclip(_RevealClipper oldClipper) =>
+      oldClipper.fraction != fraction;
 }
 
 class _ReportRow extends StatelessWidget {
@@ -1542,52 +1652,56 @@ class _AccountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.tileBlue,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
+    // Menu options shrink slightly under the finger.
+    return Pressable(
+      pressedScale: 0.97,
+      child: Material(
+        color: AppColors.tileBlue,
         borderRadius: BorderRadius.circular(10),
-        child: Container(
-          height: 46,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white, width: 1.2),
-            boxShadow: _cardShadow,
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 22,
-                child: destructive
-                    ? Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDE2E2),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: const Icon(
-                          LucideIcons.logOut,
-                          size: 11,
-                          color: _danger,
-                        ),
-                      )
-                    : Icon(icon, size: 18, color: AppColors.ink),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: destructive ? _danger : AppColors.ink,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white, width: 1.2),
+              boxShadow: _cardShadow,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  child: destructive
+                      ? Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDE2E2),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: const Icon(
+                            LucideIcons.logOut,
+                            size: 11,
+                            color: _danger,
+                          ),
+                        )
+                      : Icon(icon, size: 18, color: AppColors.ink),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: destructive ? _danger : AppColors.ink,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

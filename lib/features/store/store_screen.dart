@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/colors.dart';
+import '../../core/widgets/motion.dart';
 import '../../skeleton_loading/store_skeleton.dart';
 
 enum _ProductKind { book, pack }
@@ -118,6 +120,27 @@ const _shadow = [
   BoxShadow(color: Color(0x1F102A5C), blurRadius: 14, offset: Offset(0, 5)),
 ];
 
+// ── Motion — paced from the Store section of the Figma prototype video ─────
+// E-Store banner drops in, the search bar and category chips follow left to
+// right with a slight bounce, the Books / Module Packs toggle swings into
+// place, then the product cards pop in. (Shared helpers: core/widgets.)
+abstract class _Motion {
+  static const search = Duration(milliseconds: 100);
+  static const chipsStart = Duration(milliseconds: 180);
+  static const chipInterval = Duration(milliseconds: 80);
+  static const toggle = Duration(milliseconds: 450);
+  static const gridStart = Duration(milliseconds: 650);
+  static const cardInterval = Duration(milliseconds: 100);
+
+  /// After a filter change the new results pop in quickly, not after the
+  /// whole page sequence.
+  static const refilterInterval = Duration(milliseconds: 60);
+
+  /// Cards further down still pop in when first scrolled to, but without
+  /// waiting behind a long stagger.
+  static const maxStaggeredCards = 6;
+}
+
 class StoreScreen extends ConsumerStatefulWidget {
   const StoreScreen({super.key});
 
@@ -131,6 +154,19 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
   /// Selected `target_exam` (upper-cased); null means "All".
   String? _category;
+
+  /// Product cards that have already played their pop-in. Scrolling a card
+  /// back into view, or typing in search, doesn't replay it.
+  final Set<String> _shownCards = {};
+
+  /// Bumped when a category or Books / Module Packs filter changes, so the
+  /// new result set pops in afresh.
+  int _generation = 0;
+
+  void _refilter(VoidCallback change) => setState(() {
+    change();
+    _generation++;
+  });
 
   Future<void> _openProduct(_StoreProduct product) async {
     final opened = await launchUrl(
@@ -199,13 +235,37 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const _StoreHero(),
+                      // 1. E-Store banner drops in from slightly above.
+                      const _StoreHero().withMotion(
+                        context,
+                        (a) => a
+                            .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+                            .slideY(
+                              begin: -0.15,
+                              end: 0,
+                              curve: Curves.easeOutCubic,
+                            ),
+                      ),
                       const SizedBox(height: 22),
+                      // 2. Search bar leads the left-to-right sequence.
                       _SearchBar(
                         hint: _selectedKind == _ProductKind.book
                             ? 'Search books or authors'
                             : 'Search module packs',
                         onChanged: (value) => setState(() => _search = value),
+                      ).withMotion(
+                        context,
+                        (a) => a
+                            .fadeIn(
+                              delay: _Motion.search,
+                              duration: 400.ms,
+                              curve: Curves.easeOut,
+                            )
+                            .slideX(
+                              begin: -0.1,
+                              end: 0,
+                              curve: Curves.easeOutCubic,
+                            ),
                       ),
                       const SizedBox(height: 26),
                       const _SectionTitle('Categories'),
@@ -218,7 +278,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                 child: _CategoryBand(
                   categories: categories,
                   selected: category,
-                  onSelected: (value) => setState(() => _category = value),
+                  onSelected: (value) => _refilter(() => _category = value),
                 ),
               ),
               SliverToBoxAdapter(
@@ -227,12 +287,32 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // The toggle swings into place, as in the video.
                       _StoreTabs(
                         selected: _selectedKind,
-                        onChanged: (kind) => setState(() {
+                        onChanged: (kind) => _refilter(() {
                           _selectedKind = kind;
                           _category = null;
                         }),
+                      ).withMotion(
+                        context,
+                        (a) => a
+                            .fadeIn(
+                              delay: _Motion.toggle,
+                              duration: 450.ms,
+                              curve: Curves.easeOut,
+                            )
+                            .rotate(
+                              begin: -0.015,
+                              end: 0,
+                              alignment: Alignment.centerLeft,
+                              curve: Curves.easeOutBack,
+                            )
+                            .slideY(
+                              begin: 0.2,
+                              end: 0,
+                              curve: Curves.easeOutCubic,
+                            ),
                       ),
                       const SizedBox(height: 30),
                       const _SectionTitle('Recommended for you'),
@@ -258,16 +338,75 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                           mainAxisSpacing: 16,
                           childAspectRatio: 0.56,
                         ),
-                    itemBuilder: (context, index) => _ProductCard(
-                      product: products[index],
-                      onTap: () => _openProduct(products[index]),
-                    ),
+                    // 3. Cards pop in, 100ms apart on first load.
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      final id =
+                          '$_generation-${product.kind.name}-${product.id}';
+                      final firstLoad = _generation == 0;
+                      final slot = index < _Motion.maxStaggeredCards
+                          ? index
+                          : 0;
+                      return _CardEntrance(
+                        key: ValueKey(id),
+                        id: id,
+                        shown: _shownCards,
+                        delay: firstLoad
+                            ? _Motion.gridStart + _Motion.cardInterval * slot
+                            : _Motion.refilterInterval * slot,
+                        child: _ProductCard(
+                          product: product,
+                          onTap: () => _openProduct(product),
+                        ),
+                      );
+                    },
                   ),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Plays a product card's pop-in the first time that card is built for the
+/// current filter, then never again. The decision is made once in
+/// [State.initState], so screen rebuilds (e.g. typing in search) never cut an
+/// animation short.
+class _CardEntrance extends StatefulWidget {
+  final String id;
+  final Set<String> shown;
+  final Duration delay;
+  final Widget child;
+
+  const _CardEntrance({
+    super.key,
+    required this.id,
+    required this.shown,
+    required this.delay,
+    required this.child,
+  });
+
+  @override
+  State<_CardEntrance> createState() => _CardEntranceState();
+}
+
+class _CardEntranceState extends State<_CardEntrance> {
+  late final bool _play = widget.shown.add(widget.id);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_play) return widget.child;
+    return widget.child.withMotion(
+      context,
+      (a) => a
+          .fadeIn(delay: widget.delay, duration: 500.ms, curve: Curves.easeOut)
+          .scale(
+            begin: const Offset(0.95, 0.95),
+            end: const Offset(1, 1),
+            curve: Curves.easeOutCubic,
+          ),
     );
   }
 }
@@ -426,6 +565,21 @@ class _CategoryBand extends StatelessWidget {
     required this.onSelected,
   });
 
+  /// Chips arrive one after another, left to right, with a light bounce
+  /// (the overshoot echoes the drop-in in the reference video).
+  static List<Widget> _cascade(BuildContext context, List<Widget> chips) =>
+      Motion.off(context)
+      ? chips
+      : chips
+            .animate(delay: _Motion.chipsStart, interval: _Motion.chipInterval)
+            .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+            .slideX(begin: -0.1, end: 0, curve: Curves.easeOutCubic)
+            .scale(
+              begin: const Offset(0.9, 0.9),
+              end: const Offset(1, 1),
+              curve: Curves.easeOutBack,
+            );
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -435,24 +589,27 @@ class _CategoryBand extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(
-          children: [
+          children: _cascade(context, [
             _CategoryChip(
+              key: const ValueKey('chip-all'),
               label: 'All',
               selected: selected == null,
               style: _ChipStyle.blue,
               onTap: () => onSelected(null),
             ),
-            for (var i = 0; i < categories.length; i++) ...[
-              const SizedBox(width: 18),
-              _CategoryChip(
-                label: categories[i],
-                selected: selected == categories[i],
-                // Alternate blue / peach like the design.
-                style: i % 3 == 1 ? _ChipStyle.peach : _ChipStyle.blue,
-                onTap: () => onSelected(categories[i]),
+            for (var i = 0; i < categories.length; i++)
+              Padding(
+                key: ValueKey('chip-${categories[i]}'),
+                padding: const EdgeInsets.only(left: 18),
+                child: _CategoryChip(
+                  label: categories[i],
+                  selected: selected == categories[i],
+                  // Alternate blue / peach like the design.
+                  style: i % 3 == 1 ? _ChipStyle.peach : _ChipStyle.blue,
+                  onTap: () => onSelected(categories[i]),
+                ),
               ),
-            ],
-          ],
+          ]),
         ),
       ),
     );
@@ -468,6 +625,7 @@ class _CategoryChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const _CategoryChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.style,
@@ -488,31 +646,34 @@ class _CategoryChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          constraints: const BoxConstraints(minWidth: 54),
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A102A5C),
-                blurRadius: 4,
-                offset: Offset(0, 2),
+      child: Pressable(
+        pressedScale: 0.92,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            constraints: const BoxConstraints(minWidth: 54),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1A102A5C),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: fg,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
               ),
-            ],
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: fg,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -573,41 +734,48 @@ class _TabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? Colors.white : _soft;
     return Expanded(
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Align(
-            // Selected segment hugs its content, like the design.
-            alignment: Alignment.center,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.orange : Colors.transparent,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              // Shrinks slightly on narrow phones so "Module Packs" is never
-              // cut off.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 17, color: color),
-                    const SizedBox(width: 6),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w400,
+      // Shrinks slightly under the finger.
+      child: Pressable(
+        pressedScale: 0.94,
+        child: Semantics(
+          button: true,
+          selected: selected,
+          child: GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Align(
+              // Selected segment hugs its content, like the design.
+              alignment: Alignment.center,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.orange : Colors.transparent,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                // Shrinks slightly on narrow phones so "Module Packs" is never
+                // cut off.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 17, color: color),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -640,128 +808,147 @@ class _ProductCard extends StatelessWidget {
         ? product.subtitle!
         : (product.classLevel ?? 'Bansal Classes');
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: _shadow,
-      ),
-      child: Material(
-        color: _cardInfo,
-        borderRadius: BorderRadius.circular(14),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ColoredBox(
-                  color: const Color(0xFFFFF4EB),
-                  child: product.coverUrl?.isNotEmpty == true
-                      ? Image.network(
-                          product.coverUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _ProductPlaceholder(kind: product.kind),
-                        )
-                      : _ProductPlaceholder(kind: product.kind),
+    // The whole card is the tap target (it opens the product page); it
+    // shrinks a little under the finger. The cart button and link inside get
+    // their own, stronger press so the touched part reads clearly.
+    return Pressable(
+      pressedScale: 0.97,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: _shadow,
+        ),
+        child: Material(
+          color: _cardInfo,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: ColoredBox(
+                    color: const Color(0xFFFFF4EB),
+                    child: product.coverUrl?.isNotEmpty == true
+                        ? Image.network(
+                            product.coverUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _ProductPlaceholder(kind: product.kind),
+                          )
+                        : _ProductPlaceholder(kind: product.kind),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 13, child: tag != null ? _Tag(tag) : null),
-                    const SizedBox(height: 4),
-                    // Always three lines tall so long titles show in full
-                    // and neighbouring cards keep equal cover heights.
-                    Text(
-                      '${product.title}\n\n',
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 12.5,
-                        height: 1.2,
-                        fontWeight: FontWeight.w400,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 13,
+                        child: tag != null ? _Tag(tag) : null,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    // One line that scales down instead of cutting the name.
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        author,
-                        maxLines: 1,
+                      const SizedBox(height: 4),
+                      // Always three lines tall so long titles show in full
+                      // and neighbouring cards keep equal cover heights.
+                      Text(
+                        '${product.title}\n\n',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
+                          color: Colors.black,
+                          fontSize: 12.5,
+                          height: 1.2,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '₹${_price(product.price)}',
+                      const SizedBox(height: 2),
+                      // One line that scales down instead of cutting the name.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          author,
+                          maxLines: 1,
                           style: const TextStyle(
-                            color: _ink,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                            fontSize: 12,
                           ),
                         ),
-                        if (hasDiscount) ...[
-                          const SizedBox(width: 5),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 1),
-                            child: Text(
-                              '₹${_price(product.originalPrice!)}',
-                              style: const TextStyle(
-                                color: Color(0xFF9CA3AF),
-                                fontSize: 9.5,
-                                decoration: TextDecoration.lineThrough,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₹${_price(product.price)}',
+                            style: const TextStyle(
+                              color: _ink,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (hasDiscount) ...[
+                            const SizedBox(width: 5),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 1),
+                              child: Text(
+                                '₹${_price(product.originalPrice!)}',
+                                style: const TextStyle(
+                                  color: Color(0xFF9CA3AF),
+                                  fontSize: 9.5,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const Spacer(),
+                          Tooltip(
+                            message: 'Buy on website',
+                            child: Pressable(
+                              pressedScale: 0.85,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: AppColors.orange,
+                                  borderRadius: BorderRadius.circular(7),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.shoppingCart,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
                         ],
-                        const Spacer(),
-                        Tooltip(
-                          message: 'Buy on website',
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: AppColors.orange,
-                              borderRadius: BorderRadius.circular(7),
+                      ),
+                      const SizedBox(height: 6),
+                      const Pressable(
+                        pressedScale: 0.93,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'View on website',
+                              style: TextStyle(color: _ink, fontSize: 11.5),
                             ),
-                            child: const Icon(
-                              LucideIcons.shoppingCart,
-                              size: 18,
-                              color: Colors.white,
+                            SizedBox(width: 6),
+                            Icon(
+                              LucideIcons.arrowUpRight,
+                              color: _ink,
+                              size: 12,
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'View on website',
-                          style: TextStyle(color: _ink, fontSize: 11.5),
-                        ),
-                        SizedBox(width: 6),
-                        Icon(LucideIcons.arrowUpRight, color: _ink, size: 12),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

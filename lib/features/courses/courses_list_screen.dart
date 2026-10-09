@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -9,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/error/app_exception.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/theme/colors.dart';
+import '../../core/widgets/motion.dart';
 import '../../skeleton_loading/courses_skeleton.dart';
 import '../enrollments/data/enrollments_providers.dart';
 import '../enrollments/data/models/enrollment.dart';
@@ -29,6 +31,19 @@ abstract class _C {
   static const cardShadow = [
     BoxShadow(color: Color(0x14102A5C), blurRadius: 18, offset: Offset(0, 6)),
   ];
+}
+
+// ── Motion — paced from the Figma prototype video ───────────────────────────
+// Overview card drops in first; inside it the course pill pops, the stat
+// tiles fill one by one and the weekly bars rise. The Continue Learning card
+// scales in just after, then the subject rows cascade in from the right.
+// (Shared helpers — withMotion, cascade, Pressable — live in core/widgets.)
+abstract class _Motion {
+  static const statsStart = Duration(milliseconds: 250);
+  static const statsStep = Duration(milliseconds: 120);
+  static const barsStart = Duration(milliseconds: 650);
+  static const barStep = Duration(milliseconds: 50);
+  static const listStart = Duration(milliseconds: 300);
 }
 
 /// Per-enrollment progress, recomputed from video-level tracking rather than
@@ -142,27 +157,55 @@ class CoursesListScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
+                  // 1. Summary card drops in from slightly above.
                   _OverviewCard(
                     items: items,
                     featured: featured,
                     weeklyMinutes: weeklyMinutes,
+                  ).withMotion(
+                    context,
+                    (a) => a
+                        .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+                        .slideY(
+                          begin: -0.15,
+                          end: 0,
+                          curve: Curves.easeOutCubic,
+                        ),
                   ),
                   const SizedBox(height: 28),
                   const _SectionTitle('Continue Learning'),
                   const SizedBox(height: 14),
-                  _ContinueCard(item: featured),
+                  // 2. Continue Learning pops in just after.
+                  _ContinueCard(item: featured).withMotion(
+                    context,
+                    (a) => a
+                        .fadeIn(
+                          delay: 200.ms,
+                          duration: 600.ms,
+                          curve: Curves.easeOut,
+                        )
+                        .scale(
+                          begin: const Offset(0.95, 0.95),
+                          end: const Offset(1, 1),
+                          curve: Curves.easeOutCubic,
+                        ),
+                  ),
                   const SizedBox(height: 28),
                   const _SectionTitle('Subjects'),
                   const SizedBox(height: 14),
+                  // 3. Subject rows cascade in (see _SubjectList).
                   _SubjectList(courseId: featured.enrollment.courseId),
                   if (others.isNotEmpty) ...[
                     const SizedBox(height: 28),
                     const _SectionTitle('My Courses'),
                     const SizedBox(height: 14),
-                    for (var i = 0; i < others.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 12),
-                      _CourseRow(item: others[i], tint: _rowTint(i)),
-                    ],
+                    ...[
+                      for (var i = 0; i < others.length; i++)
+                        Padding(
+                          padding: EdgeInsets.only(top: i > 0 ? 12 : 0),
+                          child: _CourseRow(item: others[i], tint: _rowTint(i)),
+                        ),
+                    ].cascade(context, delay: _Motion.listStart),
                   ],
                 ],
               ),
@@ -264,6 +307,15 @@ class _OverviewCard extends StatelessWidget {
                         color: Colors.white,
                       ),
                     ),
+                  ).withMotion(
+                    // The pill "pops": starts a touch larger and settles.
+                    context,
+                    (a) => a.scale(
+                      begin: const Offset(1.12, 1.12),
+                      end: const Offset(1, 1),
+                      duration: 450.ms,
+                      curve: Curves.easeOutBack,
+                    ),
                   ),
                   if (meta.isNotEmpty) ...[
                     const SizedBox(height: 6),
@@ -299,6 +351,7 @@ class _OverviewCard extends StatelessWidget {
                           tint: _C.peachTile,
                           value: '${featured.percent}%',
                           label: 'Completed',
+                          order: 0,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -309,6 +362,7 @@ class _OverviewCard extends StatelessWidget {
                           tint: _C.lavenderTile,
                           value: '$avgProgress%',
                           label: 'Avg Progress',
+                          order: 1,
                         ),
                       ),
                     ],
@@ -323,6 +377,7 @@ class _OverviewCard extends StatelessWidget {
                           tint: AppColors.tileBlue,
                           value: '${items.length}',
                           label: 'Enrolled',
+                          order: 2,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -333,6 +388,7 @@ class _OverviewCard extends StatelessWidget {
                           tint: _C.peachTile,
                           value: '$inProgress',
                           label: 'In Progress',
+                          order: 3,
                         ),
                       ),
                     ],
@@ -368,6 +424,7 @@ class _WeekBars extends StatelessWidget {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Bars rise from the baseline one after another.
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
@@ -377,6 +434,20 @@ class _WeekBars extends StatelessWidget {
                 color: i == today ? AppColors.orange : _C.cream,
                 borderRadius: BorderRadius.circular(999),
               ),
+            ).withMotion(
+              context,
+              (a) => a
+                  .fadeIn(
+                    delay: _Motion.barsStart + _Motion.barStep * i,
+                    duration: 250.ms,
+                  )
+                  .scaleY(
+                    begin: 0,
+                    end: 1,
+                    alignment: Alignment.bottomCenter,
+                    duration: 450.ms,
+                    curve: Curves.easeOutCubic,
+                  ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -400,12 +471,16 @@ class _StatTile extends StatelessWidget {
   final String value;
   final String label;
 
+  /// Position in the fill-in sequence (0 = first).
+  final int order;
+
   const _StatTile({
     required this.icon,
     required this.iconColor,
     required this.tint,
     required this.value,
     required this.label,
+    required this.order,
   });
 
   @override
@@ -416,48 +491,64 @@ class _StatTile extends StatelessWidget {
         color: tint,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        children: [
-          Row(
+      // The tile is there from the start; its contents fill in one tile
+      // after another, as in the reference video.
+      child:
+          Column(
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 16, color: iconColor),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.ink,
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 16, color: iconColor),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.ink,
+                        ),
+                      ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Scales down in the narrow 2x2 grid rather than cutting off.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: const TextStyle(fontSize: 10, color: _C.primary),
                 ),
               ),
             ],
+          ).withMotion(
+            context,
+            (a) => a
+                .fadeIn(
+                  delay: _Motion.statsStart + _Motion.statsStep * order,
+                  duration: 350.ms,
+                  curve: Curves.easeOut,
+                )
+                .scale(
+                  begin: const Offset(0.85, 0.85),
+                  end: const Offset(1, 1),
+                  curve: Curves.easeOutCubic,
+                ),
           ),
-          const SizedBox(height: 6),
-          // Scales down in the narrow 2x2 grid rather than cutting off.
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: const TextStyle(fontSize: 10, color: _C.primary),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -524,85 +615,87 @@ class _ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final e = item.enrollment;
-    return GestureDetector(
-      onTap: () => _openCourse(context, e),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: _C.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 104,
-              height: 74,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: _C.cardShadow,
+    return Pressable(
+      child: GestureDetector(
+        onTap: () => _openCourse(context, e),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: _C.cardShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 104,
+                height: 74,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _C.cardShadow,
+                ),
+                child: _Thumbnail(enrollment: e),
               ),
-              child: _Thumbnail(enrollment: e),
-            ),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (e.courseSubject != null) ...[
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (e.courseSubject != null) ...[
+                      Text(
+                        e.courseSubject!,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.courseTitle ?? 'Course',
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.3,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.play_arrow_rounded,
+                          size: 26,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
                     Text(
-                      e.courseSubject!,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                      '${item.percent}% complete',
+                      style: const TextStyle(fontSize: 10.5, color: _C.textSub),
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: item.percent / 100,
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFE5E7EB),
                         color: AppColors.orange,
                       ),
                     ),
-                    const SizedBox(height: 10),
                   ],
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          e.courseTitle ?? 'Course',
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            height: 1.3,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.play_arrow_rounded,
-                        size: 26,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '${item.percent}% complete',
-                    style: const TextStyle(fontSize: 10.5, color: _C.textSub),
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: item.percent / 100,
-                      minHeight: 8,
-                      backgroundColor: const Color(0xFFE5E7EB),
-                      color: AppColors.orange,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -638,13 +731,16 @@ class _SubjectList extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: _C.textSub),
           );
         }
+        // Rows cascade in one after another (100ms apart), sliding from
+        // the right, as in the reference video.
         return Column(
           children: [
-            for (var i = 0; i < list.length; i++) ...[
-              if (i > 0) const SizedBox(height: 14),
-              _SubjectRow(subject: list[i], tint: _rowTint(i)),
-            ],
-          ],
+            for (var i = 0; i < list.length; i++)
+              Padding(
+                padding: EdgeInsets.only(top: i > 0 ? 14 : 0),
+                child: _SubjectRow(subject: list[i], tint: _rowTint(i)),
+              ),
+          ].cascade(context, delay: _Motion.listStart),
         );
       },
     );
@@ -739,63 +835,69 @@ class _ListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: tint,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
+    // Subject and course rows shrink slightly under the finger.
+    return Pressable(
+      child: Material(
+        color: tint,
         borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white, width: 1.5),
-            boxShadow: _C.cardShadow,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 64,
-                height: 46,
-                clipBehavior: Clip.antiAlias,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _C.lavenderTile,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white, width: 1.5),
+              boxShadow: _C.cardShadow,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 64,
+                  height: 46,
+                  clipBehavior: Clip.antiAlias,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _C.lavenderTile,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white),
+                  ),
+                  child: leading,
                 ),
-                child: leading,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.3,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.3,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 10.5, color: _C.textSub),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: _C.textSub,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(
-                LucideIcons.chevronRight200,
-                size: 26,
-                color: _C.textSub,
-              ),
-            ],
+                const Icon(
+                  LucideIcons.chevronRight200,
+                  size: 26,
+                  color: _C.textSub,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -810,65 +912,84 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: _C.cardShadow,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: _C.primaryLt,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              LucideIcons.graduationCap,
-              color: _C.primary,
-              size: 38,
-            ),
+    child:
+        Container(
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: _C.cardShadow,
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'No courses yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Enroll in a course from the store to start learning.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: _C.textSub, fontSize: 13.5, height: 1.5),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: onBrowse,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.deepNavy,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: _C.primaryLt,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  LucideIcons.graduationCap,
+                  color: _C.primary,
+                  size: 38,
+                ),
               ),
-            ),
-            icon: const Icon(LucideIcons.store, size: 18),
-            label: const Text(
-              'Browse Courses',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-            ),
+              const SizedBox(height: 20),
+              const Text(
+                'No courses yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Enroll in a course from the store to start learning.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _C.textSub,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Pressable(
+                child: ElevatedButton.icon(
+                  onPressed: onBrowse,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.deepNavy,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  icon: const Icon(LucideIcons.store, size: 18),
+                  label: const Text(
+                    'Browse Courses',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
+        ).withMotion(
+          context,
+          (a) => a
+              .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+              .scale(
+                begin: const Offset(0.95, 0.95),
+                end: const Offset(1, 1),
+                curve: Curves.easeOutCubic,
+              ),
+        ),
   );
 }

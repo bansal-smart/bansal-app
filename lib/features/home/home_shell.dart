@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -26,11 +27,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static const _tabs = [
-    (route: '/home', icon: LucideIcons.house, label: 'Home'),
-    (route: '/courses', icon: LucideIcons.bookOpen, label: 'Learn'),
-    (route: '/tests', icon: LucideIcons.clipboardList, label: 'Tests'),
-    (route: '/store', icon: LucideIcons.archive, label: 'Store'),
-    (route: '/profile', icon: LucideIcons.user, label: 'Profile'),
+    (route: '/home', icon: LucideIcons.house300, label: 'Home'),
+    (route: '/courses', icon: LucideIcons.bookOpen300, label: 'Learn'),
+    (route: '/tests', icon: LucideIcons.clipboardList300, label: 'Tests'),
+    (route: '/store', icon: LucideIcons.archive300, label: 'Store'),
+    (route: '/profile', icon: LucideIcons.user300, label: 'Profile'),
   ];
 
   int get _index => _tabs
@@ -73,6 +74,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           }
         },
         child: AppBackground(
+          // The bubbles fade in (as in bg_screen.mp4) when the app opens and
+          // replay on every tab switch, as in reference_video.mp4.
+          introKey: _tabs[currentIdx].route,
           child: Scaffold(
             key: _scaffoldKey,
             backgroundColor: Colors.transparent,
@@ -134,11 +138,13 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
           children: [
             // ── Logo ──
             Expanded(
-              child: Image.asset(
-                'assets/images/bansal-logo.webp',
-                height: 30,
-                fit: BoxFit.contain,
-                alignment: Alignment.centerLeft,
+              child: _LogoEntrance(
+                child: Image.asset(
+                  'assets/images/bansal-logo.webp',
+                  height: 30,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
+                ),
               ),
             ),
 
@@ -154,6 +160,29 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────
+// LOGO ENTRANCE — slides in from the left once, when the shell first appears
+// (the shell persists across tabs, so switching tabs doesn't replay it).
+// ─────────────────────────────────────────────
+class _LogoEntrance extends StatelessWidget {
+  final Widget child;
+  const _LogoEntrance({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.of(context).disableAnimations) return child;
+    return child
+        .animate()
+        .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+        .slideX(
+          begin: -0.25,
+          end: 0,
+          duration: 500.ms,
+          curve: Curves.easeOutCubic,
+        );
   }
 }
 
@@ -243,7 +272,27 @@ class _NotificationButton extends StatelessWidget {
 
 // ─────────────────────────────────────────────
 // BOTTOM NAVIGATION BAR
+// One shared highlight pill slides to the selected tab (as in the reference
+// video), and the newly selected icon gives a small bounce.
 // ─────────────────────────────────────────────
+/// Sizes taken from the nav-bar reference image. Content height is
+/// 6 + 40 + 5 + 16 = 67, inside the 72px bar, so nothing can overflow.
+abstract class _NavMetrics {
+  static const double barHeight = 72;
+  static const double topInset = 6;
+  static const double pillWidth = 60;
+  static const double pillHeight = 40;
+  static const double labelGap = 5;
+  static const double labelHeight = 16;
+  static const double iconSize = 24;
+  static const slide = Duration(milliseconds: 300);
+
+  /// Active: navy icon + bold navy label. Inactive: muted grey (#6B7280,
+  /// ~4.8:1 on white).
+  static const active = AppColors.primary;
+  static const inactive = AppColors.textSoft;
+}
+
 class _BottomNav extends StatelessWidget {
   final int currentIndex;
   final void Function(int) onTap;
@@ -257,13 +306,18 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Container(
+      // Clean white bar: hairline top border plus a very soft upward shadow.
       decoration: BoxDecoration(
         color: Colors.white,
+        border: const Border(
+          top: BorderSide(color: Color(0xFFEDEFF3), width: 1),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
             offset: const Offset(0, -2),
           ),
         ],
@@ -271,19 +325,57 @@ class _BottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 72,
-          child: Row(
-            children: List.generate(tabs.length, (i) {
-              final tab = tabs[i];
-              return Expanded(
-                child: _NavItem(
-                  icon: tab.icon,
-                  label: tab.label,
-                  isActive: i == currentIndex,
-                  onTap: () => onTap(i),
-                ),
+          height: _NavMetrics.barHeight,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final slotWidth = constraints.maxWidth / tabs.length;
+              return Stack(
+                children: [
+                  // The pill sits behind the icons and slides between slots
+                  // smoothly. (No overshoot: on long jumps such as Home →
+                  // Profile a springy curve would push it past the bar edge;
+                  // the icon bounce supplies the spring feel instead.)
+                  AnimatedPositioned(
+                    duration: reduceMotion ? Duration.zero : _NavMetrics.slide,
+                    curve: Curves.easeOutCubic,
+                    top: _NavMetrics.topInset,
+                    left:
+                        slotWidth * currentIndex +
+                        (slotWidth - _NavMetrics.pillWidth) / 2,
+                    width: _NavMetrics.pillWidth,
+                    height: _NavMetrics.pillHeight,
+                    // Stadium-shaped pill with the soft drop shadow from the
+                    // reference image.
+                    child: const DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.navActive,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x2E1E293B),
+                            blurRadius: 10,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: List.generate(tabs.length, (i) {
+                      final tab = tabs[i];
+                      return Expanded(
+                        child: _NavItem(
+                          icon: tab.icon,
+                          label: tab.label,
+                          isActive: i == currentIndex,
+                          onTap: () => onTap(i),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               );
-            }),
+            },
           ),
         ),
       ),
@@ -309,7 +401,26 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? AppColors.ink : AppColors.textSoft;
+    // Navy icon + bold label when active, muted grey otherwise.
+    final color = isActive ? _NavMetrics.active : _NavMetrics.inactive;
+    Widget iconWidget = TweenAnimationBuilder<Color?>(
+      tween: ColorTween(end: color),
+      duration: const Duration(milliseconds: 200),
+      builder: (_, c, _) => Icon(icon, size: _NavMetrics.iconSize, color: c),
+    );
+    // A new Animate subtree is mounted when the tab becomes active, so the
+    // bounce plays once per selection (not on unrelated rebuilds).
+    if (isActive && !MediaQuery.of(context).disableAnimations) {
+      iconWidget = iconWidget
+          .animate(key: ValueKey('nav-active-$label'))
+          .scale(
+            begin: const Offset(0.8, 0.8),
+            end: const Offset(1, 1),
+            duration: 200.ms,
+            curve: Curves.easeOutBack,
+          );
+    }
+
     return Semantics(
       button: true,
       selected: isActive,
@@ -318,30 +429,32 @@ class _NavItem extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
+        // Fixed geometry so every icon centres exactly inside the sliding
+        // pill: inset, pill-height icon slot, gap, then the label.
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              width: 54,
-              height: 38,
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.navActive : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, size: 22, color: color),
+            const SizedBox(height: _NavMetrics.topInset),
+            SizedBox(
+              height: _NavMetrics.pillHeight,
+              child: Center(child: iconWidget),
             ),
-            const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontFamily: DefaultTextStyle.of(context).style.fontFamily,
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: color,
+            const SizedBox(height: _NavMetrics.labelGap),
+            SizedBox(
+              height: _NavMetrics.labelHeight,
+              // Shrinks instead of overflowing with large system font sizes.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: TextStyle(
+                    fontFamily: DefaultTextStyle.of(context).style.fontFamily,
+                    fontSize: 12,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                    color: color,
+                  ),
+                  child: Text(label, maxLines: 1),
+                ),
               ),
-              child: Text(label),
             ),
           ],
         ),

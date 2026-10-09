@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/error/app_exception.dart';
 import '../../core/theme/colors.dart';
+import '../../core/widgets/motion.dart';
 import '../../skeleton_loading/tests_skeleton.dart';
 import '../enrollments/data/enrollments_providers.dart';
 import '../enrollments/data/models/enrollment.dart';
@@ -30,6 +32,21 @@ abstract class DS {
   static const shadow = [
     BoxShadow(color: Color(0x1F102A5C), blurRadius: 12, offset: Offset(0, 4)),
   ];
+}
+
+// ─────────────────────────────────────────────
+// Motion — paced from the Tests section of the Figma prototype video:
+// header card drops in and its course pill pops, "All The Best!" and the
+// three stat tiles fade in, then the test-type cards cascade; inside each
+// card the number circle slides in from the left and test rows from the
+// right. (Shared helpers live in core/widgets/motion.dart.)
+// ─────────────────────────────────────────────
+abstract class _Motion {
+  static const greeting = Duration(milliseconds: 300);
+  static const statsStart = Duration(milliseconds: 400);
+  static const statsStep = Duration(milliseconds: 120);
+  static const listStart = Duration(milliseconds: 300);
+  static const rowInterval = Duration(milliseconds: 70);
 }
 
 /// One "Test Type" section. Tests are bucketed by their free-text
@@ -168,7 +185,17 @@ class _TestsListScreenState extends ConsumerState<TestsListScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _TestsHero(available: available),
+                  // 1. Header card drops in from slightly above.
+                  _TestsHero(available: available).withMotion(
+                    context,
+                    (a) => a
+                        .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+                        .slideY(
+                          begin: -0.15,
+                          end: 0,
+                          curve: Curves.easeOutCubic,
+                        ),
+                  ),
                   const SizedBox(height: 28),
                   const Text(
                     'TEST TYPE',
@@ -180,19 +207,24 @@ class _TestsListScreenState extends ConsumerState<TestsListScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  for (var i = 0; i < sections.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 14),
-                    _TypeCard(
-                      number: i + 1,
-                      section: sections[i],
-                      isOpen: _open!.contains(sections[i].key),
-                      onToggle: () => setState(() {
-                        final key = sections[i].key;
-                        if (!_open!.remove(key)) _open!.add(key);
-                      }),
-                      onTapTest: _openTest,
-                    ),
-                  ],
+                  // 2. Test-type cards cascade in, 100ms apart.
+                  ...[
+                    for (var i = 0; i < sections.length; i++)
+                      Padding(
+                        key: ValueKey('type-${sections[i].key}'),
+                        padding: EdgeInsets.only(top: i > 0 ? 14 : 0),
+                        child: _TypeCard(
+                          number: i + 1,
+                          section: sections[i],
+                          isOpen: _open!.contains(sections[i].key),
+                          onToggle: () => setState(() {
+                            final key = sections[i].key;
+                            if (!_open!.remove(key)) _open!.add(key);
+                          }),
+                          onTapTest: _openTest,
+                        ),
+                      ),
+                  ].cascade(context, delay: _Motion.listStart),
                 ],
               ),
             );
@@ -276,6 +308,17 @@ class _TestsHero extends ConsumerWidget {
                                 color: Colors.white,
                               ),
                             ),
+                          ).withMotion(
+                            // The pill "pops": starts a touch larger and
+                            // settles, as in the video.
+                            context,
+                            (a) => a.scale(
+                              alignment: Alignment.centerLeft,
+                              begin: const Offset(1.12, 1.12),
+                              end: const Offset(1, 1),
+                              duration: 450.ms,
+                              curve: Curves.easeOutBack,
+                            ),
                           ),
                           if (meta.isNotEmpty) ...[
                             const SizedBox(height: 6),
@@ -306,6 +349,13 @@ class _TestsHero extends ConsumerWidget {
                     color: Colors.white,
                   ),
                 ),
+              ).withMotion(
+                context,
+                (a) => a.fadeIn(
+                  delay: _Motion.greeting,
+                  duration: 450.ms,
+                  curve: Curves.easeOut,
+                ),
               ),
             ],
           ),
@@ -318,6 +368,7 @@ class _TestsHero extends ConsumerWidget {
                   color: DS.indigo,
                   value: '$available',
                   label: 'Available Test',
+                  order: 0,
                 ),
               ),
               const SizedBox(width: 12),
@@ -327,6 +378,7 @@ class _TestsHero extends ConsumerWidget {
                   color: DS.success,
                   value: accuracy == null ? '—' : '$accuracy%',
                   label: 'Accuracy',
+                  order: 1,
                 ),
               ),
               const SizedBox(width: 12),
@@ -338,6 +390,7 @@ class _TestsHero extends ConsumerWidget {
                       ? '—'
                       : '${percentile.toStringAsFixed(percentile % 1 == 0 ? 0 : 1)}%',
                   label: 'Percentile',
+                  order: 2,
                 ),
               ),
             ],
@@ -354,11 +407,15 @@ class _HeroStat extends StatelessWidget {
   final String value;
   final String label;
 
+  /// Position in the fade-in sequence (0 = first).
+  final int order;
+
   const _HeroStat({
     required this.icon,
     required this.color,
     required this.value,
     required this.label,
+    required this.order,
   });
 
   @override
@@ -396,6 +453,19 @@ class _HeroStat extends StatelessWidget {
           ),
         ],
       ),
+    ).withMotion(
+      context,
+      (a) => a
+          .fadeIn(
+            delay: _Motion.statsStart + _Motion.statsStep * order,
+            duration: 400.ms,
+            curve: Curves.easeOut,
+          )
+          .scale(
+            begin: const Offset(0.9, 0.9),
+            end: const Offset(1, 1),
+            curve: Curves.easeOutCubic,
+          ),
     );
   }
 }
@@ -418,10 +488,28 @@ class _TypeCard extends StatelessWidget {
     required this.onTapTest,
   });
 
+  static const _expand = Duration(milliseconds: 300);
+
+  /// Expanded content: grows and fades in; on collapse it shrinks and fades
+  /// out together, so nothing pops or jumps.
+  Widget _expandTransition(Widget child, Animation<double> animation) =>
+      FadeTransition(
+        opacity: animation,
+        child: SizeTransition(
+          sizeFactor: animation,
+          alignment: Alignment.topCenter,
+          child: child,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
+    // The card's own cascade starts at this point (see the list above);
+    // its number circle slides in from the left just after.
+    final cardStart =
+        _Motion.listStart + const Duration(milliseconds: 100) * (number - 1);
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: _expand,
       decoration: BoxDecoration(
         color: isOpen ? DS.sectionPeach : DS.sectionBlue,
         borderRadius: BorderRadius.circular(18),
@@ -437,70 +525,105 @@ class _TypeCard extends StatelessWidget {
             expanded: isOpen,
             label: '${section.label}, ${section.tests.length} tests',
             excludeSemantics: true,
-            child: InkWell(
-              onTap: onToggle,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 18, 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x29000000),
-                            blurRadius: 5,
-                            offset: Offset(0, 2),
+            // Only the header shrinks on press, so tapping a test row inside
+            // doesn't squeeze the whole card.
+            child: Pressable(
+              pressedScale: 0.97,
+              child: InkWell(
+                onTap: onToggle,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 18, 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x29000000),
+                              blurRadius: 5,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '$number',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: DS.ink,
                           ),
-                        ],
+                        ),
+                      ).withMotion(
+                        context,
+                        (a) => a
+                            .fadeIn(
+                              delay: cardStart + 150.ms,
+                              duration: 400.ms,
+                              curve: Curves.easeOut,
+                            )
+                            .slideX(
+                              begin: -1.2,
+                              end: 0,
+                              curve: Curves.easeOutCubic,
+                            ),
                       ),
-                      child: Text(
-                        '$number',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: DS.ink,
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Text(
+                          section.label.toUpperCase(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 1.2,
+                            fontWeight: FontWeight.w700,
+                            color: DS.ink,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Text(
-                        section.label.toUpperCase(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 1.2,
-                          fontWeight: FontWeight.w700,
-                          color: DS.ink,
-                          letterSpacing: 0.2,
+                      // Rotates between › and ⌄ instead of swapping icons.
+                      AnimatedRotation(
+                        turns: isOpen ? 0.25 : 0,
+                        duration: _expand,
+                        curve: Curves.easeInOutCubic,
+                        child: const Icon(
+                          LucideIcons.chevronRight200,
+                          size: 26,
+                          color: DS.soft,
                         ),
                       ),
-                    ),
-                    Icon(
-                      isOpen
-                          ? LucideIcons.chevronDown200
-                          : LucideIcons.chevronRight200,
-                      size: 26,
-                      color: DS.soft,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
+          // 3. Smooth expand / collapse.
+          AnimatedSwitcher(
+            duration: _expand,
+            switchInCurve: Curves.easeInOutCubic,
+            switchOutCurve: Curves.easeInOutCubic,
+            transitionBuilder: _expandTransition,
+            // Top-aligned stack: the outgoing content shrinks in place while
+            // the incoming content grows, so the card height animates
+            // continuously in both directions.
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.topCenter,
+              children: [...previous, ?current],
+            ),
             child: !isOpen
-                ? const SizedBox(width: double.infinity)
+                ? const SizedBox(
+                    key: ValueKey('closed'),
+                    width: double.infinity,
+                  )
                 : Padding(
+                    key: const ValueKey('open'),
                     padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
                     child: section.tests.isEmpty
                         ? const Padding(
@@ -511,20 +634,19 @@ class _TypeCard extends StatelessWidget {
                               style: TextStyle(fontSize: 11, color: DS.soft),
                             ),
                           )
+                        // Rows cascade in from the right each time the card
+                        // opens, as in the video.
                         : Column(
                             children: [
-                              for (
-                                var i = 0;
-                                i < section.tests.length;
-                                i++
-                              ) ...[
-                                if (i > 0) const SizedBox(height: 12),
-                                _TestRow(
-                                  item: section.tests[i],
-                                  onTap: () => onTapTest(section.tests[i]),
+                              for (var i = 0; i < section.tests.length; i++)
+                                Padding(
+                                  padding: EdgeInsets.only(top: i > 0 ? 12 : 0),
+                                  child: _TestRow(
+                                    item: section.tests[i],
+                                    onTap: () => onTapTest(section.tests[i]),
+                                  ),
                                 ),
-                              ],
-                            ],
+                            ].cascade(context, interval: _Motion.rowInterval),
                           ),
                   ),
           ),
@@ -581,7 +703,7 @@ class _TestRow extends StatelessWidget {
     // Geometry mirrors the section header above: a 44px leading slot centred
     // under the number circle, then a 20px gap, so the test title starts at
     // exactly the same x as the "PART TEST" label.
-    return Opacity(
+    final row = Opacity(
       opacity: disabled ? 0.6 : 1,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -656,6 +778,9 @@ class _TestRow extends StatelessWidget {
         ),
       ),
     );
+    // Tap feedback on the row (its START / RESUME / RESULT action); absent
+    // CBT rows aren't tappable, so they don't react.
+    return disabled ? row : Pressable(pressedScale: 0.97, child: row);
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -36,6 +37,47 @@ abstract class DS {
   static const cardShadow = [
     BoxShadow(color: Color(0x14102A5C), blurRadius: 18, offset: Offset(0, 6)),
   ];
+}
+
+/// Entrance motion modelled on the Figma prototype video: each section fades
+/// in while rising a short distance, one after another; card contents (icons,
+/// chart bars, progress fill, numbers) settle in just after their card.
+abstract class _Motion {
+  /// Gap between consecutive sections.
+  static const step = Duration(milliseconds: 90);
+  static const duration = Duration(milliseconds: 450);
+  static const rise = Offset(0, 24);
+
+  /// Start time of the section at [order] in the stagger.
+  static Duration at(int order) => step * order;
+
+  /// Honour the system "remove animations" accessibility setting.
+  static bool off(BuildContext context) =>
+      MediaQuery.of(context).disableAnimations;
+}
+
+extension _Entrance on Widget {
+  /// Fade-in + slide-up, staggered by [order].
+  Widget entrance(BuildContext context, int order) {
+    if (_Motion.off(context)) return this;
+    return animate(delay: _Motion.at(order))
+        .fadeIn(duration: _Motion.duration, curve: Curves.easeOut)
+        .move(
+          begin: _Motion.rise,
+          end: Offset.zero,
+          duration: _Motion.duration,
+          curve: Curves.easeOutCubic,
+        );
+  }
+
+  /// Plain fade used for details inside a card once the card has arrived.
+  Widget reveal(BuildContext context, Duration delay, {int ms = 350}) {
+    if (_Motion.off(context)) return this;
+    return animate(delay: delay).fadeIn(
+      duration: Duration(milliseconds: ms),
+      curve: Curves.easeOut,
+    );
+  }
 }
 
 class HomeScreen extends ConsumerWidget {
@@ -100,34 +142,44 @@ class HomeScreen extends ConsumerWidget {
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(DS.s20, DS.s4, DS.s20, DS.s32),
+        // The number passed to entrance() is each section's place in the
+        // stagger (see _Motion); the list length stays fixed so animation
+        // state never shifts onto a neighbouring section.
         children: [
           // ── Greeting ──
-          _Greeting(firstName: _firstName(ref)),
+          _Greeting(firstName: _firstName(ref)).entrance(context, 0),
           const SizedBox(height: DS.s16),
 
           // Same admin-managed carousel used by the website hero.
-          bannersAsync.when(
-            data: (banners) => LandingBannerCarousel(banners: banners),
-            loading: () => const _BannerLoadingPlaceholder(),
-            error: (_, _) => const SizedBox.shrink(),
-          ),
+          bannersAsync
+              .when(
+                data: (banners) => LandingBannerCarousel(banners: banners),
+                loading: () => const _BannerLoadingPlaceholder(),
+                error: (_, _) => const SizedBox.shrink(),
+              )
+              .entrance(context, 1),
 
-          if (bannersAsync.valueOrNull?.isNotEmpty == true ||
-              bannersAsync.isLoading)
-            const SizedBox(height: DS.s20),
+          SizedBox(
+            height:
+                bannersAsync.valueOrNull?.isNotEmpty == true ||
+                    bannersAsync.isLoading
+                ? DS.s20
+                : 0,
+          ),
 
           // ── Momentum ──
           _MomentumCard(
             streak: streak,
             testsCompleted: testsCompleted,
             accuracy: accuracy,
+            revealAt: _Motion.at(2),
             onTap: () => context.go('/profile'),
-          ),
+          ).entrance(context, 2),
 
           const SizedBox(height: DS.s28),
 
           // ── Quick access ──
-          const _SectionHeader(title: 'Quick Access'),
+          const _SectionHeader(title: 'Quick Access').entrance(context, 3),
           const SizedBox(height: DS.s14),
           Row(
             children: [
@@ -136,8 +188,9 @@ class HomeScreen extends ConsumerWidget {
                   icon: LucideIcons.bookOpen200,
                   label: 'My courses',
                   color: AppColors.tileBlue,
+                  revealAt: _Motion.at(4),
                   onTap: () => context.go('/courses'),
-                ),
+                ).entrance(context, 4),
               ),
               const SizedBox(width: DS.s14),
               Expanded(
@@ -145,8 +198,9 @@ class HomeScreen extends ConsumerWidget {
                   icon: LucideIcons.clipboardList200,
                   label: 'My Test',
                   color: AppColors.tileLavender,
+                  revealAt: _Motion.at(5),
                   onTap: () => context.go('/tests'),
-                ),
+                ).entrance(context, 5),
               ),
             ],
           ),
@@ -158,9 +212,12 @@ class HomeScreen extends ConsumerWidget {
             title: 'Weekly Progress',
             actionLabel: 'Details',
             onAction: () => context.go('/profile'),
-          ),
+          ).entrance(context, 6),
           const SizedBox(height: DS.s14),
-          _WeeklyProgressCard(minutes: weeklyMinutes),
+          _WeeklyProgressCard(
+            minutes: weeklyMinutes,
+            revealAt: _Motion.at(7),
+          ).entrance(context, 7),
 
           const SizedBox(height: DS.s28),
 
@@ -169,9 +226,9 @@ class HomeScreen extends ConsumerWidget {
             title: 'Today',
             actionLabel: 'All',
             onAction: () => context.go('/live'),
-          ),
+          ).entrance(context, 8),
           const SizedBox(height: DS.s14),
-          _TodayCard(hasClasses: todaysLive.isNotEmpty),
+          _TodayCard(hasClasses: todaysLive.isNotEmpty).entrance(context, 9),
 
           const SizedBox(height: DS.s28),
 
@@ -180,14 +237,14 @@ class HomeScreen extends ConsumerWidget {
             title: 'Continue Learning',
             actionLabel: 'All courses',
             onAction: () => context.go('/courses'),
-          ),
+          ).entrance(context, 10),
           const SizedBox(height: DS.s14),
           _ContinueLearningCard(
             enrollment: recentEnrollment,
             onOpenCourse: () => recentEnrollment != null
                 ? context.push('/my-courses/${recentEnrollment.courseId}')
                 : context.go('/courses'),
-          ),
+          ).entrance(context, 11),
         ],
       ),
     );
@@ -264,18 +321,34 @@ class _MomentumCard extends StatelessWidget {
   final int streak;
   final int testsCompleted;
   final int? accuracy;
+
+  /// When this card starts its entrance; the progress bar fills after it.
+  final Duration revealAt;
   final VoidCallback onTap;
 
   const _MomentumCard({
     required this.streak,
     required this.testsCompleted,
     required this.accuracy,
+    required this.revealAt,
     required this.onTap,
   });
+
+  static const _fill = Duration(milliseconds: 900);
 
   @override
   Widget build(BuildContext context) {
     final progress = (accuracy ?? 0) / 100;
+    final fillStart = revealAt + const Duration(milliseconds: 500);
+    Widget bar(double value) => ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: LinearProgressIndicator(
+        value: value,
+        minHeight: 8,
+        backgroundColor: const Color(0xFF3D5C9C),
+        valueColor: const AlwaysStoppedAnimation(AppColors.orange),
+      ),
+    );
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -333,17 +406,16 @@ class _MomentumCard extends StatelessWidget {
               children: [
                 Expanded(
                   flex: 5,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: const Color(0xFF3D5C9C),
-                      valueColor: const AlwaysStoppedAnimation(
-                        AppColors.orange,
-                      ),
-                    ),
-                  ),
+                  // Fills from empty to the current value, like the video.
+                  child: _Motion.off(context)
+                      ? bar(progress)
+                      : bar(0)
+                            .animate(delay: fillStart)
+                            .custom(
+                              duration: _fill,
+                              curve: Curves.easeOutCubic,
+                              builder: (context, t, _) => bar(progress * t),
+                            ),
                 ),
                 const SizedBox(width: DS.s16),
                 Text(
@@ -353,7 +425,7 @@ class _MomentumCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
-                ),
+                ).reveal(context, fillStart + _fill),
                 const Spacer(flex: 2),
               ],
             ),
@@ -369,12 +441,16 @@ class _QuickAccessTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+
+  /// When this tile starts its entrance; its icon and label follow.
+  final Duration revealAt;
   final VoidCallback onTap;
 
   const _QuickAccessTile({
     required this.icon,
     required this.label,
     required this.color,
+    required this.revealAt,
     required this.onTap,
   });
 
@@ -394,6 +470,7 @@ class _QuickAccessTile extends StatelessWidget {
             border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: DS.cardShadow,
           ),
+          // The tile arrives as a soft shell, then its contents fade in.
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -408,7 +485,7 @@ class _QuickAccessTile extends StatelessWidget {
                 ),
               ),
             ],
-          ),
+          ).reveal(context, revealAt + const Duration(milliseconds: 220)),
         ),
       ),
     );
@@ -463,7 +540,12 @@ class _SectionHeader extends StatelessWidget {
 class _WeeklyProgressCard extends StatelessWidget {
   /// Minutes studied per day, Monday first.
   final List<int> minutes;
-  const _WeeklyProgressCard({required this.minutes});
+
+  /// When this card starts its entrance; bars and totals follow.
+  final Duration revealAt;
+  const _WeeklyProgressCard({required this.minutes, required this.revealAt});
+
+  static const _barStagger = Duration(milliseconds: 60);
 
   static const _days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   static const double _maxBar = 84;
@@ -481,6 +563,8 @@ class _WeeklyProgressCard extends StatelessWidget {
     final total = minutes.fold<int>(0, (a, b) => a + b);
     final peak = minutes.fold<int>(0, (a, b) => a > b ? a : b);
     final todayIndex = DateTime.now().weekday - 1;
+    final reduceMotion = _Motion.off(context);
+    final barsStart = revealAt + const Duration(milliseconds: 150);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(DS.s20, DS.s20, DS.s16, DS.s16),
@@ -502,12 +586,12 @@ class _WeeklyProgressCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: AppColors.ink,
                 ),
-              ),
+              ).reveal(context, barsStart + const Duration(milliseconds: 250)),
               const SizedBox(height: DS.s20),
               const Text(
                 'Study Time',
                 style: TextStyle(fontSize: 10, color: AppColors.textSoft),
-              ),
+              ).reveal(context, barsStart + const Duration(milliseconds: 500)),
             ],
           ),
           const SizedBox(width: DS.s16),
@@ -520,23 +604,37 @@ class _WeeklyProgressCard extends StatelessWidget {
                 children: List.generate(7, (i) {
                   final ratio = peak == 0 ? 0.0 : minutes[i] / peak;
                   final height = _minBar + (_maxBar - _minBar) * ratio;
+                  final bar = AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    width: 15,
+                    height: height,
+                    decoration: BoxDecoration(
+                      color: i == todayIndex
+                          ? AppColors.orange
+                          : AppColors.barIdle,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  );
                   return Semantics(
                     label: '${_days[i]}: ${_formatTotal(minutes[i])}',
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOutCubic,
-                          width: 15,
-                          height: height,
-                          decoration: BoxDecoration(
-                            color: i == todayIndex
-                                ? AppColors.orange
-                                : AppColors.barIdle,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
+                        // Bars rise from the baseline one after another.
+                        if (reduceMotion)
+                          bar
+                        else
+                          bar
+                              .animate(delay: barsStart + _barStagger * i)
+                              .fadeIn(duration: 250.ms)
+                              .scaleY(
+                                begin: 0,
+                                end: 1,
+                                alignment: Alignment.bottomCenter,
+                                duration: 500.ms,
+                                curve: Curves.easeOutCubic,
+                              ),
                         const SizedBox(height: DS.s10),
                         Text(
                           _days[i],
