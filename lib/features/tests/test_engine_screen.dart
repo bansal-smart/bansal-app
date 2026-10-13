@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/theme/colors.dart';
 import 'data/question_image_resolver.dart';
 
 // ─────────────────────────────────────────────
@@ -32,6 +34,17 @@ abstract class DS {
   static const warningSurface = Color(0xFFFFFBEB);
   static const indigo = Color(0xFF6366F1);
   static const indigoLight = Color(0xFFEEF2FF);
+
+  // Test-platform redesign (Figma)
+  static const canvas = AppColors.background; // plain off-white, no bubbles
+  static const lavender = Color(0xFFD3DCF8); // pills, letter discs, image well
+  static const navy = Color(0xFF1E3A8A); // Q badge, timer, Save & Next
+  static const danger = Color(0xFFF23B3B); // Submit
+  static const closeTint = Color(0xFFF9D9D9); // close button
+  static const ink = Color(0xFF111111);
+  static const cardShadow = [
+    BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 3)),
+  ];
 
   static const double s2 = 2;
   static const double s4 = 4;
@@ -1062,7 +1075,8 @@ class _TestEngineScreenState extends State<TestEngineScreen>
         if (!didPop) _confirmLeave();
       },
       child: Scaffold(
-        backgroundColor: DS.background,
+        // Plain canvas: the exam screen deliberately has no bubble background.
+        backgroundColor: DS.canvas,
 
         // ── App Bar ──
         appBar: _TestAppBar(
@@ -1241,7 +1255,7 @@ class _TestEngineScreenState extends State<TestEngineScreen>
 }
 
 // ─────────────────────────────────────────────
-// TEST APP BAR
+// TEST APP BAR — sits on the plain canvas (Figma test-platform design)
 // ─────────────────────────────────────────────
 class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -1267,76 +1281,67 @@ class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(60);
+  Size get preferredSize => const Size.fromHeight(72);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: DS.surface,
-        border: Border(bottom: BorderSide(color: DS.border, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return ColoredBox(
+      color: DS.canvas,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DS.s8,
-            vertical: DS.s10,
-          ),
+          padding: const EdgeInsets.fromLTRB(DS.s12, DS.s8, DS.s12, DS.s4),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Close
-              GestureDetector(
-                onTap: onClose,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: DS.errorSurface,
-                    borderRadius: BorderRadius.circular(DS.radiusSm),
-                    border: Border.all(
-                      color: DS.error.withOpacity(0.20),
-                      width: 1,
+              // Close — pale red square with a thin red ✕
+              Semantics(
+                button: true,
+                label: 'Leave test',
+                child: GestureDetector(
+                  onTap: onClose,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: DS.closeTint,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: DS.error,
-                    size: 18,
+                    child: const Icon(
+                      LucideIcons.x,
+                      color: DS.danger,
+                      size: 18,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: DS.s10),
 
-              // Title + Q counter
+              // Test name + question counter
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: DS.textPrimary,
-                        letterSpacing: -0.1,
-                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        color: DS.ink,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                     Text(
                       'Question ${index + 1} of $total',
+                      maxLines: 1,
                       style: const TextStyle(
-                        fontSize: 11.5,
-                        color: DS.textSecondary,
+                        fontSize: 15,
+                        height: 1.25,
+                        color: DS.ink,
                       ),
                     ),
                   ],
@@ -1345,97 +1350,98 @@ class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
 
               // Saving indicator
               if (saving) ...[
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: DS.primary,
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: DS.navy,
+                    ),
                   ),
                 ),
                 const SizedBox(width: DS.s8),
               ],
 
-              SizedBox(
-                height: 34,
-                child: ElevatedButton(
-                  onPressed: submitting ? null : onSubmit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: DS.error,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: DS.error.withValues(alpha: 0.5),
-                    padding: const EdgeInsets.symmetric(horizontal: DS.s10),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(DS.radiusSm),
+              // Submit — solid red pill
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: SizedBox(
+                  height: 30,
+                  child: ElevatedButton(
+                    onPressed: submitting ? null : onSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: DS.danger,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: DS.danger.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(horizontal: DS.s12),
+                      minimumSize: const Size(0, 30),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
+                    child: submitting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Submit',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
-                  child: submitting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Submit',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
                 ),
               ),
-              const SizedBox(width: DS.s6),
+              const SizedBox(width: DS.s8),
 
-              // Timer
-              ScaleTransition(
-                scale: timerRed ? pulseAnim : const AlwaysStoppedAnimation(1.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DS.s12,
-                    vertical: DS.s8,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: timerRed
-                          ? [const Color(0xFFFF6B6B), DS.error]
-                          : [const Color(0xFF2B5BB8), DS.primary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              // Timer — navy pill with a light rim; pulses red in the last
+              // minute (unchanged behaviour).
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: ScaleTransition(
+                  scale: timerRed
+                      ? pulseAnim
+                      : const AlwaysStoppedAnimation(1.0),
+                  child: Container(
+                    height: 30,
+                    padding: const EdgeInsets.symmetric(horizontal: DS.s10),
+                    decoration: BoxDecoration(
+                      color: timerRed ? DS.danger : DS.navy,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (timerRed ? DS.error : DS.primary).withOpacity(
-                          0.28,
-                        ),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.schedule_rounded,
-                        color: Colors.white,
-                        size: 13,
-                      ),
-                      const SizedBox(width: DS.s4),
-                      Text(
-                        fmtTime(remaining),
-                        style: const TextStyle(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          LucideIcons.clock,
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13.5,
-                          letterSpacing: 0.5,
+                          size: 13,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: DS.s4),
+                        Text(
+                          fmtTime(remaining),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1448,7 +1454,7 @@ class _TestAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 // ─────────────────────────────────────────────
-// PROGRESS SECTION
+// PROGRESS SECTION — answered / remaining / marked counts
 // ─────────────────────────────────────────────
 class _ProgressSection extends StatelessWidget {
   final double progress;
@@ -1467,61 +1473,37 @@ class _ProgressSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Autosave indicator
+        // Autosave indicator (unchanged behaviour)
         if (saving)
-          Container(
+          const SizedBox(
             height: 2,
-            child: const LinearProgressIndicator(
+            child: LinearProgressIndicator(
               color: DS.success,
               backgroundColor: DS.border,
             ),
           ),
-
-        // Main progress bar
-        Stack(
-          children: [
-            Container(height: 6, color: DS.border),
-            FractionallySizedBox(
-              widthFactor: progress,
-              child: Container(
-                height: 6,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF2B5BB8), DS.primary],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        // Stats row
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DS.s16,
-            vertical: DS.s8,
-          ),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(DS.s16, DS.s12, DS.s16, DS.s10),
+          child: Wrap(
+            spacing: DS.s16,
+            runSpacing: DS.s4,
             children: [
               _ProgressStat(
-                color: DS.success,
-                icon: Icons.check_circle_outline_rounded,
+                color: const Color(0xFF16A34A),
+                icon: LucideIcons.circleCheck,
                 label: '$answeredCount answered',
               ),
-              const SizedBox(width: DS.s16),
               _ProgressStat(
-                color: DS.textHint,
-                icon: Icons.radio_button_unchecked_rounded,
+                color: const Color(0xFFA3A3A3),
+                icon: LucideIcons.circle,
                 label: '${total - answeredCount} remaining',
               ),
-              if (markedCount > 0) ...[
-                const SizedBox(width: DS.s16),
+              if (markedCount > 0)
                 _ProgressStat(
                   color: DS.warning,
-                  icon: Icons.bookmark_rounded,
+                  icon: LucideIcons.bookmarkCheck,
                   label: '$markedCount marked',
                 ),
-              ],
             ],
           ),
         ),
@@ -1545,20 +1527,24 @@ class _ProgressStat extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 12, color: color),
-      const SizedBox(width: DS.s4),
+      Icon(icon, size: 15, color: color),
+      const SizedBox(width: DS.s6),
       Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
+          fontSize: 14.5,
+          fontWeight: FontWeight.w700,
         ),
       ),
     ],
   );
 }
 
+// ─────────────────────────────────────────────
+// SUBJECT PILLS — white band of lavender pills; the current subject is
+// filled navy so it stays clear which section you're in.
+// ─────────────────────────────────────────────
 class _SubjectNavigation extends StatelessWidget {
   final List<String> subjects;
   final String activeSubject;
@@ -1574,28 +1560,40 @@ class _SubjectNavigation extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     color: DS.surface,
-    padding: const EdgeInsets.fromLTRB(DS.s12, DS.s4, DS.s12, DS.s8),
+    padding: const EdgeInsets.symmetric(vertical: DS.s6),
     child: SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: DS.s14),
       child: Row(
         children: subjects.map((subject) {
           final active = subject == activeSubject;
           return Padding(
             padding: const EdgeInsets.only(right: DS.s8),
-            child: ChoiceChip(
+            child: Semantics(
+              button: true,
               selected: active,
-              label: Text(subject),
-              onSelected: (_) => onSelected(subject),
-              showCheckmark: false,
-              selectedColor: DS.primary,
-              backgroundColor: DS.surfaceVariant,
-              side: BorderSide(color: active ? DS.primary : DS.border),
-              labelStyle: TextStyle(
-                color: active ? Colors.white : DS.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+              child: GestureDetector(
+                onTap: () => onSelected(subject),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DS.s16,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: active ? DS.navy : DS.lavender,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    subject,
+                    style: TextStyle(
+                      color: active ? Colors.white : DS.ink,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
-              visualDensity: VisualDensity.compact,
             ),
           );
         }).toList(),
@@ -1605,7 +1603,7 @@ class _SubjectNavigation extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// QUESTION HEADER
+// QUESTION HEADER — Q badge, subject tag, marking scheme, Mark button
 // ─────────────────────────────────────────────
 class _QuestionHeader extends StatelessWidget {
   final int index, total;
@@ -1624,108 +1622,113 @@ class _QuestionHeader extends StatelessWidget {
     required this.onToggleMark,
   });
 
+  static String _n(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 1);
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Q number badge
+        // Q number — navy square
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DS.s10,
-            vertical: DS.s6,
-          ),
+          constraints: const BoxConstraints(minWidth: 30),
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: DS.s6),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2B5BB8), DS.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(DS.radiusSm),
+            color: DS.navy,
+            borderRadius: BorderRadius.circular(5),
           ),
           child: Text(
             'Q ${index + 1}',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
         const SizedBox(width: DS.s8),
 
-        // Subject chip
-        if (subject.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DS.s8,
-              vertical: DS.s6,
-            ),
-            decoration: BoxDecoration(
-              color: DS.primaryLight,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: DS.primary.withOpacity(0.20), width: 1),
-            ),
-            child: Text(
-              subject,
-              style: const TextStyle(
-                color: DS.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+        // Subject tag — lavender
+        if (subject.isNotEmpty) ...[
+          Flexible(
+            child: Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: DS.s8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: DS.lavender,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(
+                subject,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: DS.navy,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
+          const SizedBox(width: DS.s6),
+        ],
 
-        const SizedBox(width: DS.s6),
+        // Marking scheme
         Text(
           marksWrong < 0
-              ? '+${marksCorrect.toStringAsFixed(marksCorrect % 1 == 0 ? 0 : 1)} / ${marksWrong.toStringAsFixed(marksWrong % 1 == 0 ? 0 : 1)}'
-              : '+${marksCorrect.toStringAsFixed(marksCorrect % 1 == 0 ? 0 : 1)}',
+              ? '+${_n(marksCorrect)} / ${_n(marksWrong)}'
+              : '+${_n(marksCorrect)}',
           style: TextStyle(
-            color: marksWrong < 0 ? DS.error : DS.success,
+            color: marksWrong < 0 ? DS.danger : DS.success,
             fontSize: 11,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
 
         const Spacer(),
 
-        // Mark for review
-        GestureDetector(
-          onTap: onToggleMark,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(
-              horizontal: DS.s10,
-              vertical: DS.s6,
-            ),
-            decoration: BoxDecoration(
-              color: marked ? DS.warningSurface : DS.surfaceVariant,
-              borderRadius: BorderRadius.circular(DS.radiusSm),
-              border: Border.all(
-                color: marked ? DS.warning.withOpacity(0.40) : DS.border,
-                width: 1,
+        // Mark for review — outlined white button; amber when marked
+        Semantics(
+          button: true,
+          selected: marked,
+          label: marked ? 'Marked for review' : 'Mark for review',
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: onToggleMark,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: DS.s10),
+              decoration: BoxDecoration(
+                color: marked ? DS.warningSurface : DS.surface,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: marked
+                      ? DS.warning.withValues(alpha: 0.6)
+                      : const Color(0xFF9CA3AF),
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  marked
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  size: 13,
-                  color: marked ? DS.warning : DS.textSecondary,
-                ),
-                const SizedBox(width: DS.s4),
-                Text(
-                  marked ? 'Marked' : 'Mark',
-                  style: TextStyle(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    marked ? LucideIcons.bookmarkCheck : LucideIcons.bookmark,
+                    size: 13,
                     color: marked ? DS.warning : DS.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
                   ),
-                ),
-              ],
+                  const SizedBox(width: DS.s4),
+                  Text(
+                    marked ? 'Marked' : 'Mark',
+                    style: TextStyle(
+                      color: marked ? DS.warning : DS.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1749,14 +1752,8 @@ class _QuestionTextCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: DS.surface,
         borderRadius: BorderRadius.circular(DS.radiusMd),
-        border: Border.all(color: DS.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFEDEDED)),
+        boxShadow: DS.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1778,35 +1775,19 @@ class _QuestionTextCard extends StatelessWidget {
             ...question.imageUrls.map(
               (url) => Padding(
                 padding: const EdgeInsets.only(bottom: DS.s8),
+                // Images sit in the lavender "image well" from the design;
+                // the well shows while loading and if the image fails.
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(DS.radiusSm),
+                  borderRadius: BorderRadius.circular(6),
                   child: CachedNetworkImage(
                     imageUrl: url,
                     width: double.infinity,
                     fit: BoxFit.contain,
-                    placeholder: (context, url) => Container(
-                      height: 160,
-                      color: DS.surfaceVariant,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: DS.primary,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: DS.surfaceVariant,
-                        borderRadius: BorderRadius.circular(DS.radiusSm),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: DS.textSecondary,
-                          size: 32,
-                        ),
-                      ),
+                    placeholder: (context, url) =>
+                        const _ImageWell(height: 90, icon: LucideIcons.image),
+                    errorWidget: (context, url, error) => const _ImageWell(
+                      height: 90,
+                      icon: LucideIcons.imageOff,
                     ),
                   ),
                 ),
@@ -1817,6 +1798,22 @@ class _QuestionTextCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Lavender placeholder with a grey picture icon (the design's image well).
+class _ImageWell extends StatelessWidget {
+  final double height;
+  final IconData icon;
+  const _ImageWell({required this.height, required this.icon});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: height,
+    width: double.infinity,
+    color: DS.lavender,
+    alignment: Alignment.center,
+    child: Icon(icon, size: 40, color: const Color(0xFF6B7280)),
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -2153,15 +2150,16 @@ class _OptionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 2 × 2 grid of tall white cards, as in the design.
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: options.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: DS.s10,
-        mainAxisSpacing: DS.s10,
-        childAspectRatio: 2.6,
+        crossAxisSpacing: DS.s12,
+        mainAxisSpacing: DS.s14,
+        childAspectRatio: 1.9,
       ),
       itemBuilder: (_, i) => _OptionTile(
         index: i,
@@ -2192,128 +2190,91 @@ class _OptionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final letter = index < _letters.length ? _letters[index] : '${index + 1}';
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(DS.s14),
-        decoration: BoxDecoration(
-          color: selected ? DS.primaryLight : DS.surface,
-          borderRadius: BorderRadius.circular(DS.radiusMd),
-          border: Border.all(
-            color: selected ? DS.primary : DS.border,
-            width: selected ? 1.8 : 1.2,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Option $letter',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(DS.s10),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFF0F3FD) : DS.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? DS.navy : const Color(0xFFEDEDED),
+              width: selected ? 2 : 1,
+            ),
+            boxShadow: DS.cardShadow,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: DS.primary.withValues(alpha: 0.12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Letter badge
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: selected
-                    ? const LinearGradient(
-                        colors: [Color(0xFF2B5BB8), DS.primary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: selected ? null : DS.surfaceVariant,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? DS.primary : DS.border,
-                  width: 1.2,
+          child: Row(
+            children: [
+              // Letter disc — lavender, navy when chosen
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: selected ? DS.navy : DS.lavender,
+                  shape: BoxShape.circle,
                 ),
-              ),
-              child: Center(
+                alignment: Alignment.center,
                 child: Text(
                   letter,
                   style: TextStyle(
-                    color: selected ? Colors.white : DS.textSecondary,
+                    color: selected ? Colors.white : DS.ink,
                     fontWeight: FontWeight.w800,
-                    fontSize: 13,
+                    fontSize: 20,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: DS.s10),
 
-            const SizedBox(width: DS.s12),
-
-            // Option content (text + optional image)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (option.text.isNotEmpty)
-                    MathText(
-                      option.text,
-                      maxLines: 3,
-                      style: TextStyle(
-                        color: selected ? DS.primaryDark : DS.textPrimary,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        fontSize: 14.5,
-                        height: 1.4,
+              // Option content (text + optional image)
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (option.text.isNotEmpty)
+                      MathText(
+                        option.text,
+                        maxLines: 4,
+                        style: TextStyle(
+                          color: selected ? DS.navy : DS.textPrimary,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          fontSize: 13.5,
+                          height: 1.35,
+                        ),
                       ),
-                    ),
-                  if (option.imageUrl != null) ...[
-                    if (option.text.isNotEmpty) const SizedBox(height: DS.s8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(DS.radiusSm),
-                      child: CachedNetworkImage(
-                        imageUrl: option.imageUrl!,
-                        fit: BoxFit.contain,
-                        placeholder: (_, _) => Container(
-                          height: 80,
-                          color: DS.surfaceVariant,
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: DS.primary,
+                    if (option.imageUrl != null) ...[
+                      if (option.text.isNotEmpty) const SizedBox(height: DS.s6),
+                      Flexible(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: CachedNetworkImage(
+                            imageUrl: option.imageUrl!,
+                            fit: BoxFit.contain,
+                            placeholder: (_, _) => const _ImageWell(
+                              height: 48,
+                              icon: LucideIcons.image,
+                            ),
+                            errorWidget: (_, _, _) => const _ImageWell(
+                              height: 48,
+                              icon: LucideIcons.imageOff,
                             ),
                           ),
                         ),
-                        errorWidget: (_, _, _) => const Icon(
-                          Icons.broken_image_outlined,
-                          color: DS.textSecondary,
-                          size: 28,
-                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-
-            // Selected indicator
-            if (selected) ...[
-              const SizedBox(width: DS.s8),
-              const Icon(
-                Icons.check_circle_rounded,
-                color: DS.primary,
-                size: 18,
+                ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -2321,7 +2282,7 @@ class _OptionTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// BOTTOM NAVIGATION
+// BOTTOM BAR — palette (grid) button, optional Previous, Save & Next
 // ─────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   final int index, total;
@@ -2347,118 +2308,79 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        DS.s12,
-        DS.s10,
-        DS.s12,
-        DS.s10 + MediaQuery.of(context).padding.bottom,
+        DS.s20,
+        DS.s14,
+        DS.s20,
+        DS.s14 + MediaQuery.of(context).padding.bottom,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: DS.surface,
-        border: Border(top: BorderSide(color: DS.border, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
-          ),
-        ],
+        border: Border(top: BorderSide(color: Color(0xFFEFEFEF))),
       ),
       child: Row(
         children: [
-          // Palette button
+          // Question palette — lavender square with a grid icon
           _NavIconBtn(
-            icon: Icons.apps_rounded,
+            icon: LucideIcons.grid3x3,
             onTap: onPalette,
             tooltip: 'Question palette',
           ),
-          const SizedBox(width: DS.s8),
 
-          // Prev button
+          // Previous (kept, styled to match the palette button)
           if (onPrev != null) ...[
+            const SizedBox(width: DS.s10),
             _NavIconBtn(
-              icon: Icons.arrow_back_ios_new_rounded,
+              icon: LucideIcons.chevronLeft,
               onTap: onPrev!,
               tooltip: 'Previous',
-              size: 15,
             ),
-            const SizedBox(width: DS.s8),
           ],
 
           const Spacer(),
 
-          // Next / Submit
+          // Save & Next — navy rectangle; green "Submit" on the last question
           SizedBox(
-            height: 44,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: submitting
-                    ? null
-                    : isLast
-                    ? const LinearGradient(
-                        colors: [DS.success, Color(0xFF059669)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFF2B5BB8), DS.primary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: submitting ? null : onNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isLast ? DS.success : DS.navy,
+                disabledBackgroundColor: DS.border,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: DS.s20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              child: submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
                       ),
-                color: submitting ? DS.border : null,
-                borderRadius: BorderRadius.circular(DS.radiusMd),
-                boxShadow: submitting
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: (isLast ? DS.success : DS.primary).withValues(
-                            alpha: 0.28,
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isLast ? 'Submit' : 'Save & Next',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                        ),
+                        const SizedBox(width: DS.s10),
+                        Icon(
+                          isLast
+                              ? LucideIcons.circleCheck
+                              : LucideIcons.moveRight,
+                          size: 18,
                         ),
                       ],
-              ),
-              child: ElevatedButton(
-                onPressed: submitting ? null : onNext,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  disabledBackgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: DS.s20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(DS.radiusMd),
-                  ),
-                ),
-                child: submitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            isLast ? 'Submit' : 'Save & Next',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: DS.s6),
-                          Icon(
-                            isLast
-                                ? Icons.check_circle_rounded
-                                : Icons.arrow_forward_rounded,
-                            size: 16,
-                          ),
-                        ],
-                      ),
-              ),
+                    ),
             ),
           ),
         ],
@@ -2471,13 +2393,11 @@ class _NavIconBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final String tooltip;
-  final double size;
 
   const _NavIconBtn({
     required this.icon,
     required this.onTap,
     required this.tooltip,
-    this.size = 18,
   });
 
   @override
@@ -2487,14 +2407,13 @@ class _NavIconBtn extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: DS.surfaceVariant,
-            borderRadius: BorderRadius.circular(DS.radiusSm),
-            border: Border.all(color: DS.border, width: 1),
+            color: DS.lavender,
+            borderRadius: BorderRadius.circular(4),
           ),
-          child: Icon(icon, size: size, color: DS.textSecondary),
+          child: Icon(icon, size: 20, color: DS.navy),
         ),
       ),
     );
@@ -3284,7 +3203,7 @@ class _LoadingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: DS.background,
+    backgroundColor: DS.canvas,
     appBar: AppBar(
       backgroundColor: DS.surface,
       elevation: 0,
@@ -3311,7 +3230,7 @@ class _ErrorScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: DS.background,
+    backgroundColor: DS.canvas,
     body: Center(
       child: Padding(
         padding: const EdgeInsets.all(DS.s32),

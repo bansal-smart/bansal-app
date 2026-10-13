@@ -2,9 +2,13 @@ import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/error/app_exception.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/widgets/app_background.dart';
+import '../../core/widgets/motion.dart';
 import '../../skeleton_loading/test_result_skeleton.dart';
 import 'data/scorecard_pdf.dart';
 
@@ -361,130 +365,124 @@ class _TestResultScreenState extends State<TestResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The bubble background plays its fade-in when the result opens, as on
+    // the main tabs. The navy app bar sits over it.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: DS.primary,
-          elevation: 0,
-          leading: GestureDetector(
-            onTap: () => context.go('/tests'),
-            child: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.white,
-              size: 20,
+      child: AppBackground(
+        introKey: widget.attemptId,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: R.headerNavy,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            toolbarHeight: 64,
+            leading: IconButton(
+              tooltip: 'Back to tests',
+              onPressed: () => context.go('/tests'),
+              icon: const Icon(
+                LucideIcons.chevronLeft,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            titleSpacing: 4,
+            title: const Text(
+              'Result',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          title: const Text(
-            'Result',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-          ),
+          body: _loading
+              ? const TestResultSkeleton()
+              : _error != null
+              ? _ErrorState(message: _error!, onRetry: _load)
+              : _buildContent(_bundle!),
         ),
-        body: _loading
-            ? const TestResultSkeleton()
-            : _error != null
-            ? _ErrorState(message: _error!, onRetry: _load)
-            : _buildContent(_bundle!),
       ),
     );
   }
 
   Widget _buildContent(TestResultBundle b) {
+    final sections = <Widget>[
+      _ScoreHero(bundle: b),
+      if (b.rank.excluded)
+        const _ExcludedCard()
+      else if (!b.rank.released)
+        _LockedRankCard(
+          remaining: _remaining,
+          releaseAt: b.rank.releaseAt ?? b.endsAt,
+        )
+      else
+        _RankCard(rank: b.rank),
+      _StatGrid(bundle: b),
+      _ScorecardCard(bundle: b),
+      _SectionCard(
+        title: 'Answer Breakdown',
+        child: _AnswerBreakdownChart(bundle: b),
+      ),
+      if (b.subjects.length > 1)
+        _SectionCard(
+          title: 'Subject-wise score vs max',
+          outlined: true,
+          child: _SubjectBarChart(subjects: b.subjects),
+        ),
+      _SubjectBreakdownCard(subjects: b.subjects),
+      _OutlineAction(
+        icon: LucideIcons.listChecks,
+        label: 'View detailed response sheet',
+        color: R.headerNavy,
+        onPressed: () => context.push('/test-response-sheet/${b.attemptId}'),
+      ),
+      _ReattemptCard(
+        status: _reattemptStatus,
+        testId: b.testId,
+        onSubmit: _submitReattemptRequest,
+      ),
+      Column(
+        children: [
+          _OutlineAction(
+            label: 'Back to Tests',
+            color: DS.textPrimary,
+            onPressed: () => context.go('/tests'),
+          ),
+          const SizedBox(height: DS.s10),
+          _FilledAction(
+            label: 'Go to Dashboard',
+            onPressed: () => context.go('/home'),
+          ),
+        ],
+      ),
+    ];
+
     return RefreshIndicator(
       color: DS.primary,
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(DS.s16, DS.s16, DS.s16, DS.s32),
+        padding: const EdgeInsets.fromLTRB(DS.s16, DS.s20, DS.s16, DS.s32),
         children: [
-          _ScoreHero(bundle: b),
-          const SizedBox(height: DS.s16),
-          if (b.rank.excluded)
-            const _ExcludedCard()
-          else if (!b.rank.released)
-            _LockedRankCard(
-              remaining: _remaining,
-              releaseAt: b.rank.releaseAt ?? b.endsAt,
-            )
-          else
-            _RankCard(rank: b.rank),
-          const SizedBox(height: DS.s16),
-          _StatGrid(bundle: b),
-          const SizedBox(height: DS.s16),
-          _ScorecardCard(bundle: b),
-          const SizedBox(height: DS.s16),
-          _SectionCard(
-            title: 'Answer breakdown',
-            child: _AnswerBreakdownChart(bundle: b),
-          ),
-          const SizedBox(height: DS.s16),
-          if (b.subjects.length > 1)
-            _SectionCard(
-              title: 'Subject-wise score vs max',
-              child: _SubjectBarChart(subjects: b.subjects),
-            ),
-          if (b.subjects.length > 1) const SizedBox(height: DS.s16),
-          _SubjectBreakdownCard(subjects: b.subjects),
-          const SizedBox(height: DS.s16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () =>
-                  context.push('/test-response-sheet/${b.attemptId}'),
-              icon: const Icon(Icons.list_alt_rounded, size: 18),
-              label: const Text('View detailed response sheet'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: DS.primary,
-                side: const BorderSide(color: DS.primary),
-                padding: const EdgeInsets.symmetric(vertical: DS.s14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DS.radiusMd),
-                ),
+          for (var i = 0; i < sections.length; i++)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : DS.s16),
+              // Sections settle in one after another, like the main tabs.
+              child: sections[i].withMotion(
+                context,
+                (a) => a
+                    .fadeIn(
+                      delay: Duration(milliseconds: 70 * (i < 6 ? i : 6)),
+                      duration: 450.ms,
+                      curve: Curves.easeOut,
+                    )
+                    .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
               ),
             ),
-          ),
-          const SizedBox(height: DS.s16),
-          _ReattemptCard(
-            status: _reattemptStatus,
-            testId: b.testId,
-            onSubmit: _submitReattemptRequest,
-          ),
-          const SizedBox(height: DS.s16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => context.go('/tests'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: DS.textPrimary,
-                side: const BorderSide(color: DS.border),
-                padding: const EdgeInsets.symmetric(vertical: DS.s14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DS.radiusMd),
-                ),
-              ),
-              child: const Text('Back to Tests'),
-            ),
-          ),
-          const SizedBox(height: DS.s10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => context.go('/home'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DS.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: DS.s14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DS.radiusMd),
-                ),
-              ),
-              child: const Text('Go to Dashboard'),
-            ),
-          ),
         ],
       ),
     );
@@ -492,22 +490,45 @@ class _TestResultScreenState extends State<TestResultScreen> {
 }
 
 // ─────────────────────────────────────────────
-// SCORE HERO
+// RESULT DESIGN TOKENS (Figma result screen)
+// ─────────────────────────────────────────────
+abstract class R {
+  static const headerNavy = Color(0xFF14307A); // app bar + score card
+  static const buttonNavy = Color(0xFF1E3A8A); // primary buttons
+  static const paleBlue = Color(0xFF8FA8E6); // secondary text on navy
+  static const ink = Color(0xFF111111);
+  static const cardBorder = Color(0xFFECECEC);
+  static const correct = Color(0xFF16A34A);
+  static const wrong = Color(0xFFEF3B3B);
+  static const unattempted = Color(0xFF8E9DB5);
+  static const scoreBar = Color(0xFFF26B1D);
+
+  static BoxDecoration card({bool outlined = false}) => BoxDecoration(
+    color: DS.surface,
+    borderRadius: BorderRadius.circular(14),
+    border: Border.all(color: outlined ? const Color(0xFFDADDE3) : cardBorder),
+    boxShadow: const [
+      BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 3)),
+    ],
+  );
+}
+
+// ─────────────────────────────────────────────
+// SCORE HERO — navy card with verdict pill, score and three stats
 // ─────────────────────────────────────────────
 class _ScoreHero extends StatelessWidget {
   final TestResultBundle bundle;
   const _ScoreHero({required this.bundle});
 
-  (String, Color) get _rankPill {
+  String get _verdict {
     final acc = bundle.accuracy;
-    if (acc >= 80) return ('Excellent', DS.success);
-    if (acc >= 60) return ('Good', DS.primary);
-    if (acc >= 40) return ('Keep Going', DS.warning);
-    return ('Needs Work', DS.error);
+    if (acc >= 80) return 'Excellent';
+    if (acc >= 60) return 'Good';
+    if (acc >= 40) return 'Keep Going';
+    return 'Needs Work';
   }
 
-  String _fmtScore(double v) =>
-      v.truncateToDouble() == v ? v.toStringAsFixed(1) : v.toStringAsFixed(1);
+  String _fmtScore(double v) => v.toStringAsFixed(1);
 
   String _fmtDuration(int seconds) {
     final m = seconds ~/ 60;
@@ -517,109 +538,110 @@ class _ScoreHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, _) = _rankPill;
     final perQ = bundle.totalQuestions == 0
         ? 0
         : (bundle.timeSpentSeconds / bundle.totalQuestions).round();
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(DS.s24),
+      padding: const EdgeInsets.fromLTRB(DS.s16, DS.s14, DS.s16, DS.s20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2B5BB8), DS.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(DS.radiusXl),
+        color: R.headerNavy,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3314307A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
+          // Verdict pill
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: DS.s12,
-              vertical: DS.s6,
+              horizontal: DS.s14,
+              vertical: DS.s4,
             ),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.workspace_premium_rounded,
-                  color: Colors.white,
-                  size: 14,
-                ),
+                const Icon(LucideIcons.award, color: Colors.white, size: 15),
                 const SizedBox(width: DS.s6),
                 Text(
-                  label.toUpperCase(),
+                  _verdict.toUpperCase(),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: DS.s14),
+          const SizedBox(height: DS.s12),
           Text(
             bundle.testName,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 18,
+              height: 1.3,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: DS.s16),
-          Text(
+          const SizedBox(height: DS.s8),
+          const Text(
             'Your score',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: 13,
+              color: R.paleBlue,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: DS.s4),
+          const SizedBox(height: DS.s2),
           Text(
             _fmtScore(bundle.score),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 44,
-              fontWeight: FontWeight.w900,
-              height: 1,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
             ),
           ),
           Text(
             'out of ${_fmtScore(bundle.totalMarks)}',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: 13,
+            style: const TextStyle(
+              color: R.paleBlue,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: DS.s20),
+          const SizedBox(height: DS.s24),
           Row(
             children: [
               Expanded(
                 child: _HeroStat(
-                  icon: Icons.gps_fixed_rounded,
+                  icon: LucideIcons.crosshair,
                   label: 'Accuracy',
                   value: '${bundle.accuracy.round()}%',
                 ),
               ),
               Expanded(
                 child: _HeroStat(
-                  icon: Icons.schedule_rounded,
+                  icon: LucideIcons.clock,
                   label: 'Time',
                   value: '${bundle.timeSpentSeconds ~/ 60}m',
                 ),
               ),
               Expanded(
                 child: _HeroStat(
-                  icon: Icons.trending_up_rounded,
+                  icon: LucideIcons.trendingUp,
                   label: 'Percentile',
                   value: bundle.rank.percentile != null
                       ? bundle.rank.percentile!.toStringAsFixed(1)
@@ -628,12 +650,14 @@ class _ScoreHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: DS.s14),
+          const SizedBox(height: DS.s16),
           Text(
             'Completed in ${_fmtDuration(bundle.timeSpentSeconds)} · ~${perQ}s/Q',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 12,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: R.paleBlue,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -657,22 +681,22 @@ class _HeroStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.85), size: 18),
-        const SizedBox(height: DS.s6),
+        Icon(icon, color: Colors.white, size: 20),
+        const SizedBox(height: DS.s4),
         Text(
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: DS.s2),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 11,
+          style: const TextStyle(
+            color: R.paleBlue,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -713,35 +737,26 @@ class _LockedRankCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(DS.s20),
-      decoration: BoxDecoration(
-        color: DS.surfaceVariant,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border, style: BorderStyle.solid),
-      ),
+      decoration: R.card(),
       child: Column(
         children: [
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-              color: DS.surface,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE6ECF8),
               shape: BoxShape.circle,
-              border: Border.all(color: DS.border),
             ),
-            child: const Icon(
-              Icons.lock_outline_rounded,
-              color: DS.textSecondary,
-              size: 20,
-            ),
+            child: const Icon(LucideIcons.lock, color: R.headerNavy, size: 20),
           ),
           const SizedBox(height: DS.s12),
           const Text(
             'Rank & comparison unlock after the test window closes',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: DS.textPrimary,
+              color: R.ink,
               height: 1.4,
             ),
           ),
@@ -750,7 +765,7 @@ class _LockedRankCard extends StatelessWidget {
             Text(
               'Releases on ${_fmtDate(releaseAt!)} · in ${_fmtCountdown(remaining)}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: DS.textSecondary),
+              style: const TextStyle(fontSize: 12.5, color: DS.textSecondary),
             ),
           ],
         ],
@@ -770,27 +785,50 @@ class _ExcludedCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(DS.s16),
-      decoration: BoxDecoration(
-        color: DS.warningSurface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.warning.withValues(alpha: 0.3)),
-      ),
-      child: Row(
+      decoration: R.card().copyWith(color: DS.warningSurface),
+      child: const Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: DS.warning, size: 20),
-          const SizedBox(width: DS.s10),
-          const Expanded(
+          Icon(LucideIcons.info, color: DS.warning, size: 20),
+          SizedBox(width: DS.s10),
+          Expanded(
             child: Text(
               'This attempt has been excluded from ranking and comparison by an admin.',
-              style: TextStyle(
-                fontSize: 12.5,
-                color: DS.textPrimary,
-                height: 1.4,
-              ),
+              style: TextStyle(fontSize: 13, color: R.ink, height: 1.4),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Two-column grid of equal-height white cards (rank + answer stats).
+class _CardGrid extends StatelessWidget {
+  final List<Widget> children;
+  const _CardGrid({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var r = 0; r < children.length; r += 2) ...[
+          if (r > 0) const SizedBox(height: DS.s12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: children[r]),
+                const SizedBox(width: DS.s12),
+                Expanded(
+                  child: r + 1 < children.length
+                      ? children[r + 1]
+                      : const SizedBox(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -805,56 +843,55 @@ class _RankCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('Your Rank', rank.rank != null ? '#${rank.rank}' : '—', DS.primary),
-      ('Total Attempts', '${rank.totalAttempts ?? 0}', DS.indigo),
-      ('Topper Score', rank.topperScore?.toStringAsFixed(1) ?? '—', DS.success),
+      (rank.rank != null ? '#${rank.rank}' : '—', 'Your Rank', R.headerNavy),
+      ('${rank.totalAttempts ?? 0}', 'Total Attempts', DS.indigo),
       (
-        'Average Score',
+        rank.topperScore?.toStringAsFixed(1) ?? '—',
+        'Topper Score',
+        const Color(0xFF14A37F),
+      ),
+      (
         rank.averageScore?.toStringAsFixed(1) ?? '—',
-        DS.warning,
+        'Average Score',
+        DS.orange,
       ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: DS.s10,
-        mainAxisSpacing: DS.s10,
-        childAspectRatio: 2.2,
-      ),
-      itemBuilder: (_, i) {
-        final (label, value, color) = items[i];
-        return Container(
-          padding: const EdgeInsets.all(DS.s14),
-          decoration: BoxDecoration(
-            color: DS.surface,
-            borderRadius: BorderRadius.circular(DS.radiusMd),
-            border: Border.all(color: DS.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: color,
+    return _CardGrid(
+      children: [
+        for (final (value, label, color) in items)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DS.s14,
+              vertical: DS.s20,
+            ),
+            decoration: R.card(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
                 ),
-              ),
-              const SizedBox(height: DS.s2),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 11, color: DS.textSecondary),
-              ),
-            ],
+                const SizedBox(height: DS.s2),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: R.ink,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+      ],
     );
   }
 }
@@ -869,86 +906,67 @@ class _StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
+      (LucideIcons.check, R.correct, '${bundle.correctAnswers}', 'CORRECT'),
+      (LucideIcons.x, R.wrong, '${bundle.wrong}', 'WRONG'),
       (
-        Icons.check_circle_rounded,
-        DS.success,
-        DS.successSurface,
-        '${bundle.correctAnswers}',
-        'CORRECT',
-      ),
-      (
-        Icons.cancel_rounded,
-        DS.error,
-        DS.errorSurface,
-        '${bundle.wrong}',
-        'WRONG',
-      ),
-      (
-        Icons.remove_circle_outline_rounded,
-        DS.muted,
-        DS.surfaceVariant,
+        LucideIcons.minus,
+        const Color(0xFF94A3B8),
         '${bundle.unattempted}',
         'UNATTEMPTED',
       ),
-      (
-        Icons.track_changes_rounded,
-        DS.indigo,
-        DS.indigoLight,
-        '${bundle.totalQuestions}',
-        'TOTAL',
-      ),
+      (LucideIcons.target, DS.indigo, '${bundle.totalQuestions}', 'TOTAL'),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: DS.s10,
-        mainAxisSpacing: DS.s10,
-        childAspectRatio: 1.7,
-      ),
-      itemBuilder: (_, i) {
-        final (icon, color, bg, value, label) = items[i];
-        return Container(
-          padding: const EdgeInsets.all(DS.s14),
-          decoration: BoxDecoration(
-            color: DS.surface,
-            borderRadius: BorderRadius.circular(DS.radiusLg),
-            border: Border.all(color: DS.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                child: Icon(icon, color: color, size: 16),
-              ),
-              const SizedBox(height: DS.s8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: DS.textPrimary,
+    return _CardGrid(
+      children: [
+        for (final (icon, color, value, label) in items)
+          Container(
+            padding: const EdgeInsets.fromLTRB(DS.s14, DS.s10, DS.s14, DS.s14),
+            decoration: R.card(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Filled status disc with a white glyph
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.25),
+                      width: 3,
+                      strokeAlign: BorderSide.strokeAlignOutside,
+                    ),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 13),
                 ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: DS.textSecondary,
+                const SizedBox(height: DS.s8),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: R.ink,
+                    height: 1.1,
+                  ),
                 ),
-              ),
-            ],
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: R.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+      ],
     );
   }
 }
@@ -990,58 +1008,31 @@ class _ScorecardCardState extends State<_ScorecardCard> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(DS.s16),
-      decoration: BoxDecoration(
-        color: DS.surfaceVariant,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-      ),
+      padding: const EdgeInsets.fromLTRB(DS.s14, DS.s14, DS.s14, DS.s16),
+      decoration: R.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Your Scorecard',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 19,
               fontWeight: FontWeight.w800,
-              color: DS.textPrimary,
+              color: R.ink,
             ),
           ),
-          const SizedBox(height: DS.s4),
+          const SizedBox(height: DS.s2),
           const Text(
             'Download a printable PDF of your performance.',
-            style: TextStyle(
-              fontSize: 12,
-              color: DS.textSecondary,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 13, color: R.ink, height: 1.4),
           ),
           const SizedBox(height: DS.s14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
+          Center(
+            child: _FilledAction(
+              label: _generating ? 'Preparing…' : 'Download Scorecard PDF',
+              icon: LucideIcons.download,
+              busy: _generating,
               onPressed: _generating ? null : _download,
-              icon: _generating
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.download_rounded, size: 18),
-              label: Text(
-                _generating ? 'Preparing…' : 'Download Scorecard PDF',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DS.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: DS.s12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DS.radiusMd),
-                ),
-              ),
             ),
           ),
         ],
@@ -1056,30 +1047,31 @@ class _ScorecardCardState extends State<_ScorecardCard> {
 class _SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
-  const _SectionCard({required this.title, required this.child});
+  final bool outlined;
+  const _SectionCard({
+    required this.title,
+    required this.child,
+    this.outlined = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(DS.s16),
-      decoration: BoxDecoration(
-        color: DS.surface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border),
-      ),
+      padding: const EdgeInsets.fromLTRB(DS.s20, DS.s16, DS.s20, DS.s16),
+      decoration: R.card(outlined: outlined),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: const TextStyle(
-              fontSize: 14.5,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: DS.textPrimary,
+              color: R.ink,
             ),
           ),
-          const SizedBox(height: DS.s16),
+          const SizedBox(height: DS.s14),
           child,
         ],
       ),
@@ -1110,49 +1102,33 @@ class _AnswerBreakdownChart extends StatelessWidget {
       );
     }
 
+    PieChartSectionData slice(double value, Color color) =>
+        PieChartSectionData(value: value, color: color, title: '', radius: 52);
+
     return Column(
       children: [
         SizedBox(
-          height: 180,
+          height: 190,
           child: PieChart(
             PieChartData(
-              sectionsSpace: 2,
-              centerSpaceRadius: 44,
+              sectionsSpace: 1.5,
+              centerSpaceRadius: 40,
+              startDegreeOffset: -2,
               sections: [
-                if (correct > 0)
-                  PieChartSectionData(
-                    value: correct,
-                    color: DS.success,
-                    title: '',
-                    radius: 46,
-                  ),
-                if (wrong > 0)
-                  PieChartSectionData(
-                    value: wrong,
-                    color: DS.error,
-                    title: '',
-                    radius: 46,
-                  ),
-                if (unattempted > 0)
-                  PieChartSectionData(
-                    value: unattempted,
-                    color: DS.muted,
-                    title: '',
-                    radius: 46,
-                  ),
+                if (correct > 0) slice(correct, R.correct),
+                if (wrong > 0) slice(wrong, R.wrong),
+                if (unattempted > 0) slice(unattempted, R.unattempted),
               ],
             ),
           ),
         ),
         const SizedBox(height: DS.s14),
-        Wrap(
-          spacing: DS.s16,
-          runSpacing: DS.s8,
-          alignment: WrapAlignment.center,
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _LegendDot(color: DS.success, label: 'Correct'),
-            _LegendDot(color: DS.error, label: 'Wrong'),
-            _LegendDot(color: DS.muted, label: 'Unattempted'),
+            _LegendDot(color: R.correct, label: 'CORRECT'),
+            _LegendDot(color: R.wrong, label: 'WRONG'),
+            _LegendDot(color: R.unattempted, label: 'UNATTEMPTED'),
           ],
         ),
       ],
@@ -1171,17 +1147,21 @@ class _LegendDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 11,
+          height: 11,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: DS.s6),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: DS.textSecondary),
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: R.ink,
+          ),
         ),
       ],
     );
@@ -1202,92 +1182,139 @@ class _SubjectBarChart extends StatelessWidget {
       (m, s) => [m, s.score, s.maxScore].reduce((a, b) => a > b ? a : b),
     );
 
+    final interval = (maxY / 4).clamp(1, double.infinity).toDouble();
+    const leftAxisWidth = 32.0;
+
     return Column(
       children: [
         SizedBox(
-          height: 200,
-          child: BarChart(
-            BarChartData(
-              maxY: maxY * 1.15,
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: (maxY / 4).clamp(1, double.infinity),
-                getDrawingHorizontalLine: (_) =>
-                    const FlLine(color: DS.border, strokeWidth: 1),
-              ),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 32,
-                    getTitlesWidget: (v, _) => Text(
-                      v.toInt().toString(),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: DS.textSecondary,
+          height: 236,
+          // Each subject label gets exactly its own column's width, so long
+          // names ("Mathematics", "Mental Ability") never run into their
+          // neighbours.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final slotWidth =
+                  (constraints.maxWidth - leftAxisWidth) / subjects.length;
+              return BarChart(
+                BarChartData(
+                  maxY: maxY * 1.15,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: interval,
+                    getDrawingHorizontalLine: (_) =>
+                        const FlLine(color: Color(0xFFEDEDED), strokeWidth: 1),
+                  ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: const Border(
+                      bottom: BorderSide(color: Color(0xFFBDBDBD)),
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: leftAxisWidth,
+                        interval: interval,
+                        getTitlesWidget: (v, meta) {
+                          // Hide the padded top value (e.g. "92") — it isn't a
+                          // gridline and crowds the first real label.
+                          final onGrid =
+                              (v / interval - (v / interval).round()).abs() <
+                              1e-6;
+                          if (v == meta.max && !onGrid) {
+                            return const SizedBox.shrink();
+                          }
+                          return Text(
+                            v.toInt().toString(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: DS.textSecondary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        // Room for two lines ("Mental / Ability").
+                        reservedSize: 40,
+                        getTitlesWidget: (v, _) {
+                          final i = v.toInt();
+                          if (i < 0 || i >= subjects.length) {
+                            return const SizedBox.shrink();
+                          }
+                          // One word per line; a single long word shrinks just
+                          // enough to fit its column instead of overlapping.
+                          final label = subjects[i].subject
+                              .trim()
+                              .split(RegExp(r'\s+'))
+                              .join('\n');
+                          return Padding(
+                            padding: const EdgeInsets.only(top: DS.s6),
+                            child: SizedBox(
+                              width: slotWidth - 4,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.topCenter,
+                                child: Text(
+                                  label,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    height: 1.2,
+                                    color: DS.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (v, _) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= subjects.length)
-                        return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: DS.s6),
-                        child: Text(
-                          subjects[i].subject,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: DS.textSecondary,
+                  barGroups: [
+                    for (int i = 0; i < subjects.length; i++)
+                      BarChartGroupData(
+                        x: i,
+                        barsSpace: 2,
+                        barRods: [
+                          BarChartRodData(
+                            toY: subjects[i].score,
+                            color: R.scoreBar,
+                            width: 12,
+                            borderRadius: BorderRadius.circular(3),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                          BarChartRodData(
+                            toY: subjects[i].maxScore,
+                            color: R.unattempted,
+                            width: 12,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
-              ),
-              barGroups: [
-                for (int i = 0; i < subjects.length; i++)
-                  BarChartGroupData(
-                    x: i,
-                    barRods: [
-                      BarChartRodData(
-                        toY: subjects[i].score,
-                        color: DS.orange,
-                        width: 12,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      BarChartRodData(
-                        toY: subjects[i].maxScore,
-                        color: DS.muted,
-                        width: 12,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
+              );
+            },
           ),
         ),
         const SizedBox(height: DS.s14),
-        Wrap(
-          spacing: DS.s16,
+        const Wrap(
+          spacing: DS.s20,
           alignment: WrapAlignment.center,
-          children: const [
-            _LegendDot(color: DS.orange, label: 'score'),
-            _LegendDot(color: DS.muted, label: 'max'),
+          children: [
+            _ChartKey(color: R.scoreBar, label: 'score'),
+            _ChartKey(color: R.unattempted, label: 'max'),
           ],
         ),
       ],
@@ -1295,93 +1322,252 @@ class _SubjectBarChart extends StatelessWidget {
   }
 }
 
+/// Rounded-square key used under the bar chart.
+class _ChartKey extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _ChartKey({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+      const SizedBox(width: DS.s6),
+      Text(
+        label,
+        style: const TextStyle(fontSize: 12.5, color: DS.textSecondary),
+      ),
+    ],
+  );
+}
+
 // ─────────────────────────────────────────────
-// SUBJECT-WISE BREAKDOWN TABLE
+// SUBJECT-WISE BREAKDOWN — title above a white table card
 // ─────────────────────────────────────────────
 class _SubjectBreakdownCard extends StatelessWidget {
   final List<SubjectStat> subjects;
   const _SubjectBreakdownCard({required this.subjects});
 
+  static const _head = TextStyle(
+    fontSize: 11.5,
+    fontWeight: FontWeight.w600,
+    color: Color(0xFF4B5563),
+    letterSpacing: 0.2,
+  );
+  static const _cell = TextStyle(fontSize: 12.5, color: R.ink);
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(DS.s16),
+    // Subject column gets the most room; the three numeric columns share the
+    // rest equally, so the table fits the card width without scrolling.
+    Widget row(List<Widget> cells, {bool divider = true}) => Container(
+      padding: const EdgeInsets.symmetric(vertical: DS.s10),
       decoration: BoxDecoration(
-        color: DS.surface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border),
+        border: divider
+            ? const Border(bottom: BorderSide(color: Color(0xFFF0F0F0)))
+            : null,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Text(
+          Expanded(flex: 13, child: cells[0]),
+          Expanded(flex: 10, child: Center(child: cells[1])),
+          Expanded(flex: 9, child: Center(child: cells[2])),
+          Expanded(flex: 9, child: Center(child: cells[3])),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: DS.s14, bottom: DS.s8),
+          child: Text(
             'Subject-wise Breakdown',
             style: TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w800,
-              color: DS.textPrimary,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w700,
+              color: R.ink,
             ),
           ),
-          const SizedBox(height: DS.s14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowHeight: 32,
-              dataRowMinHeight: 40,
-              dataRowMaxHeight: 44,
-              horizontalMargin: 0,
-              columnSpacing: DS.s20,
-              headingTextStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: DS.textSecondary,
-              ),
-              dataTextStyle: const TextStyle(
-                fontSize: 12.5,
-                color: DS.textPrimary,
-              ),
-              columns: const [
-                DataColumn(label: Text('Subject')),
-                DataColumn(label: Text('Attempted')),
-                DataColumn(label: Text('Correct')),
-                DataColumn(label: Text('Accuracy')),
-                DataColumn(label: Text('Score')),
-              ],
-              rows: subjects
-                  .map(
-                    (s) => DataRow(
-                      cells: [
-                        DataCell(
-                          Text(
-                            s.subject,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        DataCell(Text('${s.attempted}/${s.total}')),
-                        DataCell(
-                          Text(
-                            '${s.correct}',
-                            style: const TextStyle(
-                              color: DS.success,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        DataCell(Text('${s.accuracy.round()}%')),
-                        DataCell(
-                          Text(
-                            '${s.score.toStringAsFixed(1)} / ${s.maxScore.toStringAsFixed(0)}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ],
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(DS.s10, DS.s14, DS.s10, DS.s8),
+          decoration: R.card(),
+          child: Column(
+            children: [
+              row(const [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text('SUBJECT', style: _head),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('ATTEMPTED', style: _head),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('CORRECT', style: _head),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('ACCURACY', style: _head),
+                ),
+              ], divider: false),
+              for (var i = 0; i < subjects.length; i++)
+                row([
+                  Text(
+                    subjects[i].subject,
+                    style: _cell.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                  Text(
+                    '${subjects[i].attempted} / ${subjects[i].total}',
+                    style: _cell,
+                  ),
+                  Text(
+                    '${subjects[i].correct}',
+                    style: _cell.copyWith(
+                      color: const Color(0xFF14A37F),
+                      fontWeight: FontWeight.w700,
                     ),
-                  )
-                  .toList(),
+                  ),
+                  Text(
+                    '${subjects[i].accuracy.round()}%',
+                    style: _cell.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ], divider: i < subjects.length - 1),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// ACTION BUTTONS
+// ─────────────────────────────────────────────
+class _FilledAction extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  const _FilledAction({
+    required this.label,
+    this.icon,
+    this.busy = false,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      child: SizedBox(
+        width: double.infinity,
+        height: 44,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: R.buttonNavy,
+            disabledBackgroundColor: R.buttonNavy.withValues(alpha: 0.6),
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
             ),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (busy)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              else if (icon != null)
+                Icon(icon, size: 18),
+              if (busy || icon != null) const SizedBox(width: DS.s10),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlineAction extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _OutlineAction({
+    required this.label,
+    this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      child: SizedBox(
+        width: double.infinity,
+        height: 44,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: DS.surface.withValues(alpha: 0.85),
+            foregroundColor: color,
+            side: const BorderSide(color: Color(0xFF6B7280)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 17),
+                const SizedBox(width: DS.s8),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1426,35 +1612,31 @@ class _ReattemptCardState extends State<_ReattemptCard> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(DS.s16),
-      decoration: BoxDecoration(
-        color: DS.surface,
-        borderRadius: BorderRadius.circular(DS.radiusLg),
-        border: Border.all(color: DS.border),
-      ),
+      padding: const EdgeInsets.fromLTRB(DS.s16, DS.s16, DS.s16, DS.s20),
+      decoration: R.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Re-attempt this test',
             style: TextStyle(
-              fontSize: 14.5,
+              fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: DS.textPrimary,
+              color: R.ink,
             ),
           ),
-          const SizedBox(height: DS.s6),
+          const SizedBox(height: DS.s10),
           const Text(
             'Want to take this test again? Submit a request — your admin will '
             'review and approve it. Once approved, you can start a fresh '
             'attempt from the test page.',
             style: TextStyle(
-              fontSize: 12.5,
-              color: DS.textSecondary,
-              height: 1.5,
+              fontSize: 14,
+              color: Color(0xFF6B7280),
+              height: 1.45,
             ),
           ),
-          const SizedBox(height: DS.s14),
+          const SizedBox(height: DS.s20),
           _buildAction(context),
         ],
       ),
@@ -1464,47 +1646,52 @@ class _ReattemptCardState extends State<_ReattemptCard> {
   Widget _buildAction(BuildContext context) {
     switch (widget.status) {
       case ReattemptStatus.pending:
-        return _StatusBadge(
-          icon: Icons.hourglass_top_rounded,
+        return const _StatusBadge(
+          icon: LucideIcons.hourglass,
           color: DS.warning,
           bg: DS.warningSurface,
           label: 'Pending admin approval',
         );
       case ReattemptStatus.approved:
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () =>
-                context.push('/test-instructions/${widget.testId}'),
-            icon: const Icon(Icons.check_circle_rounded, size: 16),
-            label: const Text('Approved — Start fresh attempt'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DS.success,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: DS.s12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(DS.radiusMd),
+        return Pressable(
+          child: SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: () =>
+                  context.push('/test-instructions/${widget.testId}'),
+              icon: const Icon(LucideIcons.circleCheck, size: 17),
+              label: const Text(
+                'Approved — Start fresh attempt',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DS.success,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
             ),
           ),
         );
       case ReattemptStatus.rejected:
       case ReattemptStatus.none:
+        const rejectedBadge = Padding(
+          padding: EdgeInsets.only(bottom: DS.s10),
+          child: _StatusBadge(
+            icon: LucideIcons.circleX,
+            color: DS.error,
+            bg: DS.errorSurface,
+            label: 'Last request rejected',
+          ),
+        );
         if (_showForm) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (widget.status == ReattemptStatus.rejected)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: DS.s10),
-                  child: _StatusBadge(
-                    icon: Icons.cancel_rounded,
-                    color: DS.error,
-                    bg: DS.errorSurface,
-                    label: 'Last request rejected',
-                  ),
-                ),
+              if (widget.status == ReattemptStatus.rejected) rejectedBadge,
               TextField(
                 controller: _reasonCtrl,
                 maxLines: 3,
@@ -1512,7 +1699,7 @@ class _ReattemptCardState extends State<_ReattemptCard> {
                 decoration: InputDecoration(
                   hintText: 'Reason for re-attempt (optional)',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(DS.radiusMd),
+                    borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: DS.border),
                   ),
                 ),
@@ -1520,44 +1707,29 @@ class _ReattemptCardState extends State<_ReattemptCard> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: _submitting
-                          ? null
-                          : () => setState(() => _showForm = false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: DS.textPrimary,
-                        side: const BorderSide(color: DS.border),
-                        padding: const EdgeInsets.symmetric(vertical: DS.s12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(DS.radiusMd),
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: _submitting
+                            ? null
+                            : () => setState(() => _showForm = false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: R.ink,
+                          side: const BorderSide(color: Color(0xFF6B7280)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
+                        child: const Text('Cancel'),
                       ),
-                      child: const Text('Cancel'),
                     ),
                   ),
                   const SizedBox(width: DS.s10),
                   Expanded(
-                    child: ElevatedButton(
+                    child: _FilledAction(
+                      label: 'Submit Request',
+                      busy: _submitting,
                       onPressed: _submitting ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: DS.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: DS.s12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(DS.radiusMd),
-                        ),
-                      ),
-                      child: _submitting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Submit Request'),
                     ),
                   ),
                 ],
@@ -1568,32 +1740,11 @@ class _ReattemptCardState extends State<_ReattemptCard> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.status == ReattemptStatus.rejected)
-              const Padding(
-                padding: EdgeInsets.only(bottom: DS.s10),
-                child: _StatusBadge(
-                  icon: Icons.cancel_rounded,
-                  color: DS.error,
-                  bg: DS.errorSurface,
-                  label: 'Last request rejected',
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => setState(() => _showForm = true),
-                icon: const Icon(Icons.replay_rounded, size: 16),
-                label: const Text('Request Re-attempt'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: DS.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: DS.s12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(DS.radiusMd),
-                  ),
-                ),
-              ),
+            if (widget.status == ReattemptStatus.rejected) rejectedBadge,
+            _FilledAction(
+              label: 'Request Re-attempt',
+              icon: LucideIcons.rotateCcw,
+              onPressed: () => setState(() => _showForm = true),
             ),
           ],
         );
@@ -1630,7 +1781,7 @@ class _StatusBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
               color: color,
             ),
@@ -1653,31 +1804,33 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(DS.s32),
+      child: Container(
+        margin: const EdgeInsets.all(DS.s20),
+        padding: const EdgeInsets.all(DS.s24),
+        decoration: R.card(),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
                 color: DS.errorSurface,
-                borderRadius: BorderRadius.circular(DS.radiusLg),
+                shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.assignment_late_outlined,
+                LucideIcons.fileText,
                 color: DS.error,
-                size: 36,
+                size: 30,
               ),
             ),
-            const SizedBox(height: DS.s20),
+            const SizedBox(height: DS.s16),
             const Text(
               'No Result Available',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: DS.textPrimary,
+                color: R.ink,
               ),
             ),
             const SizedBox(height: DS.s8),
@@ -1691,14 +1844,7 @@ class _ErrorState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: DS.s20),
-            ElevatedButton(
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DS.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Retry'),
-            ),
+            _FilledAction(label: 'Retry', onPressed: onRetry),
           ],
         ),
       ),
