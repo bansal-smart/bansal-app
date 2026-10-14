@@ -1175,6 +1175,40 @@ class _SubjectBarChart extends StatelessWidget {
   final List<SubjectStat> subjects;
   const _SubjectBarChart({required this.subjects});
 
+  static const double _labelSize = 10.5;
+  static const double _minLabelSize = 8;
+
+  static List<String> _words(String subject) =>
+      subject.trim().split(RegExp(r'\s+'));
+
+  /// One style for every axis label: the largest size (up to 10.5) at which
+  /// the longest single word across all subjects fits its column. Every
+  /// label then reads at the same size instead of each shrinking on its own.
+  TextStyle _labelStyle(BuildContext context, double columnWidth) {
+    const base = TextStyle(
+      fontSize: _labelSize,
+      height: 1.2,
+      color: DS.textSecondary,
+    );
+    var widest = 0.0;
+    for (final s in subjects) {
+      for (final word in _words(s.subject)) {
+        final painter = TextPainter(
+          text: TextSpan(text: word, style: base),
+          textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        if (painter.width > widest) widest = painter.width;
+        painter.dispose();
+      }
+    }
+    if (widest <= columnWidth || widest == 0) return base;
+    final fitted = _labelSize * columnWidth / widest;
+    return base.copyWith(
+      fontSize: fitted.clamp(_minLabelSize, _labelSize).toDouble(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final maxY = subjects.fold<double>(
@@ -1196,6 +1230,7 @@ class _SubjectBarChart extends StatelessWidget {
             builder: (context, constraints) {
               final slotWidth =
                   (constraints.maxWidth - leftAxisWidth) / subjects.length;
+              final labelStyle = _labelStyle(context, slotWidth - 4);
               return BarChart(
                 BarChartData(
                   maxY: maxY * 1.15,
@@ -1253,28 +1288,18 @@ class _SubjectBarChart extends StatelessWidget {
                           if (i < 0 || i >= subjects.length) {
                             return const SizedBox.shrink();
                           }
-                          // One word per line; a single long word shrinks just
-                          // enough to fit its column instead of overlapping.
-                          final label = subjects[i].subject
-                              .trim()
-                              .split(RegExp(r'\s+'))
-                              .join('\n');
+                          // One word per line, every label in the same size
+                          // (see _labelStyle) and top-aligned, so the row
+                          // reads evenly.
                           return Padding(
                             padding: const EdgeInsets.only(top: DS.s6),
                             child: SizedBox(
                               width: slotWidth - 4,
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.topCenter,
-                                child: Text(
-                                  label,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    height: 1.2,
-                                    color: DS.textSecondary,
-                                  ),
-                                ),
+                              child: Text(
+                                _words(subjects[i].subject).join('\n'),
+                                textAlign: TextAlign.center,
+                                softWrap: false,
+                                style: labelStyle,
                               ),
                             ),
                           );
