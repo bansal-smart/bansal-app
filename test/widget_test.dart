@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('placeholder smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: Text('Arambh'))),
+      const MaterialApp(home: Scaffold(body: Text('Bansal'))),
     );
-    expect(find.text('Arambh'), findsOneWidget);
+    expect(find.text('Bansal'), findsOneWidget);
   });
 }
